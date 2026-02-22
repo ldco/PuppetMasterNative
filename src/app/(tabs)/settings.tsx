@@ -12,15 +12,21 @@ import { BottomSheet } from '@/components/organisms/BottomSheet'
 import { ScreenHeader } from '@/components/organisms/ScreenHeader'
 import { useAuth } from '@/hooks/useAuth'
 import { useConfirm } from '@/hooks/useConfirm'
+import { useSettings } from '@/hooks/useSettings'
 import { useTheme } from '@/hooks/useTheme'
 
 export default function SettingsTabScreen() {
   const { colors, tokens, mode, setThemeMode } = useTheme()
   const { signOut } = useAuth()
   const { confirm } = useConfirm()
+  const {
+    analyticsEnabled,
+    notificationsEnabled,
+    resetSettings,
+    setAnalyticsEnabled,
+    setNotificationsEnabled
+  } = useSettings()
 
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true)
-  const [analyticsEnabled, setAnalyticsEnabled] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [showThemeHelp, setShowThemeHelp] = useState(false)
   const isMountedRef = useRef(true)
@@ -115,6 +121,13 @@ export default function SettingsTabScreen() {
           checked={analyticsEnabled}
           label="Share anonymous analytics"
           onToggle={setAnalyticsEnabled}
+        />
+        <Divider />
+        <Button
+          label="Reset local preferences"
+          onPress={resetSettings}
+          size="sm"
+          variant="outline"
         />
       </View>
 

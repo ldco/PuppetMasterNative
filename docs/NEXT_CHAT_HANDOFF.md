@@ -151,6 +151,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - Phase 3 kickoff has started:
   - initial `useProfile()` hook added (local/session-backed placeholder implementation)
   - Profile tab now uses `SkeletonCard` and `LoadingOverlay` during profile load/refresh placeholder states
+  - initial `useSettings()` hook added with local MMKV-backed preference persistence (notifications/analytics) and Settings tab integration
 
 ## Known Remaining Risks / TODO
 
@@ -187,6 +188,8 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 5. Phase 3 kickoff
    - `PMN-070` User Profile module kickoff is started (`useProfile()` + profile screen refinement)
    - next: separate profile/view-model state from placeholder timers and define real profile fetch/update contract
+   - `PMN-071` Settings module kickoff is started (`useSettings()` + persisted local preferences)
+   - next: define settings contract shape (local vs remote-sync), then move additional settings-screen state into the hook
 
 ## Canonical Planning Docs (read these first)
 
