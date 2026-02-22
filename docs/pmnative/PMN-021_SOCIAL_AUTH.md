@@ -37,6 +37,10 @@ Shipping `Google`, `Telegram`, and `VK` out of the box improves:
 - Milestone: **M1.2 — Authentication System**
 - Ticket: **`PMN-021`**
 
+## Related Docs
+
+- `docs/pmnative/PMN-021_AUTH_TEST_MATRIX.md` (full auth + social test matrix, including Telegram/VK gating coverage)
+
 ## Scope
 
 ### In Scope
@@ -60,6 +64,22 @@ Shipping `Google`, `Telegram`, and `VK` out of the box improves:
 
 ## UX Requirements
 
+### Social Auth Lifecycle Semantics (Important)
+
+For social providers (`Google`, `Telegram`, `VK`), PMNative should treat auth as a unified "continue with provider" flow:
+
+- first successful provider auth may create the PMNative account and sign the user in
+- later provider auth signs the same user in again
+
+This differs from email/password auth, where `register` and `login` are typically separate backend operations.
+
+Implications:
+
+- `login` and `register` screen social buttons are UI entry points / user intent
+- both should call provider-agnostic social auth actions
+- the provider/backend decides whether the user is first-time (create+sign-in) or returning (sign-in)
+- PMNative may still pass intent (`login` / `register`) for UX copy, analytics, and callback correlation
+
 ### Auth Screens
 
 Both `login` and `register` screens must expose social auth actions when enabled and supported.
@@ -70,6 +90,7 @@ Minimum UX behavior:
 - Preserve email/password auth as the default baseline flow
 - Prevent duplicate submissions while a social auth request is in-flight
 - Show clear, typed error messages (cancelled, unavailable, config missing, network error)
+- Successful social auth from either screen should end in an authenticated session (no forced "register then login" sequence)
 
 ### Expected Buttons (when supported)
 
@@ -128,6 +149,7 @@ Notes:
 - Screen code should call a provider-agnostic method (`signInWithSocial`)
 - Provider capability checks should prevent unsupported actions from rendering or executing
 - Errors should remain normalized (typed app-level auth/API errors)
+- Any `mode` / `intent` parameter is UI-level context, not a guarantee of separate provider-side register vs login operations
 
 ## Backend/Provider Strategy Notes
 
@@ -169,6 +191,7 @@ Follow-up docs work:
 - [ ] `login` screen renders social auth actions for configured/supported providers
 - [ ] `register` screen renders social auth actions for configured/supported providers
 - [ ] `Google` flow works end-to-end on the default backend path (Supabase-first)
+- [ ] Social auth success from either `login` or `register` screen results in an authenticated session (provider may create+sign-in on first use)
 - [ ] `Telegram` flow is supported via provider contract (implemented or explicitly capability-gated)
 - [ ] `VK` flow is supported via provider contract (implemented or explicitly capability-gated)
 - [ ] Successful social auth creates/restores a session and lands on protected app screens
@@ -205,4 +228,5 @@ Follow-up docs work:
 - Provider support varies by backend and project configuration; capability gating must be first-class.
 - OAuth callback/deep-link handling differs between native and web; keep the flow adapter-owned where possible.
 - Social login may return incomplete profile fields; auth/user normalization must remain tolerant and validated.
+- Avoid imposing email/password-style "register first, login later" assumptions onto social provider flows.
 - Avoid regressing existing email/password flows while extending `useAuth()`.

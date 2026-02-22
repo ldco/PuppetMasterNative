@@ -8,6 +8,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - `docs/NEXT_CHAT_HANDOFF.md` remains the canonical handoff doc in this repo (root `NEXT_CHAT_HANDOFF.md` now points here).
 - PMN-021 moved from scaffold-only social auth to a working Supabase Google OAuth redirect/callback implementation.
 - Follow-up review pass analyzed the newly added social auth code and fixed callback flow edge cases (see "Latest Review Pass").
+- Phase 2 component gaps (`PMN-060` skeleton/loading states + `BottomSheet`) were implemented and reviewed for runtime issues.
 
 ## Latest Review Pass (2026-02-22)
 
@@ -35,12 +36,37 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - Added tap-to-copy support in Admin Settings backend diagnostics for callback URL rows (runtime/web) using `expo-clipboard`.
 - Added copyable Supabase redirect allow-list snippet + Google social setup checklist entries in Admin Settings backend diagnostics.
 - Upgraded native Supabase social auth handoff to `expo-web-browser` auth sessions with `Linking.openURL` fallback.
+- Added `docs/pmnative/PMN-021_AUTH_TEST_MATRIX.md` covering full auth regression + PMN-021 social tests (including Telegram/VK gating) and documented social-auth "continue" semantics in `PMN-021_SOCIAL_AUTH.md`.
 - Verified type safety with `npm run typecheck` after the review fixes.
 
 ### Remaining risks / TODO
 - Native social auth now attempts `expo-web-browser` auth sessions first, but still needs real-device validation across platforms.
 - Real Supabase smoke test still required (Google provider config + deep-link/web callback validation).
 - Callback validation currently relies on locally stored pending context (expected), so direct/manual callback URL opens without a started flow will be rejected and redirected to login.
+
+## Component Review Pass (2026-02-22)
+
+### Scope of analysis
+- Reviewed newly added Phase 2 component work:
+  - `PMN-060` loading/skeleton states (`SkeletonBlock`, `SkeletonText`, `SkeletonCard`, `SkeletonList`, `LoadingOverlay`)
+  - `BottomSheet` organism (`PMN-054` remaining item)
+- Re-ran `npm run typecheck` after fixes
+
+### Issues discovered
+1. `SkeletonBlock` could throw on some runtimes (especially web) if `AccessibilityInfo.isReduceMotionEnabled()` is unavailable.
+2. `BottomSheet` swipe-close path could prematurely unmount internal state before the parent `visible` prop updated, causing controlled-component timing glitches.
+3. `BottomSheet` did not handle gesture termination, which could leave the sheet partially dragged if the responder was interrupted.
+
+### Fixes implemented
+- Added safe/cached reduce-motion detection in `SkeletonBlock` (guards missing API and avoids repeated per-instance runtime queries).
+- Fixed `BottomSheet` swipe-close flow to avoid premature internal unmount on gesture close.
+- Added `BottomSheet` pan responder termination handling to restore the sheet/backdrop when gestures are interrupted.
+- Verified type safety with `npm run typecheck`.
+
+### Remaining risks / TODO
+- `BottomSheet` is implemented as a reusable modal component but is not yet wired into any screen flow.
+- `BottomSheet` gesture handling is container-level; if future content includes nested scroll views, gesture coordination may need refinement.
+- Skeleton/loading components are implemented but not yet integrated into live loading states/screens.
 
 ## Ground Rules (important)
 
@@ -114,6 +140,9 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - Admin Settings backend diagnostics now includes copyable setup snippets:
   - Supabase redirect URL allow-list snippet (newline-separated)
   - Google social auth setup checklist (PMNative + Supabase)
+- Phase 2 component gaps are now implemented in code:
+  - `PMN-060`: `SkeletonText`, `SkeletonCard`, `SkeletonList`, `LoadingOverlay`
+  - `PMN-054` remaining organism: `BottomSheet`
 
 ## Known Remaining Risks / TODO
 
@@ -127,20 +156,16 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
    - sign out
 
 ### Next implementation priorities
-1. PMN-060 loading/skeleton states
-   - `SkeletonText`, `SkeletonCard`, `SkeletonList`, `LoadingOverlay`
-2. Remaining organism item
-   - `BottomSheet`
-3. Tests
+1. Tests
    - provider tests (`supabase`, `generic-rest`)
    - auth hydration/refresh edge cases
-4. Out-of-the-box social auth support
+2. Out-of-the-box social auth support
    - `Google` in `supabase` provider runtime support is now implemented (capability-gated)
    - next: real Supabase smoke test for callback/deep-link flow (native + web)
    - pending social auth context persistence/validation across redirect (provider/mode + TTL) is implemented
    - `Telegram` / `VK` support via capability gating + provider adapters
    - generic-rest code support for proposed social endpoints (docs are in place)
-5. Provider diagnostics / setup validation screen
+3. Provider diagnostics / setup validation screen
    - show active provider
    - show missing env vars
    - social auth status/callback route visibility is started; runtime callback URL preview is now shown
@@ -148,6 +173,11 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
    - callback URL copy-to-clipboard is implemented for runtime/web rows
    - copyable Supabase allow-list snippet + Google setup checklist are now implemented
    - next: real Supabase Google smoke test (web + native deep link) and document any platform-specific callback URL quirks (including auth-session vs fallback behavior)
+4. Phase 2 integration pass
+   - wire `Skeleton*` / `LoadingOverlay` into real loading states
+   - add first in-app usage of `BottomSheet`
+5. Phase 3 kickoff
+   - `PMN-070` User Profile module (`useProfile()` + profile screen refinement)
 
 ## Canonical Planning Docs (read these first)
 
@@ -155,6 +185,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - `docs/pmnative/PMNative_Implementation_Epic_—_Phases,_Milestones_&_MVP.md`
 - `docs/pmnative/PM_Framework_Deep_Analysis_—_DNA_Extraction_for_PMNative.md`
 - `docs/pmnative/PMN-021_SOCIAL_AUTH.md`
+- `docs/pmnative/PMN-021_AUTH_TEST_MATRIX.md`
 
 ## Current PMN-021 Code State (important)
 
@@ -166,6 +197,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
   - native flow attempts `WebBrowser.openAuthSessionAsync()` first, with `Linking.openURL` fallback
 - `src/app/(auth)/oauth-callback.tsx` completes social auth and routes to tabs/login with toast feedback.
 - `src/hooks/useAuth.ts` persists pending social auth context before redirect start and validates callback correlation (`provider` / `mode`, 15m TTL) before completion.
+- `SocialAuthMode` (`login` / `register`) is documented as UI intent/context; provider lifecycle may still be unified sign-in/sign-up.
 - `src/services/auth/providers/genericRestAuthProvider.ts` still returns `NOT_SUPPORTED` for social auth methods.
 - `src/pm-native.config.ts` includes `backend.socialAuth` flags (default all `false`); `google` must be enabled to expose the button and callback completion.
 - Next implementation target should be runtime validation + QA:

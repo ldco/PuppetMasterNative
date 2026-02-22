@@ -15,6 +15,7 @@ export interface AuthLogoutContext {
 }
 
 export type SocialAuthProvider = 'google' | 'telegram' | 'vk'
+// UI intent for social auth entry points. Providers may still implement this as a unified sign-in/sign-up flow.
 export type SocialAuthMode = 'login' | 'register'
 
 export interface AuthProviderCapabilities {

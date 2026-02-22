@@ -59,6 +59,10 @@ Supported role values:
 
 ## Social Auth (PMN-021 Preparation)
 
+For the exact end-to-end Google smoke-test setup (PMNative + Google Cloud + Supabase dashboard paths), use:
+
+- `docs/SUPABASE_GOOGLE_SOCIAL_AUTH_SMOKE_TEST_SETUP.md`
+
 PMNative's roadmap now includes out-of-the-box social auth support for:
 
 - `Google`
