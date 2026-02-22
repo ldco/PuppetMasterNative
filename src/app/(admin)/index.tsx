@@ -9,15 +9,13 @@ import { EmptyState } from '@/components/molecules/EmptyState'
 import { ListItem } from '@/components/molecules/ListItem'
 import { SearchBar } from '@/components/molecules/SearchBar'
 import { SectionHeader } from '@/components/molecules/SectionHeader'
-import { useConfig } from '@/hooks/useConfig'
+import { useAdmin } from '@/hooks/useAdmin'
 import { useTheme } from '@/hooks/useTheme'
-import { useAuthStore } from '@/stores/auth.store'
 
 export default function AdminIndexScreen() {
   const router = useRouter()
-  const config = useConfig()
   const { colors, tokens } = useTheme()
-  const user = useAuthStore((state) => state.user)
+  const { sections } = useAdmin()
   const [query, setQuery] = useState('')
 
   const styles = StyleSheet.create({
@@ -35,7 +33,6 @@ export default function AdminIndexScreen() {
     }
   })
 
-  const sections = user ? config.getAdminSectionsForRole(user.role) : []
   const normalizedQuery = query.trim().toLowerCase()
   const filteredSections = useMemo(() => {
     if (!normalizedQuery) {

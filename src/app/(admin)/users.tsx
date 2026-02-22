@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
 import { Avatar } from '@/components/atoms/Avatar'
@@ -10,40 +10,15 @@ import { ListItem } from '@/components/molecules/ListItem'
 import { SearchBar } from '@/components/molecules/SearchBar'
 import { SectionHeader } from '@/components/molecules/SectionHeader'
 import { SkeletonList } from '@/components/molecules/SkeletonList'
+import { useAdmin } from '@/hooks/useAdmin'
 import { useTheme } from '@/hooks/useTheme'
-import { useAuthStore } from '@/stores/auth.store'
 import { useToast } from '@/hooks/useToast'
-import type { Role } from '@/types/config'
-
-interface AdminUserRow {
-  id: string
-  name: string
-  email: string
-  role: Role
-}
 
 export default function AdminUsersScreen() {
   const { colors, tokens } = useTheme()
   const { toast } = useToast()
-  const user = useAuthStore((state) => state.user)
+  const { activeUser, isLoadingUsers: loadingUsers, refreshUsers, users } = useAdmin()
   const [query, setQuery] = useState('')
-  const [loadingUsers, setLoadingUsers] = useState(true)
-  const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const users = useMemo<AdminUserRow[]>(() => {
-    if (!user) {
-      return []
-    }
-
-    return [
-      {
-        id: user.id,
-        name: user.name ?? 'Unknown user',
-        email: user.email,
-        role: user.role
-      }
-    ]
-  }, [user])
 
   const normalizedQuery = query.trim().toLowerCase()
   const filteredUsers = useMemo(() => {
@@ -75,35 +50,12 @@ export default function AdminUsersScreen() {
     }
   })
 
-  useEffect(() => {
-    refreshTimeoutRef.current = setTimeout(() => {
-      setLoadingUsers(false)
-      refreshTimeoutRef.current = null
-    }, 450)
-
-    return () => {
-      if (refreshTimeoutRef.current) {
-        clearTimeout(refreshTimeoutRef.current)
-      }
-    }
-  }, [])
-
   const simulateRefresh = (): void => {
-    if (refreshTimeoutRef.current) {
-      clearTimeout(refreshTimeoutRef.current)
-      refreshTimeoutRef.current = null
-    }
-
-    setLoadingUsers(true)
+    refreshUsers()
     toast('Refreshing user directory (placeholder)', 'info')
-
-    refreshTimeoutRef.current = setTimeout(() => {
-      setLoadingUsers(false)
-      refreshTimeoutRef.current = null
-    }, 700)
   }
 
-  if (!user) {
+  if (!activeUser) {
     return (
       <View style={styles.screen}>
         <SectionHeader title="Admin Users" />
