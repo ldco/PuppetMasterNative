@@ -28,7 +28,13 @@ backend: {
         // socialStart: '/auth/social/start',
         // socialComplete: '/auth/social/complete'
       }
-    }
+    },
+    // PMN-071 (settings sync) optional extension:
+    // settings: {
+    //   endpoints: {
+    //     sync: '/settings/sync'
+    //   }
+    // }
   }
 }
 ```
@@ -347,3 +353,110 @@ Additional useful codes:
 - `PROVIDER_CONFIG_MISSING`
 
 PMNative should map these to user-friendly messages and avoid raw backend/provider error leaks.
+
+## Settings Sync (PMN-071) — Contract Extension
+
+This section defines the current PMNative contract used by `settingsSyncProvider` when `backend.provider = 'generic-rest'` and `backend.genericRest.settings.endpoints.sync` is configured.
+
+Status:
+
+- implemented in PMNative (generic-rest provider path)
+- backend endpoint remains app/backend responsibility
+
+### Endpoint Config
+
+PMNative config path:
+
+- `backend.genericRest.settings.endpoints.sync`
+
+Example:
+
+```ts
+backend: {
+  provider: 'generic-rest',
+  genericRest: {
+    auth: {
+      endpoints: {
+        login: '/auth/login',
+        register: '/auth/register',
+        logout: '/auth/logout',
+        session: '/auth/session',
+        refresh: '/auth/refresh'
+      }
+    },
+    settings: {
+      endpoints: {
+        sync: '/settings/sync'
+      }
+    }
+  }
+}
+```
+
+### Request (`POST /settings/sync`)
+
+PMNative sends a typed draft payload with schema marker:
+
+```json
+{
+  "schema": "pmnative.settings.sync/1",
+  "backendProvider": "generic-rest|supabase",
+  "actor": {
+    "id": "user-id",
+    "email": "admin@example.com",
+    "role": "admin"
+  },
+  "preferences": {
+    "notificationsEnabled": true,
+    "analyticsEnabled": false
+  },
+  "context": {
+    "source": "admin-settings",
+    "hasAdminModule": true,
+    "hasRemoteSyncEndpoint": true,
+    "mode": "preview"
+  }
+}
+```
+
+Notes:
+
+- `actor` may be `null` if no active user session exists (PMNative still allows preview/copy workflows).
+- `backendProvider` reflects PMNative runtime config and may be useful for backend diagnostics/logging.
+- `schema` should be used for versioning and future migration handling.
+
+### Success Response (Required Shape)
+
+Current PMNative generic-rest implementation requires:
+
+```json
+{
+  "syncedAt": "2026-02-22T12:34:56.000Z"
+}
+```
+
+Rules:
+
+- `syncedAt` must be a non-empty string
+- ISO 8601 UTC timestamp is strongly recommended
+
+### Error Shape (Recommended)
+
+Recommended backend error shape (same convention as auth endpoints):
+
+```json
+{
+  "message": "Settings sync failed",
+  "code": "SETTINGS_SYNC_FAILED"
+}
+```
+
+Useful machine codes:
+
+- `SETTINGS_SYNC_FAILED`
+- `SETTINGS_CONFLICT`
+- `SETTINGS_SCHEMA_UNSUPPORTED`
+- `SETTINGS_VALIDATION_FAILED`
+- `UNAUTHORIZED`
+
+PMNative currently maps generic-rest settings sync provider errors into typed `SettingsSyncProviderError` codes (`CONFIG` / `PROVIDER`) at the framework layer.

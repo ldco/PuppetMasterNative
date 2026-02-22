@@ -161,6 +161,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - `LICENSE` added (GNU GPL v3; `GPL-3.0-only`), and `package.json` now includes SPDX license metadata.
 - `docs/SUPABASE_SETUP.md` extended with PMN-021 social auth prep guidance (`Google` first, capability gating for `Telegram` / `VK`).
 - `docs/GENERIC_REST_AUTH_PROVIDER_CONTRACT.md` extended with a proposed PMN-021 social auth contract (`socialCapabilities`, `socialStart`, `socialComplete`).
+- `docs/GENERIC_REST_AUTH_PROVIDER_CONTRACT.md` now also documents the PMN-071 `generic-rest` settings sync contract extension (`backend.genericRest.settings.endpoints.sync`, `pmnative.settings.sync/1`, required `{ syncedAt }` response).
 - `docs/pmnative/PMNative_Implementation_Epic_—_Phases,_Milestones_&_MVP.md` updated to include social auth in MVP/auth milestone and `PMN-021`.
 - `docs/pmnative/PMN-021_SOCIAL_AUTH.md` added (scope, acceptance criteria, implementation order, risks).
 
@@ -251,7 +252,8 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
   - settings local-state architecture is now store-backed (`useSettingsStore`) and sync contract preview logic is split into `settingsSyncService`
   - provider-facing execution contract is now scaffolded (`settingsSyncProvider`)
   - `generic-rest` execution path is implemented and config-gated via `backend.genericRest.settings.endpoints.sync`
-  - next: document the generic-rest settings-sync endpoint contract (request/response/error schema), add tests, and implement a `supabase` adapter or explicit non-goal
+  - generic-rest settings-sync endpoint contract is now documented in `docs/GENERIC_REST_AUTH_PROVIDER_CONTRACT.md`
+  - next: add tests for `settingsSyncProvider` (`CONFIG` vs success/error mapping) and implement a `supabase` adapter or explicit non-goal
   - `PMN-074` Admin module kickoff is started (`useAdmin()` + existing admin screen integration)
   - service contract boundary is defined (`adminService`) and hidden global-state reads were removed; next: define admin directory/settings/roles API contracts and replace placeholder directory loading with provider-backed queries
 
