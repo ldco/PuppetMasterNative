@@ -4,10 +4,11 @@ import { StyleSheet, View } from 'react-native'
 import { Button } from '@/components/atoms/Button'
 import { Checkbox } from '@/components/atoms/Checkbox'
 import { Divider } from '@/components/atoms/Divider'
-import { Spinner } from '@/components/atoms/Spinner'
 import { Switch } from '@/components/atoms/Switch'
 import { Text } from '@/components/atoms/Text'
 import { ListItem } from '@/components/molecules/ListItem'
+import { LoadingOverlay } from '@/components/organisms/LoadingOverlay'
+import { BottomSheet } from '@/components/organisms/BottomSheet'
 import { ScreenHeader } from '@/components/organisms/ScreenHeader'
 import { useAuth } from '@/hooks/useAuth'
 import { useConfirm } from '@/hooks/useConfirm'
@@ -21,6 +22,7 @@ export default function SettingsTabScreen() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
   const [analyticsEnabled, setAnalyticsEnabled] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [showThemeHelp, setShowThemeHelp] = useState(false)
   const isMountedRef = useRef(true)
 
   useEffect(() => {
@@ -93,6 +95,12 @@ export default function SettingsTabScreen() {
           <Button label="System" variant="outline" onPress={() => setThemeMode('system')} />
           <Button label="Light" variant="outline" onPress={() => setThemeMode('light')} />
           <Button label="Dark" variant="outline" onPress={() => setThemeMode('dark')} />
+          <Button
+            label="Theme help"
+            variant="outline"
+            size="sm"
+            onPress={() => setShowThemeHelp(true)}
+          />
         </View>
       </View>
 
@@ -118,7 +126,26 @@ export default function SettingsTabScreen() {
           void handleLogoutPress()
         }}
       />
-      {loggingOut ? <Spinner overlay size="large" /> : null}
+      <LoadingOverlay label="Logging out..." visible={loggingOut} />
+
+      <BottomSheet
+        footer={
+          <Button
+            label="Close"
+            onPress={() => setShowThemeHelp(false)}
+            size="sm"
+            variant="outline"
+          />
+        }
+        onClose={() => setShowThemeHelp(false)}
+        subtitle="Theme mode affects all screens through PMNative design tokens."
+        title="Theme Mode Help"
+        visible={showThemeHelp}
+      >
+        <Text tone="secondary">
+          `System` follows the device setting. `Light` and `Dark` force a mode override stored in local app UI state.
+        </Text>
+      </BottomSheet>
     </View>
   )
 }

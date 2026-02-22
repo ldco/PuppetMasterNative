@@ -145,6 +145,9 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
   - `PMN-054` remaining organism: `BottomSheet`
 - Phase 2 integration pass has started:
   - Admin Settings "Sync settings with backend" placeholder now opens the new `BottomSheet` organism (first in-app usage)
+  - `SkeletonList` is now used in Admin Users placeholder loading/refresh state
+  - `LoadingOverlay` now replaces the logout spinner overlay in the user Settings tab
+  - second `BottomSheet` usage added in the user Settings tab (`Theme Mode Help`)
 
 ## Known Remaining Risks / TODO
 
@@ -176,8 +179,8 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
    - copyable Supabase allow-list snippet + Google setup checklist are now implemented
    - next: real Supabase Google smoke test (web + native deep link) and document any platform-specific callback URL quirks (including auth-session vs fallback behavior)
 4. Phase 2 integration pass
-   - wire `Skeleton*` / `LoadingOverlay` into real loading states
-   - first in-app `BottomSheet` usage is now wired in Admin Settings; next add a second usage in a data-heavy/user-facing flow
+   - `SkeletonList` and `LoadingOverlay` now have real in-app usages; next expand `SkeletonText`/`SkeletonCard` usage into additional screens
+   - `BottomSheet` now has admin + user-facing usages; next test nested scroll/gesture interactions once a scrollable sheet use case exists
 5. Phase 3 kickoff
    - `PMN-070` User Profile module (`useProfile()` + profile screen refinement)
 

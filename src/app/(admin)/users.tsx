@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
 import { Avatar } from '@/components/atoms/Avatar'
@@ -9,6 +9,7 @@ import { ErrorState } from '@/components/molecules/ErrorState'
 import { ListItem } from '@/components/molecules/ListItem'
 import { SearchBar } from '@/components/molecules/SearchBar'
 import { SectionHeader } from '@/components/molecules/SectionHeader'
+import { SkeletonList } from '@/components/molecules/SkeletonList'
 import { useTheme } from '@/hooks/useTheme'
 import { useAuthStore } from '@/stores/auth.store'
 import { useToast } from '@/hooks/useToast'
@@ -26,6 +27,8 @@ export default function AdminUsersScreen() {
   const { toast } = useToast()
   const user = useAuthStore((state) => state.user)
   const [query, setQuery] = useState('')
+  const [loadingUsers, setLoadingUsers] = useState(true)
+  const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const users = useMemo<AdminUserRow[]>(() => {
     if (!user) {
@@ -72,6 +75,34 @@ export default function AdminUsersScreen() {
     }
   })
 
+  useEffect(() => {
+    refreshTimeoutRef.current = setTimeout(() => {
+      setLoadingUsers(false)
+      refreshTimeoutRef.current = null
+    }, 450)
+
+    return () => {
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const simulateRefresh = (): void => {
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current)
+      refreshTimeoutRef.current = null
+    }
+
+    setLoadingUsers(true)
+    toast('Refreshing user directory (placeholder)', 'info')
+
+    refreshTimeoutRef.current = setTimeout(() => {
+      setLoadingUsers(false)
+      refreshTimeoutRef.current = null
+    }, 700)
+  }
+
   if (!user) {
     return (
       <View style={styles.screen}>
@@ -90,7 +121,7 @@ export default function AdminUsersScreen() {
     <View style={styles.screen}>
       <SectionHeader
         actionLabel="Refresh"
-        onActionPress={() => toast('User directory refresh placeholder', 'info')}
+        onActionPress={simulateRefresh}
         subtitle="Current bootstrap user directory."
         title="Admin Users"
       />
@@ -99,7 +130,9 @@ export default function AdminUsersScreen() {
         <View style={styles.searchRow}>
           <SearchBar onChangeText={setQuery} placeholder="Search users" value={query} />
         </View>
-        {filteredUsers.length === 0 ? (
+        {loadingUsers ? (
+          <SkeletonList bodyLinesPerItem={1} items={2} />
+        ) : filteredUsers.length === 0 ? (
           <EmptyState
             ctaLabel={query ? 'Clear search' : undefined}
             description={query ? `No users matched "${query}".` : 'No users are available yet.'}
