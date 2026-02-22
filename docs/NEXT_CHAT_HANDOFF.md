@@ -148,6 +148,9 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
   - `SkeletonList` is now used in Admin Users placeholder loading/refresh state
   - `LoadingOverlay` now replaces the logout spinner overlay in the user Settings tab
   - second `BottomSheet` usage added in the user Settings tab (`Theme Mode Help`)
+- Phase 3 kickoff has started:
+  - initial `useProfile()` hook added (local/session-backed placeholder implementation)
+  - Profile tab now uses `SkeletonCard` and `LoadingOverlay` during profile load/refresh placeholder states
 
 ## Known Remaining Risks / TODO
 
@@ -182,7 +185,8 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
    - `SkeletonList` and `LoadingOverlay` now have real in-app usages; next expand `SkeletonText`/`SkeletonCard` usage into additional screens
    - `BottomSheet` now has admin + user-facing usages; next test nested scroll/gesture interactions once a scrollable sheet use case exists
 5. Phase 3 kickoff
-   - `PMN-070` User Profile module (`useProfile()` + profile screen refinement)
+   - `PMN-070` User Profile module kickoff is started (`useProfile()` + profile screen refinement)
+   - next: separate profile/view-model state from placeholder timers and define real profile fetch/update contract
 
 ## Canonical Planning Docs (read these first)
 
