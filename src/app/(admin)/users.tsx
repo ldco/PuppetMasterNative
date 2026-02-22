@@ -10,6 +10,7 @@ import { ListItem } from '@/components/molecules/ListItem'
 import { SearchBar } from '@/components/molecules/SearchBar'
 import { SectionHeader } from '@/components/molecules/SectionHeader'
 import { SkeletonList } from '@/components/molecules/SkeletonList'
+import { LoadingOverlay } from '@/components/organisms/LoadingOverlay'
 import { useAdmin } from '@/hooks/useAdmin'
 import { useTheme } from '@/hooks/useTheme'
 import { useToast } from '@/hooks/useToast'
@@ -17,7 +18,14 @@ import { useToast } from '@/hooks/useToast'
 export default function AdminUsersScreen() {
   const { colors, tokens } = useTheme()
   const { toast } = useToast()
-  const { activeUser, isLoadingUsers: loadingUsers, refreshUsers, users } = useAdmin()
+  const {
+    activeUser,
+    isLoadingUsers: loadingUsers,
+    isRefreshingUsers,
+    refreshUsers,
+    users,
+    usersError
+  } = useAdmin()
   const [query, setQuery] = useState('')
 
   const normalizedQuery = query.trim().toLowerCase()
@@ -51,7 +59,7 @@ export default function AdminUsersScreen() {
   })
 
   const simulateRefresh = (): void => {
-    refreshUsers()
+    void refreshUsers()
     toast('Refreshing user directory (placeholder)', 'info')
   }
 
@@ -84,6 +92,13 @@ export default function AdminUsersScreen() {
         </View>
         {loadingUsers ? (
           <SkeletonList bodyLinesPerItem={1} items={2} />
+        ) : usersError && users.length === 0 ? (
+          <ErrorState
+            description={`${usersError} Retry after checking your session/provider configuration.`}
+            onRetry={simulateRefresh}
+            retryLabel="Retry refresh"
+            title="User directory unavailable"
+          />
         ) : filteredUsers.length === 0 ? (
           <EmptyState
             ctaLabel={query ? 'Clear search' : undefined}
@@ -112,6 +127,7 @@ export default function AdminUsersScreen() {
           </View>
         )}
       </Card>
+      <LoadingOverlay label="Refreshing users..." visible={isRefreshingUsers} />
     </View>
   )
 }

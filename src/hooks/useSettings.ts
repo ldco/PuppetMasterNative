@@ -1,10 +1,5 @@
-import { useEffect, useState } from 'react'
-
-import {
-  defaultSettingsPreferences,
-  settingsService,
-  type SettingsPreferences
-} from '@/services/settings.service'
+import type { SettingsPreferences } from '@/services/settings.service'
+import { useSettingsStore } from '@/stores/settings.store'
 
 interface UseSettingsResult extends SettingsPreferences {
   setNotificationsEnabled: (enabled: boolean) => void
@@ -13,22 +8,17 @@ interface UseSettingsResult extends SettingsPreferences {
 }
 
 export const useSettings = (): UseSettingsResult => {
-  const [preferences, setPreferences] = useState<SettingsPreferences>(() => settingsService.loadPreferences())
-
-  useEffect(() => {
-    settingsService.savePreferences(preferences)
-  }, [preferences])
+  const notificationsEnabled = useSettingsStore((state) => state.notificationsEnabled)
+  const analyticsEnabled = useSettingsStore((state) => state.analyticsEnabled)
+  const setNotificationsEnabled = useSettingsStore((state) => state.setNotificationsEnabled)
+  const setAnalyticsEnabled = useSettingsStore((state) => state.setAnalyticsEnabled)
+  const resetSettings = useSettingsStore((state) => state.resetSettings)
 
   return {
-    ...preferences,
-    setNotificationsEnabled: (enabled) => {
-      setPreferences((current) => ({ ...current, notificationsEnabled: enabled }))
-    },
-    setAnalyticsEnabled: (enabled) => {
-      setPreferences((current) => ({ ...current, analyticsEnabled: enabled }))
-    },
-    resetSettings: () => {
-      setPreferences(defaultSettingsPreferences)
-    }
+    notificationsEnabled,
+    analyticsEnabled,
+    setNotificationsEnabled,
+    setAnalyticsEnabled,
+    resetSettings
   }
 }

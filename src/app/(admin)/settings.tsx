@@ -14,7 +14,7 @@ import { useTheme } from '@/hooks/useTheme'
 import { useToast } from '@/hooks/useToast'
 import { useConfig } from '@/hooks/useConfig'
 import { useSettings } from '@/hooks/useSettings'
-import { settingsService } from '@/services/settings.service'
+import { settingsSyncService } from '@/services/settingsSync.service'
 import { useAuthStore } from '@/stores/auth.store'
 
 export default function AdminSettingsScreen() {
@@ -41,8 +41,8 @@ export default function AdminSettingsScreen() {
       : null,
     hasRemoteSyncEndpoint: false
   }
-  const syncPreview = settingsService.buildSyncPreview(syncPreviewInput)
-  const syncPayloadDraft = settingsService.buildSyncRequestDraft(syncPreviewInput)
+  const syncPreview = settingsSyncService.buildPreview(syncPreviewInput)
+  const syncPayloadDraft = settingsSyncService.buildRequestDraft(syncPreviewInput)
 
   const styles = StyleSheet.create({
     screen: {

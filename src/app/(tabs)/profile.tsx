@@ -14,7 +14,7 @@ import { useTheme } from '@/hooks/useTheme'
 
 export default function ProfileTabScreen() {
   const { colors, tokens } = useTheme()
-  const { profile, isLoading, isRefreshing, refreshProfile } = useProfile()
+  const { error, profile, isLoading, isRefreshing, refreshProfile } = useProfile()
 
   const styles = StyleSheet.create({
     screen: {
@@ -47,7 +47,9 @@ export default function ProfileTabScreen() {
         </>
       ) : !profile ? (
         <ErrorState
-          description="No authenticated profile is available. Sign in again and retry."
+          description={
+            error ?? 'No authenticated profile is available. Sign in again and retry.'
+          }
           onRetry={() => {
             void refreshProfile()
           }}
@@ -66,6 +68,7 @@ export default function ProfileTabScreen() {
           <Text tone="secondary">Email: {profile.email}</Text>
           <View style={styles.actions}>
             <Button
+              disabled={isRefreshing}
               label="Refresh profile"
               onPress={() => {
                 void refreshProfile()

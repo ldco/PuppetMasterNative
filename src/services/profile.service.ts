@@ -1,4 +1,3 @@
-import { useAuthStore } from '@/stores/auth.store'
 import type { AuthUser } from '@/types/auth'
 
 const delay = async (ms: number): Promise<void> => {
@@ -7,18 +6,18 @@ const delay = async (ms: number): Promise<void> => {
   })
 }
 
-const toProfile = (): AuthUser | null => {
-  return useAuthStore.getState().user
+export interface ProfileServiceInput {
+  sessionUser: AuthUser | null
 }
 
 export const profileService = {
-  async getProfile(): Promise<AuthUser | null> {
+  async getProfile(input: ProfileServiceInput): Promise<AuthUser | null> {
     await delay(350)
-    return toProfile()
+    return input.sessionUser
   },
 
-  async refreshProfile(): Promise<AuthUser | null> {
+  async refreshProfile(input: ProfileServiceInput): Promise<AuthUser | null> {
     await delay(550)
-    return toProfile()
+    return input.sessionUser
   }
 }

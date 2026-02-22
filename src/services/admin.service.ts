@@ -1,4 +1,4 @@
-import { useAuthStore } from '@/stores/auth.store'
+import type { AuthUser } from '@/types/auth'
 import type { Role } from '@/types/config'
 
 export interface AdminDirectoryUser {
@@ -14,9 +14,11 @@ const delay = async (ms: number): Promise<void> => {
   })
 }
 
-const toDirectoryUsers = (): AdminDirectoryUser[] => {
-  const activeUser = useAuthStore.getState().user
+export interface AdminDirectoryQueryInput {
+  activeUser: AuthUser | null
+}
 
+const toDirectoryUsers = (activeUser: AuthUser | null): AdminDirectoryUser[] => {
   if (!activeUser) {
     return []
   }
@@ -32,13 +34,13 @@ const toDirectoryUsers = (): AdminDirectoryUser[] => {
 }
 
 export const adminService = {
-  async listUsers(): Promise<AdminDirectoryUser[]> {
+  async listUsers(input: AdminDirectoryQueryInput): Promise<AdminDirectoryUser[]> {
     await delay(450)
-    return toDirectoryUsers()
+    return toDirectoryUsers(input.activeUser)
   },
 
-  async refreshUsers(): Promise<AdminDirectoryUser[]> {
+  async refreshUsers(input: AdminDirectoryQueryInput): Promise<AdminDirectoryUser[]> {
     await delay(700)
-    return toDirectoryUsers()
+    return toDirectoryUsers(input.activeUser)
   }
 }

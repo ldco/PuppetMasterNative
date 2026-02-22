@@ -44,6 +44,48 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - Real Supabase smoke test still required (Google provider config + deep-link/web callback validation).
 - Callback validation currently relies on locally stored pending context (expected), so direct/manual callback URL opens without a started flow will be rejected and redirected to login.
 
+## Module Refactor Pass (2026-02-22)
+
+### Scope of analysis
+- Reviewed the latest Phase 3 kickoff code for `profile`, `settings`, and `admin` modules:
+  - hooks: `useProfile()`, `useSettings()`, `useAdmin()`
+  - services: `profileService`, `settingsService`, `adminService`
+  - screens consuming those hooks (admin settings/users, profile tab)
+- Re-ran `npm run typecheck` after refactor changes
+
+### Major issues found
+1. `settingsService` had started mixing two responsibilities:
+   - local preference storage
+   - admin settings sync preview/payload contract building
+2. `useSettings()` used component-local state + side-effect persistence, which can drift across mounted screens (no shared source of truth).
+3. `profileService` / `adminService` read global auth state directly (`useAuthStore.getState()`), hiding dependencies and making future provider-backed replacements harder to test/compose.
+4. `useProfile()` / `useAdmin()` did not handle async failures, which would leave loading states fragile as soon as real API calls are introduced.
+5. `useProfile()` refresh path toggled `isLoading` during refresh, causing unnecessary skeleton flashes over existing content.
+6. Logout/session-loss race risk: in-flight profile/admin requests could repopulate stale data after auth was cleared (request invalidation gap on no-user transitions).
+
+### Refactors performed
+- Split sync-preview/payload contract logic out of `settingsService` into a dedicated `settingsSyncService`.
+- Rewrote settings state management around a shared Zustand store (`useSettingsStore`) so all screens read/write one canonical preferences state with MMKV persistence in store actions.
+- Refactored `useSettings()` into a thin wrapper over the shared store (removed component-local persistence effect).
+- Refactored `profileService` and `adminService` to accept explicit inputs instead of reading auth state internally.
+- Reworked `useProfile()` and `useAdmin()` async flows to:
+  - handle failures safely
+  - expose error state
+  - invalidate stale requests when auth state becomes unavailable
+  - separate refresh state from initial loading state
+- Updated Admin Users and Profile screens to use new error/refresh signals and avoid destructive refresh UX (overlay for admin refresh, no profile skeleton flash on refresh).
+
+### Architectural decisions (current)
+- Services should be pure domain helpers/contracts and receive required context as arguments.
+- Global/session/shared UI domain state belongs in stores (Zustand), not duplicated in hook-local state.
+- Preview/contract-building logic for planned backend sync should live in a dedicated sync-domain service, not in local settings persistence service.
+- Hooks may orchestrate async state, but must expose explicit loading/error/refresh state to keep screens simple and future API migrations safe.
+
+### Remaining risks / TODO
+- `profileService` / `adminService` are still placeholder delay-based implementations; real provider/API contracts are still pending.
+- `useAdmin()` now exposes `usersError`, but Admin Users screen only shows it as a blocking state when the list is empty; future UX may need non-blocking inline error/toast for refresh failures with existing data.
+- Settings sync preview/payload is now cleanly separated, but backend sync endpoint contract is still not implemented.
+
 ## Component Review Pass (2026-02-22)
 
 ### Scope of analysis
@@ -154,8 +196,13 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
   - initial `useSettings()` hook added with local MMKV-backed preference persistence (notifications/analytics) and Settings tab integration
   - initial `useAdmin()` hook added (role-gated sections + placeholder user-directory loading/refresh) and integrated into existing admin screens
   - module service boundaries are now defined for profile/settings/admin (`profileService`, `settingsService`, `adminService`) and the hooks were refactored to consume them
-  - Admin Settings "Sync settings with backend" sheet now renders a typed runtime sync preview (actor/provider/local prefs/admin module state) via `settingsService.buildSyncPreview()` instead of static placeholder copy
-  - Admin Settings sync sheet now also exposes a copyable typed draft payload (`pmnative.settings.sync/1`) via `settingsService.buildSyncRequestDraft()`
+  - Admin Settings "Sync settings with backend" sheet now renders a typed runtime sync preview (actor/provider/local prefs/admin module state) via `settingsSyncService.buildPreview()` instead of static placeholder copy
+  - Admin Settings sync sheet now also exposes a copyable typed draft payload (`pmnative.settings.sync/1`) via `settingsSyncService.buildRequestDraft()`
+  - module architecture cleanup pass completed:
+    - shared settings state moved to Zustand (`useSettingsStore`) with persistent store actions
+    - sync preview/payload builders moved to dedicated `settingsSyncService`
+    - `profileService` / `adminService` now take explicit inputs (no hidden auth-store reads)
+    - `useProfile()` / `useAdmin()` now expose safer async loading/refresh/error state
 
 ## Known Remaining Risks / TODO
 
@@ -193,10 +240,10 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
   - `PMN-070` User Profile module kickoff is started (`useProfile()` + profile screen refinement)
   - service contract boundary is defined (`profileService`); next: replace placeholder profile service with provider/API-backed fetch/update flow
   - `PMN-071` Settings module kickoff is started (`useSettings()` + persisted local preferences)
-  - service contract boundary is defined (`settingsService`); Admin Settings now has a typed sync preview builder for future server sync
+  - settings local-state architecture is now store-backed (`useSettingsStore`) and sync contract preview logic is split into `settingsSyncService`
   - next: finalize local-vs-remote settings sync strategy, map `pmnative.settings.sync/1` draft payload to a real provider-backed endpoint contract, and define conflict/merge behavior
   - `PMN-074` Admin module kickoff is started (`useAdmin()` + existing admin screen integration)
-  - service contract boundary is defined (`adminService`); next: define admin directory/settings/roles API contracts and replace placeholder directory loading with provider-backed queries
+  - service contract boundary is defined (`adminService`) and hidden global-state reads were removed; next: define admin directory/settings/roles API contracts and replace placeholder directory loading with provider-backed queries
 
 ## Canonical Planning Docs (read these first)
 
