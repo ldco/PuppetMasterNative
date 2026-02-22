@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import { pmNativeConfig } from '@/pm-native.config'
 import { apiRequest } from '@/services/api'
-import type { AuthProvider } from '@/services/auth/provider.types'
+import { AuthProviderError, defaultAuthProviderCapabilities, type AuthProvider } from '@/services/auth/provider.types'
 import type { AuthRegisterResult, AuthSession, RefreshSessionResult } from '@/types/auth'
 
 const authUserSchema = z
@@ -135,6 +135,10 @@ const getEndpoints = () => {
 }
 
 export const genericRestAuthProvider: AuthProvider = {
+  getCapabilities() {
+    return defaultAuthProviderCapabilities
+  },
+
   async login(input) {
     const endpoints = getEndpoints()
     const payload = await apiRequest<unknown, typeof authSessionPayloadSchema>(endpoints.login, {
@@ -162,6 +166,10 @@ export const genericRestAuthProvider: AuthProvider = {
       kind: 'session',
       session: normalizeAuthSessionPayload(payload)
     }
+  },
+
+  async signInWithSocial() {
+    throw new AuthProviderError('generic-rest social auth is not implemented yet', 'NOT_SUPPORTED')
   },
 
   async requestPasswordReset(input) {

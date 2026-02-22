@@ -6,6 +6,7 @@ import { KeyboardAvoidingView } from '@/components/molecules/KeyboardAvoidingVie
 import { LoginForm, type LoginFormValues } from '@/components/organisms/LoginForm'
 import { useAuth } from '@/hooks/useAuth'
 import { useConfig } from '@/hooks/useConfig'
+import type { SocialAuthProvider } from '@/services/auth/provider.types'
 import { useTheme } from '@/hooks/useTheme'
 import { useToast } from '@/hooks/useToast'
 
@@ -13,10 +14,12 @@ export default function LoginScreen() {
   const router = useRouter()
   const config = useConfig()
   const { colors, tokens } = useTheme()
-  const { signIn } = useAuth()
+  const { signIn, signInWithSocial, socialAuthCapabilities } = useAuth()
   const { toast } = useToast()
 
   const [submitting, setSubmitting] = useState(false)
+  const [socialSubmittingProvider, setSocialSubmittingProvider] =
+    useState<SocialAuthProvider | null>(null)
 
   const styles = StyleSheet.create({
     container: {
@@ -42,6 +45,22 @@ export default function LoginScreen() {
     }
   }
 
+  const submitSocial = async (provider: SocialAuthProvider): Promise<void> => {
+    if (submitting || socialSubmittingProvider) {
+      return
+    }
+
+    try {
+      setSocialSubmittingProvider(provider)
+      await signInWithSocial(provider)
+      router.replace('/(tabs)')
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Social login failed', 'error')
+    } finally {
+      setSocialSubmittingProvider(null)
+    }
+  }
+
   return (
     <KeyboardAvoidingView contentContainerStyle={styles.screen} style={styles.container}>
       <LoginForm
@@ -49,7 +68,10 @@ export default function LoginScreen() {
         canRegister={config.features.registration}
         onPressForgotPassword={() => router.push('/(auth)/forgot-password')}
         onPressRegister={() => router.push('/(auth)/register')}
+        onPressSocialAuth={submitSocial}
         onSubmit={submit}
+        socialAuthCapabilities={socialAuthCapabilities}
+        socialSubmittingProvider={socialSubmittingProvider}
         submitting={submitting}
       />
     </KeyboardAvoidingView>

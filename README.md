@@ -1,75 +1,324 @@
-# PMNative Bootstrap Workspace
+<div align="center"><img src="logo.png" alt="Project Logo" width="500"/></div>
 
-PMNative is an Expo/React Native framework bootstrap extracted from Puppet Master framework DNA:
-- config-driven architecture
-- RBAC + admin module patterns
-- atomic component system
-- provider-based backend integration
+<div align="center">
 
-This folder is currently developed locally inside the parent PM repo, but it is intended to move to its own repository.
+[![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-0.1.0-brightgreen.svg)](https://github.com/ldco/PuppetMasterNative/releases)
+[![Build Status](https://img.shields.io/badge/CI-not%20configured-lightgrey.svg)](https://github.com/ldco/PuppetMasterNative/actions)
+[![Language](https://img.shields.io/badge/language-TypeScript-3178C6.svg)](https://www.typescriptlang.org/)
 
-## Current Direction
+</div>
 
-- Default backend provider: `supabase`
-- PMNative remains backend-agnostic via provider contracts (`supabase`, `generic-rest`, future providers)
-- PM backend runtime compatibility is not a goal
+# PMNative
 
-## Local Status
+Config-driven Expo/React Native starter with provider-based auth (Supabase-first) and built-in admin/RBAC scaffolding.
 
-- The `pm-native/` folder is intentionally ignored by the parent repo `.gitignore`
-- Work can continue locally without affecting PM repo history
-- Split readiness and handoff docs live in `pm-native/docs/`
+## Introduction
 
-## Quick Start
+PMNative helps teams ship a mobile app foundation quickly without rebuilding the same auth, navigation, admin, and UI primitives every time.
+
+It is for developers who want:
+
+- an Expo + React Native app that runs immediately
+- a backend-agnostic auth architecture
+- a structured component system (atoms/molecules/organisms)
+- admin and role-based patterns already wired into the app shell
+
+Why it exists:
+
+- to preserve the useful app framework patterns extracted from Puppet Master
+- to make them reusable in a standalone, backend-flexible project
+- to give new contributors a predictable starting point with strong DX
+
+## Features
+
+- `Expo Router` app structure with typed routes enabled
+- Provider-based auth contract (`supabase` default, `generic-rest` supported)
+- Supabase auth integration (sign in, sign up, forgot password, session handling)
+- Config-driven app features, navigation, theme, and RBAC
+- Atomic component library (`atoms`, `molecules`, `organisms`)
+- Admin module scaffolding and diagnostics screen support
+- TypeScript-first codebase with a `typecheck` script
+
+## 🚀 Quick Start
+
+This is the fastest path to a running app using the default `supabase` provider.
+
+### Prerequisites
+
+Why: PMNative runs on Expo, so you need Node/npm to install dependencies and an Expo-compatible runtime to launch the app.
+
+- Node.js (LTS recommended)
+- npm (bundled with Node.js)
+- A Supabase project (for the default auth provider)
+- One runtime target:
+  - Expo Go on a phone, or
+  - iOS Simulator / Android Emulator, or
+  - a web browser (for quick local validation)
+
+### Installation
+
+Why: this installs the app and all dependencies used by Expo, React Native, and Supabase auth.
 
 ```bash
-cd pm-native
+git clone https://github.com/ldco/PuppetMasterNative.git
+cd PuppetMasterNative
 npm install
-cp .env.example .env.local   # or use your Expo env workflow
+```
+
+### Environment Setup
+
+Why: the default backend provider is `supabase`, and the app reads credentials from Expo public env variables.
+
+1. Copy the example environment file:
+
+```bash
+cp .env.example .env
+```
+
+2. Update `.env` with your Supabase project values:
+
+```bash
+EXPO_PUBLIC_SUPABASE_URL=https://[YOUR_PROJECT_REF].supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=[YOUR_SUPABASE_ANON_KEY]
+
+# Optional (only used if you switch provider to generic-rest)
+EXPO_PUBLIC_API_BASE_URL=https://[YOUR_API_BASE_URL]
+```
+
+`.env.example` included in this repo:
+
+```bash
+# PMNative (Expo) environment variables
+# Copy to your local env workflow (.env, .env.local, or Expo secrets) as needed.
+
+# Default backend provider: Supabase
+EXPO_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+
+# Optional: only needed when backend.provider = 'generic-rest'
+EXPO_PUBLIC_API_BASE_URL=https://api.your-domain.com
+```
+
+### Run Locally
+
+Why: this starts the Expo dev server with the app router root configured to `src/app`.
+
+```bash
 npm run start
 ```
 
-Run a target:
-- `npm run ios`
-- `npm run android`
-- `npm run web`
+Optional launch targets (same project, same config):
 
-## Environment Variables
+```bash
+npm run web
+```
 
-Required for default `supabase` provider:
-- `EXPO_PUBLIC_SUPABASE_URL`
-- `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+```bash
+npm run ios
+```
 
-Optional for `generic-rest` provider:
-- `EXPO_PUBLIC_API_BASE_URL`
+```bash
+npm run android
+```
 
-See:
-- `pm-native/docs/SUPABASE_SETUP.md`
-- `pm-native/docs/GENERIC_REST_AUTH_PROVIDER_CONTRACT.md`
+### ✅ Success Check
 
-## Provider Selection
+You should now see:
 
-Provider is selected in:
-- `pm-native/src/pm-native.config.ts`
+- an Expo dev server running in your terminal
+- a QR code (for Expo Go) or prompt shortcuts (`w`, `i`, `a`)
+- the app opening to the PMNative auth flow/navigation shell when launched
 
-Options today:
-- `supabase` (default)
-- `generic-rest`
+If you open the app and go to Admin Settings, you should see backend diagnostics showing:
 
-## Useful In-App Diagnostics
+- active provider: `supabase`
+- whether required env vars are present
 
-Open Admin Settings in the app to view:
-- active backend provider
-- required env var presence
-- backend readiness diagnostics
+## Usage
 
-## Key Files
+### Run on Web for Fast UI Validation
 
-- `pm-native/src/pm-native.config.ts`
-- `pm-native/src/hooks/useConfig.ts`
-- `pm-native/src/hooks/useAuth.ts`
-- `pm-native/src/services/auth/provider.ts`
-- `pm-native/src/services/auth/providers/supabaseAuthProvider.ts`
-- `pm-native/src/services/auth/providers/genericRestAuthProvider.ts`
-- `pm-native/docs/NEXT_CHAT_HANDOFF.md`
-- `pm-native/docs/REPO_SPLIT_CRITERIA.md`
+```bash
+npm run web
+```
+
+Expected result:
+
+- a browser window opens with the Expo web build of PMNative
+
+### Run Type Checking
+
+```bash
+npm run typecheck
+```
+
+Expected result:
+
+- TypeScript exits with no errors
+
+### Switch Auth Provider (Advanced)
+
+PMNative is backend-agnostic at the auth layer. The active provider is configured in `src/pm-native.config.ts`.
+
+Default (recommended for first run):
+
+```ts
+backend: {
+  provider: 'supabase',
+  // ...
+}
+```
+
+Alternative (requires your own backend endpoints):
+
+```ts
+backend: {
+  provider: 'generic-rest',
+  // ...
+}
+```
+
+When using `generic-rest`, set `EXPO_PUBLIC_API_BASE_URL` and ensure the auth endpoints match the contract documented in `docs/GENERIC_REST_AUTH_PROVIDER_CONTRACT.md`.
+
+## Configuration
+
+### Environment Variables
+
+| Key | Description | Default | Required |
+| --- | --- | --- | --- |
+| `EXPO_PUBLIC_SUPABASE_URL` | Supabase project URL used by the default auth provider | None | Yes (for `supabase`) |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key used by the client | None | Yes (for `supabase`) |
+| `EXPO_PUBLIC_API_BASE_URL` | Base URL for the `generic-rest` provider | `https://api.example.com` (from `src/pm-native.config.ts`) | Only if `backend.provider = 'generic-rest'` |
+
+### Runtime Config (Code)
+
+Primary runtime configuration lives in `src/pm-native.config.ts`.
+
+| Key | Description | Default | Required |
+| --- | --- | --- | --- |
+| `backend.provider` | Auth backend implementation | `supabase` | Yes |
+| `features.auth` | Enables auth flows/screens | `true` | Yes |
+| `features.registration` | Enables registration flow | `true` | No |
+| `features.forgotPassword` | Enables forgot-password flow | `true` | No |
+| `features.admin` | Enables admin area | `true` | No |
+| `api.timeoutMs` | API timeout for generic API requests | `10000` | No |
+
+## Project Structure
+
+Simplified layout (most important folders only):
+
+```text
+.
+├── docs/                          # Setup, provider contracts, architecture notes
+├── src/
+│   ├── app/                       # Expo Router routes (auth, tabs, admin)
+│   ├── components/
+│   │   ├── atoms/
+│   │   ├── molecules/
+│   │   └── organisms/
+│   ├── hooks/                     # App hooks (auth, config, diagnostics, toast)
+│   ├── services/
+│   │   ├── auth/
+│   │   │   ├── provider.ts
+│   │   │   ├── provider.types.ts
+│   │   │   └── providers/         # supabase + generic-rest auth providers
+│   │   ├── api.ts
+│   │   └── supabase.client.ts
+│   ├── stores/                    # Zustand stores
+│   ├── theme/                     # Tokens + semantic theme config
+│   ├── types/
+│   └── pm-native.config.ts        # Core runtime configuration
+├── .env.example
+├── app.json                       # Expo app config
+├── package.json
+└── README.md
+```
+
+## Contributing
+
+Why: consistent local validation reduces review churn and prevents avoidable regressions.
+
+### Local Validation
+
+Install dependencies first:
+
+```bash
+npm install
+```
+
+Run the current quality gate:
+
+```bash
+npm run typecheck
+```
+
+Tests:
+
+- A dedicated automated test script is not defined in `package.json` yet.
+- Use `npm run typecheck` and manual app verification (`npm run web` or `npm run start`) before opening a PR.
+
+### Commit / PR Expectations
+
+- Keep PRs focused (one feature/fix per PR)
+- Include setup/config notes if your change affects onboarding or env vars
+- Update docs when changing provider contracts or runtime config behavior
+- Include screenshots or short recordings for UI changes when possible
+
+## Troubleshooting / FAQ
+
+### `npm install` fails or native packages do not resolve
+
+Why it happens:
+
+- Node version mismatch
+- corrupted lockfile or `node_modules`
+
+Fix:
+
+```bash
+rm -rf node_modules package-lock.json
+npm install
+```
+
+If the issue continues, verify you are using a current Node.js LTS release.
+
+### App says Supabase config is missing / auth does not work
+
+Why it happens:
+
+- `.env` was not created
+- `EXPO_PUBLIC_SUPABASE_URL` or `EXPO_PUBLIC_SUPABASE_ANON_KEY` is missing/invalid
+
+Fix:
+
+```bash
+cp .env.example .env
+```
+
+Then confirm both Supabase values are set in `.env`, restart the dev server, and check Admin Settings diagnostics in-app.
+
+### Expo starts but the app does not load correctly (stale cache / bundler issue)
+
+Why it happens:
+
+- Metro cache can hold stale route/module state after config changes
+
+Fix:
+
+```bash
+npm run start -- --clear
+```
+
+Then relaunch your target (`w`, `i`, or `a`) from the Expo terminal.
+
+## License & Contact
+
+### License
+
+This project is licensed under the GNU General Public License v3.0 (`GPL-3.0-only`). See `LICENSE`.
+
+### Contact
+
+- GitHub Issues: `https://github.com/ldco/PuppetMasterNative/issues`
+- Maintainer: [ldco](https://github.com/ldco)

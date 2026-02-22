@@ -13,7 +13,28 @@ export interface AuthLogoutContext {
   refreshToken?: string | null
 }
 
-export type AuthProviderErrorCode = 'UNAUTHORIZED' | 'CONFIG' | 'PROVIDER' | 'UNKNOWN'
+export type SocialAuthProvider = 'google' | 'telegram' | 'vk'
+export type SocialAuthMode = 'login' | 'register'
+
+export interface AuthProviderCapabilities {
+  socialAuth: Record<SocialAuthProvider, boolean>
+}
+
+export const defaultAuthProviderCapabilities: AuthProviderCapabilities = {
+  socialAuth: {
+    google: false,
+    telegram: false,
+    vk: false
+  }
+}
+
+export type AuthProviderErrorCode =
+  | 'UNAUTHORIZED'
+  | 'CONFIG'
+  | 'PROVIDER'
+  | 'NOT_SUPPORTED'
+  | 'CANCELLED'
+  | 'UNKNOWN'
 
 export class AuthProviderError extends Error {
   readonly code: AuthProviderErrorCode
@@ -26,8 +47,10 @@ export class AuthProviderError extends Error {
 }
 
 export interface AuthProvider {
+  getCapabilities: () => AuthProviderCapabilities
   login: (input: LoginInput) => Promise<AuthSession>
   register: (input: RegisterInput) => Promise<AuthRegisterResult>
+  signInWithSocial: (provider: SocialAuthProvider, mode: SocialAuthMode) => Promise<AuthRegisterResult>
   requestPasswordReset: (input: ForgotPasswordInput) => Promise<void>
   logout: (context: AuthLogoutContext) => Promise<void>
   getSessionUser: (token: string) => Promise<AuthUser>

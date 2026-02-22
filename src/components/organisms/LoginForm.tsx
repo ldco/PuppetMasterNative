@@ -6,6 +6,7 @@ import { Text } from '@/components/atoms/Text'
 import { Card } from '@/components/molecules/Card'
 import { FormField } from '@/components/molecules/FormField'
 import { useTheme } from '@/hooks/useTheme'
+import type { SocialAuthProvider } from '@/services/auth/provider.types'
 
 export interface LoginFormValues {
   email: string
@@ -14,28 +15,49 @@ export interface LoginFormValues {
 
 interface LoginFormProps {
   submitting?: boolean
+  socialSubmittingProvider?: SocialAuthProvider | null
+  socialAuthCapabilities?: Partial<Record<SocialAuthProvider, boolean>>
   canRegister?: boolean
   canForgotPassword?: boolean
   onSubmit: (values: LoginFormValues) => Promise<void> | void
+  onPressSocialAuth?: (provider: SocialAuthProvider) => Promise<void> | void
   onPressRegister?: () => void
   onPressForgotPassword?: () => void
 }
 
 export function LoginForm({
   submitting = false,
+  socialSubmittingProvider = null,
+  socialAuthCapabilities,
   canRegister = false,
   canForgotPassword = false,
   onSubmit,
+  onPressSocialAuth,
   onPressRegister,
   onPressForgotPassword
 }: LoginFormProps) {
   const { tokens } = useTheme()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const socialProviders = (['google', 'telegram', 'vk'] as const).filter((provider) => {
+    return Boolean(socialAuthCapabilities?.[provider])
+  })
+  const isSocialSubmitting = socialSubmittingProvider !== null
+  const socialLabels: Record<SocialAuthProvider, string> = {
+    google: 'Continue with Google',
+    telegram: 'Continue with Telegram',
+    vk: 'Continue with VK'
+  }
 
   const styles = StyleSheet.create({
     content: {
       gap: tokens.spacing.md
+    },
+    socialBlock: {
+      gap: tokens.spacing.sm
+    },
+    socialButtons: {
+      gap: tokens.spacing.sm
     },
     helperRow: {
       alignItems: 'center',
@@ -73,7 +95,36 @@ export function LoginForm({
           value={password}
         />
 
-        <Button disabled={submitting} label={submitting ? 'Logging in...' : 'Login'} onPress={submit} />
+        <Button
+          disabled={submitting || isSocialSubmitting}
+          label={submitting ? 'Logging in...' : 'Login'}
+          onPress={submit}
+        />
+
+        {socialProviders.length > 0 && onPressSocialAuth ? (
+          <View style={styles.socialBlock}>
+            <Text tone="muted" variant="caption">
+              Or continue with
+            </Text>
+            <View style={styles.socialButtons}>
+              {socialProviders.map((provider) => (
+                <Button
+                  key={provider}
+                  disabled={submitting || isSocialSubmitting}
+                  label={
+                    socialSubmittingProvider === provider
+                      ? 'Starting...'
+                      : socialLabels[provider]
+                  }
+                  onPress={() => {
+                    void onPressSocialAuth(provider)
+                  }}
+                  variant="outline"
+                />
+              ))}
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.helperRow}>
           {canRegister && onPressRegister ? (

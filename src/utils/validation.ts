@@ -77,6 +77,11 @@ export const pmNativeConfigSchema = z.object({
   }),
   backend: z.object({
     provider: z.enum(['generic-rest', 'supabase']),
+    socialAuth: z.object({
+      google: z.boolean().optional(),
+      telegram: z.boolean().optional(),
+      vk: z.boolean().optional()
+    }).optional(),
     genericRest: z.object({
       auth: z.object({
         endpoints: genericRestAuthEndpointsSchema

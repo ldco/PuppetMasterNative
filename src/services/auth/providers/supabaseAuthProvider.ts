@@ -1,7 +1,11 @@
 import type { AuthError, User } from '@supabase/supabase-js'
 
 import { getSupabaseClient } from '@/services/supabase.client'
-import { AuthProviderError, type AuthProvider } from '@/services/auth/provider.types'
+import {
+  AuthProviderError,
+  defaultAuthProviderCapabilities,
+  type AuthProvider
+} from '@/services/auth/provider.types'
 import type { AuthRegisterResult, AuthUser, RefreshSessionResult } from '@/types/auth'
 import type { Role } from '@/types/config'
 
@@ -73,6 +77,10 @@ const toProviderError = (error: AuthError): AuthProviderError => {
 }
 
 export const supabaseAuthProvider: AuthProvider = {
+  getCapabilities() {
+    return defaultAuthProviderCapabilities
+  },
+
   async login(input) {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -114,6 +122,10 @@ export const supabaseAuthProvider: AuthProvider = {
       kind: 'session',
       session: requireSession(data.session, 'Supabase sign-up did not return a session')
     }
+  },
+
+  async signInWithSocial() {
+    throw new AuthProviderError('Supabase social auth is not implemented yet', 'NOT_SUPPORTED')
   },
 
   async requestPasswordReset(input) {

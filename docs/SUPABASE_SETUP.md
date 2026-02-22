@@ -15,7 +15,7 @@ Optional (only used by `generic-rest` provider):
 
 ## Provider Selection
 
-In `pm-native/src/pm-native.config.ts`:
+In `src/pm-native.config.ts`:
 
 ```ts
 backend: {
@@ -56,6 +56,79 @@ Supported role values:
 - `admin`
 - `editor`
 - `user`
+
+## Social Auth (PMN-021 Preparation)
+
+PMNative's roadmap now includes out-of-the-box social auth support for:
+
+- `Google`
+- `Telegram`
+- `VK`
+
+Important implementation direction:
+
+- PMNative remains backend-agnostic
+- Supabase is the default provider and the first integration path
+- UI must be capability-gated (show only supported/configured providers)
+- Unsupported providers must be hidden or return a typed `NOT_SUPPORTED` error (not raw SDK errors)
+
+### Current Recommended Supabase Path
+
+- `Google`: primary Supabase social auth candidate (implement first)
+- `Telegram`: only enable when your active backend/provider adapter supports it
+- `VK`: only enable when your active backend/provider adapter supports it
+
+If `Telegram` / `VK` are not available in your current Supabase setup or adapter implementation:
+
+- leave them disabled in config
+- do not render the buttons in auth screens
+
+### Supabase Dashboard Setup (Google)
+
+1. Open your Supabase project dashboard.
+2. Go to Auth provider configuration (Google provider).
+3. Enable Google sign-in.
+4. Add your app callback/redirect URLs.
+5. Copy any required client credentials into your secure project setup (not into repo docs).
+
+Use placeholders until your app callback flow is finalized:
+
+- Native scheme callback: `[YOUR_EXPO_SCHEME]://[YOUR_AUTH_CALLBACK_PATH]`
+- Web callback: `https://[YOUR_WEB_DOMAIN]/[YOUR_AUTH_CALLBACK_PATH]`
+
+PMNative currently uses the Expo scheme from `app.json`:
+
+- `pmnative` (default in this repo)
+
+### PMNative Configuration Direction (Social Provider Visibility)
+
+PMN-021 introduces a config-driven social auth visibility model (example shape, subject to implementation):
+
+```ts
+backend: {
+  provider: 'supabase',
+  socialAuth: {
+    google: true,
+    telegram: false,
+    vk: false
+  }
+}
+```
+
+Guidance:
+
+- Start with `google: true` only
+- Enable `telegram` / `vk` only after provider capability support is implemented and validated
+
+### Testing Expectations (When Social Auth Is Implemented)
+
+For each enabled provider:
+
+- login/sign-in succeeds
+- first-time registration path creates/restores a PMNative session
+- app returns to a protected screen after callback flow
+- app restart hydrates session correctly
+- logout clears local session state
 
 ## Password Reset
 

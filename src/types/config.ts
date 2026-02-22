@@ -34,6 +34,13 @@ export interface FeatureFlags {
 }
 
 export type BackendProvider = 'generic-rest' | 'supabase'
+export type SocialAuthProviderKey = 'google' | 'telegram' | 'vk'
+
+export interface BackendSocialAuthConfig {
+  google?: boolean
+  telegram?: boolean
+  vk?: boolean
+}
 
 export interface GenericRestAuthEndpoints {
   login: string
@@ -184,6 +191,7 @@ export interface PMNativeConfig {
   }
   backend: {
     provider: BackendProvider
+    socialAuth?: BackendSocialAuthConfig
     genericRest?: GenericRestBackendConfig
     supabase?: SupabaseBackendConfig
   }

@@ -7,7 +7,10 @@ import {
   SESSION_USER_KEY
 } from '@/services/auth.constants'
 import { authProvider } from '@/services/auth/provider'
-import { AuthProviderError } from '@/services/auth/provider.types'
+import {
+  AuthProviderError,
+  type SocialAuthProvider
+} from '@/services/auth/provider.types'
 import { storageService } from '@/services/storage.service'
 import { useAuthStore } from '@/stores/auth.store'
 import type {
@@ -83,6 +86,7 @@ export const useAuth = () => {
   const setHydrating = useAuthStore((state) => state.setHydrating)
   const setSession = useAuthStore((state) => state.setSession)
   const clearSession = useAuthStore((state) => state.clearSession)
+  const providerCapabilities = authProvider.getCapabilities()
 
   const getAccessToken = useCallback(async (): Promise<string | null> => {
     if (token) {
@@ -219,6 +223,37 @@ export const useAuth = () => {
     [setSession]
   )
 
+  const registerWithSocial = useCallback(
+    async (provider: SocialAuthProvider): Promise<AuthRegisterResult> => {
+      const result = await authProvider.signInWithSocial(provider, 'register')
+
+      if (result.kind === 'session') {
+        await persistSession(result.session)
+        setSession(result.session.user, result.session.token)
+      }
+
+      return result
+    },
+    [setSession]
+  )
+
+  const signInWithSocial = useCallback(
+    async (provider: SocialAuthProvider): Promise<void> => {
+      const result = await authProvider.signInWithSocial(provider, 'login')
+
+      if (result.kind !== 'session') {
+        throw new AuthProviderError(
+          `${provider} social login did not return a session`,
+          'PROVIDER'
+        )
+      }
+
+      await persistSession(result.session)
+      setSession(result.session.user, result.session.token)
+    },
+    [setSession]
+  )
+
   const requestPasswordReset = useCallback(async (input: ForgotPasswordInput): Promise<void> => {
     forgotPasswordSchema.parse(input)
     await authProvider.requestPasswordReset(input)
@@ -248,8 +283,11 @@ export const useAuth = () => {
     refreshAccessToken,
     hydrateSession,
     signIn,
+    signInWithSocial,
     register,
+    registerWithSocial,
     requestPasswordReset,
-    signOut
+    signOut,
+    socialAuthCapabilities: providerCapabilities.socialAuth
   }
 }

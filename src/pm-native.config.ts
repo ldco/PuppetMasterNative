@@ -71,6 +71,11 @@ export const pmNativeConfig: PMNativeConfig = {
   },
   backend: {
     provider: 'supabase',
+    socialAuth: {
+      google: false,
+      telegram: false,
+      vk: false
+    },
     genericRest: {
       auth: {
         endpoints: {
