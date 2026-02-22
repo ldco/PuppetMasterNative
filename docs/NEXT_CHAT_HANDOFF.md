@@ -33,6 +33,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - Added runtime social callback URL preview to backend diagnostics (`ExpoLinking.createURL('/oauth-callback')`) to aid Supabase redirect allow-list setup.
 - Added Google social readiness diagnostics + native/web Supabase allow-list guidance entries in Admin Settings backend diagnostics.
 - Added tap-to-copy support in Admin Settings backend diagnostics for callback URL rows (runtime/web) using `expo-clipboard`.
+- Added copyable Supabase redirect allow-list snippet + Google social setup checklist entries in Admin Settings backend diagnostics.
 - Verified type safety with `npm run typecheck` after the review fixes.
 
 ### Remaining risks / TODO
@@ -109,6 +110,9 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - Admin Settings backend diagnostics now also shows the runtime-resolved social callback URL.
 - Admin Settings backend diagnostics now includes Google social readiness and Supabase callback allow-list guidance (native/web).
 - Admin Settings backend diagnostics callback URL rows (runtime/web) are tappable and copy the URL to clipboard.
+- Admin Settings backend diagnostics now includes copyable setup snippets:
+  - Supabase redirect URL allow-list snippet (newline-separated)
+  - Google social auth setup checklist (PMNative + Supabase)
 
 ## Known Remaining Risks / TODO
 
@@ -141,7 +145,8 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
    - social auth status/callback route visibility is started; runtime callback URL preview is now shown
    - native/web allow-list examples + readiness hints are now shown
    - callback URL copy-to-clipboard is implemented for runtime/web rows
-   - next: add copy-to-clipboard/setup snippets for full Supabase provider configuration checklist (including URL allow-list examples)
+   - copyable Supabase allow-list snippet + Google setup checklist are now implemented
+   - next: real Supabase Google smoke test (web + native deep link) and document any platform-specific callback URL quirks
 
 ## Canonical Planning Docs (read these first)
 

@@ -60,6 +60,45 @@ const resolveWebSocialCallbackUrl = (): string | null => {
   }
 }
 
+const buildSupabaseRedirectAllowListSnippet = (
+  runtimeCallbackUrl: string | null,
+  webCallbackUrl: string | null
+): string | null => {
+  const urls = [runtimeCallbackUrl, webCallbackUrl].filter((value): value is string => {
+    return typeof value === 'string' && value.trim().length > 0
+  })
+
+  const uniqueUrls = Array.from(new Set(urls))
+
+  if (uniqueUrls.length === 0) {
+    return null
+  }
+
+  return uniqueUrls.join('\n')
+}
+
+const buildGoogleSocialSetupChecklistSnippet = (
+  runtimeCallbackUrl: string | null,
+  webCallbackUrl: string | null
+): string => {
+  const redirectUrlsSnippet =
+    buildSupabaseRedirectAllowListSnippet(runtimeCallbackUrl, webCallbackUrl) ??
+    '[Add runtime callback URL]\n[Add web callback URL]'
+
+  return [
+    'PMNative Google Social Auth Setup Checklist',
+    '',
+    '1. Set backend.provider = supabase',
+    '2. Set backend.socialAuth.google = true',
+    '3. Configure EXPO_PUBLIC_SUPABASE_URL',
+    '4. Configure EXPO_PUBLIC_SUPABASE_ANON_KEY',
+    '5. In Supabase Auth > Providers, enable Google',
+    '6. In Supabase Auth URL settings, add these redirect URLs:',
+    redirectUrlsSnippet,
+    '7. Run PMNative and test login/register with Google (web + native if available)'
+  ].join('\n')
+}
+
 export const useBackendDiagnostics = (): BackendDiagnostics => {
   const config = useConfig()
 
@@ -185,6 +224,10 @@ export const useBackendDiagnostics = (): BackendDiagnostics => {
 
     const runtimeSocialCallbackUrl = resolveRuntimeSocialCallbackUrl()
     const webSocialCallbackUrl = resolveWebSocialCallbackUrl()
+    const supabaseRedirectAllowListSnippet = buildSupabaseRedirectAllowListSnippet(
+      runtimeSocialCallbackUrl,
+      webSocialCallbackUrl
+    )
 
     items.push({
       key: 'social-google-readiness',
@@ -249,6 +292,26 @@ export const useBackendDiagnostics = (): BackendDiagnostics => {
         'Open PMNative web locally to resolve the current web callback URL (/oauth-callback on your web origin)',
       copyValue: webSocialCallbackUrl ?? undefined,
       copyToastLabel: 'Web social callback URL'
+    })
+
+    items.push({
+      key: 'social-callback-allowlist-snippet',
+      label: 'Supabase allow-list snippet',
+      status: supabaseRedirectAllowListSnippet ? 'info' : 'warning',
+      detail: supabaseRedirectAllowListSnippet
+        ? 'Newline-separated redirect URLs for Supabase Auth URL allow-list'
+        : 'Open PMNative (device/web) to resolve callback URLs before copying the allow-list snippet',
+      copyValue: supabaseRedirectAllowListSnippet ?? undefined,
+      copyToastLabel: 'Supabase redirect URL allow-list snippet'
+    })
+
+    items.push({
+      key: 'social-google-setup-checklist',
+      label: 'Google social setup checklist',
+      status: 'info',
+      detail: 'Tap to copy a PMNative + Supabase setup checklist for Google social auth',
+      copyValue: buildGoogleSocialSetupChecklistSnippet(runtimeSocialCallbackUrl, webSocialCallbackUrl),
+      copyToastLabel: 'Google social setup checklist'
     })
 
     return {
