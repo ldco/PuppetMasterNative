@@ -13,13 +13,34 @@ import { useBackendDiagnostics } from '@/hooks/useBackendDiagnostics'
 import { useTheme } from '@/hooks/useTheme'
 import { useToast } from '@/hooks/useToast'
 import { useConfig } from '@/hooks/useConfig'
+import { useSettings } from '@/hooks/useSettings'
+import { settingsService } from '@/services/settings.service'
+import { useAuthStore } from '@/stores/auth.store'
 
 export default function AdminSettingsScreen() {
   const { colors, tokens } = useTheme()
   const { toast } = useToast()
   const config = useConfig()
+  const activeUser = useAuthStore((state) => state.user)
+  const { analyticsEnabled, notificationsEnabled } = useSettings()
   const backendDiagnostics = useBackendDiagnostics()
   const [showSyncSheet, setShowSyncSheet] = useState(false)
+  const syncPreview = settingsService.buildSyncPreview({
+    preferences: {
+      notificationsEnabled,
+      analyticsEnabled
+    },
+    backendProvider: config.backend.provider,
+    hasAdminModule: config.hasAdmin,
+    actor: activeUser
+      ? {
+          id: activeUser.id,
+          email: activeUser.email,
+          role: activeUser.role
+        }
+      : null,
+    hasRemoteSyncEndpoint: false
+  })
 
   const styles = StyleSheet.create({
     screen: {
@@ -30,6 +51,9 @@ export default function AdminSettingsScreen() {
     },
     list: {
       gap: tokens.spacing.xs
+    },
+    sheetContent: {
+      gap: tokens.spacing.sm
     }
   })
 
@@ -136,14 +160,35 @@ export default function AdminSettingsScreen() {
           />
         }
         onClose={() => setShowSyncSheet(false)}
-        subtitle="Phase 3 will add actual server-side settings sync for framework/admin modules."
-        title="Settings Sync (Planned)"
+        subtitle={syncPreview.summary}
+        title="Settings Sync Preview"
         visible={showSyncSheet}
       >
-        <Text tone="secondary">
-          This action is currently a placeholder. The new bottom sheet is now wired as the first in-app
-          usage of the `BottomSheet` organism.
-        </Text>
+        <View style={styles.sheetContent}>
+          {syncPreview.rows.map((row, index) => (
+            <ListItem
+              key={row.key}
+              showDivider={index < syncPreview.rows.length - 1}
+              subtitle={row.value}
+              title={row.label}
+              trailing={
+                <Badge
+                  label={row.status}
+                  tone={
+                    row.status === 'ok'
+                      ? 'success'
+                      : row.status === 'warning'
+                        ? 'warning'
+                        : 'neutral'
+                  }
+                />
+              }
+            />
+          ))}
+          <Text tone={syncPreview.status === 'warning' ? 'secondary' : 'muted'} variant="caption">
+            Next step: {syncPreview.nextStep}
+          </Text>
+        </View>
       </BottomSheet>
     </View>
   )

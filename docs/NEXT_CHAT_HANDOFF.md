@@ -154,6 +154,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
   - initial `useSettings()` hook added with local MMKV-backed preference persistence (notifications/analytics) and Settings tab integration
   - initial `useAdmin()` hook added (role-gated sections + placeholder user-directory loading/refresh) and integrated into existing admin screens
   - module service boundaries are now defined for profile/settings/admin (`profileService`, `settingsService`, `adminService`) and the hooks were refactored to consume them
+  - Admin Settings "Sync settings with backend" sheet now renders a typed runtime sync preview (actor/provider/local prefs/admin module state) via `settingsService.buildSyncPreview()` instead of static placeholder copy
 
 ## Known Remaining Risks / TODO
 
@@ -188,12 +189,13 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
    - `SkeletonList` and `LoadingOverlay` now have real in-app usages; next expand `SkeletonText`/`SkeletonCard` usage into additional screens
    - `BottomSheet` now has admin + user-facing usages; next test nested scroll/gesture interactions once a scrollable sheet use case exists
 5. Phase 3 kickoff
-   - `PMN-070` User Profile module kickoff is started (`useProfile()` + profile screen refinement)
-   - service contract boundary is defined (`profileService`); next: replace placeholder profile service with provider/API-backed fetch/update flow
-   - `PMN-071` Settings module kickoff is started (`useSettings()` + persisted local preferences)
-   - service contract boundary is defined (`settingsService`); next: define local-vs-remote settings sync strategy and move more settings-screen state into the hook
-   - `PMN-074` Admin module kickoff is started (`useAdmin()` + existing admin screen integration)
-   - service contract boundary is defined (`adminService`); next: define admin directory/settings/roles API contracts and replace placeholder directory loading with provider-backed queries
+  - `PMN-070` User Profile module kickoff is started (`useProfile()` + profile screen refinement)
+  - service contract boundary is defined (`profileService`); next: replace placeholder profile service with provider/API-backed fetch/update flow
+  - `PMN-071` Settings module kickoff is started (`useSettings()` + persisted local preferences)
+  - service contract boundary is defined (`settingsService`); Admin Settings now has a typed sync preview builder for future server sync
+  - next: define local-vs-remote settings sync strategy, request payload shape, and provider-backed sync endpoint contract (including conflict/merge behavior)
+  - `PMN-074` Admin module kickoff is started (`useAdmin()` + existing admin screen integration)
+  - service contract boundary is defined (`adminService`); next: define admin directory/settings/roles API contracts and replace placeholder directory loading with provider-backed queries
 
 ## Canonical Planning Docs (read these first)
 
