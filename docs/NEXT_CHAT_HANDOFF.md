@@ -32,6 +32,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - Started next PMN-021 phase by extending Admin Settings backend diagnostics with social-auth status/callback-route visibility.
 - Added runtime social callback URL preview to backend diagnostics (`ExpoLinking.createURL('/oauth-callback')`) to aid Supabase redirect allow-list setup.
 - Added Google social readiness diagnostics + native/web Supabase allow-list guidance entries in Admin Settings backend diagnostics.
+- Added tap-to-copy support in Admin Settings backend diagnostics for callback URL rows (runtime/web) using `expo-clipboard`.
 - Verified type safety with `npm run typecheck` after the review fixes.
 
 ### Remaining risks / TODO
@@ -107,6 +108,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - Admin Settings backend diagnostics now surfaces social-auth flags (`Google`, `Telegram`, `VK`) and callback-route readiness notes.
 - Admin Settings backend diagnostics now also shows the runtime-resolved social callback URL.
 - Admin Settings backend diagnostics now includes Google social readiness and Supabase callback allow-list guidance (native/web).
+- Admin Settings backend diagnostics callback URL rows (runtime/web) are tappable and copy the URL to clipboard.
 
 ## Known Remaining Risks / TODO
 
@@ -138,7 +140,8 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
    - show missing env vars
    - social auth status/callback route visibility is started; runtime callback URL preview is now shown
    - native/web allow-list examples + readiness hints are now shown
-   - next: add copy-to-clipboard action(s) for callback URLs and Supabase setup snippets
+   - callback URL copy-to-clipboard is implemented for runtime/web rows
+   - next: add copy-to-clipboard/setup snippets for full Supabase provider configuration checklist (including URL allow-list examples)
 
 ## Canonical Planning Docs (read these first)
 

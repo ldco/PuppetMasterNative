@@ -10,6 +10,8 @@ export interface BackendDiagnosticItem {
   label: string
   status: BackendDiagnosticStatus
   detail: string
+  copyValue?: string
+  copyToastLabel?: string
 }
 
 export interface BackendDiagnostics {
@@ -217,7 +219,9 @@ export const useBackendDiagnostics = (): BackendDiagnostics => {
       key: 'social-callback-url-runtime',
       label: 'Social callback URL (runtime)',
       status: runtimeSocialCallbackUrl ? 'info' : 'warning',
-      detail: runtimeSocialCallbackUrl ?? 'Unable to resolve callback URL at runtime'
+      detail: runtimeSocialCallbackUrl ?? 'Unable to resolve callback URL at runtime',
+      copyValue: runtimeSocialCallbackUrl ?? undefined,
+      copyToastLabel: 'Runtime social callback URL'
     })
 
     items.push({
@@ -242,7 +246,9 @@ export const useBackendDiagnostics = (): BackendDiagnostics => {
       status: webSocialCallbackUrl ? 'info' : 'warning',
       detail:
         webSocialCallbackUrl ??
-        'Open PMNative web locally to resolve the current web callback URL (/oauth-callback on your web origin)'
+        'Open PMNative web locally to resolve the current web callback URL (/oauth-callback on your web origin)',
+      copyValue: webSocialCallbackUrl ?? undefined,
+      copyToastLabel: 'Web social callback URL'
     })
 
     return {
