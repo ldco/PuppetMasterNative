@@ -36,6 +36,10 @@ const genericRestProfileEndpointsSchema = z.object({
   update: z.string().min(1).optional()
 })
 
+const genericRestAdminEndpointsSchema = z.object({
+  listUsers: z.string().min(1)
+})
+
 export const pmNativeConfigSchema = z.object({
   app: z.object({
     name: z.string().min(1),
@@ -100,6 +104,9 @@ export const pmNativeConfigSchema = z.object({
       }).optional(),
       profile: z.object({
         endpoints: genericRestProfileEndpointsSchema
+      }).optional(),
+      admin: z.object({
+        endpoints: genericRestAdminEndpointsSchema
       }).optional()
     }).optional(),
     supabase: z.object({

@@ -394,6 +394,11 @@ backend: {
         get: '/profile/me',
         update: '/profile/me'
       }
+    },
+    admin: {
+      endpoints: {
+        listUsers: '/admin/users'
+      }
     }
   }
 }
@@ -561,3 +566,100 @@ User shape is the same normalized PMNative auth user shape documented above (`id
 - If the profile endpoint is not configured, PMNative falls back to the auth session snapshot for profile display.
 - If configured but no access token is available, PMNative falls back to the auth session snapshot.
 - Remote provider failures surface as profile refresh/load errors in the UI while retaining the last known profile state when possible.
+
+## Admin Users List (PMN-074) — Contract Extension
+
+This section defines the current PMNative `generic-rest` admin users list contract used by `adminProvider` when `backend.genericRest.admin.endpoints.listUsers` is configured.
+
+Status:
+
+- remote users list implemented (generic-rest, config-gated)
+- broader admin contracts (roles/settings/user detail) still planned
+
+### Endpoint Config
+
+PMNative config path:
+
+- `backend.genericRest.admin.endpoints.listUsers`
+
+Example:
+
+```ts
+backend: {
+  provider: 'generic-rest',
+  genericRest: {
+    auth: {
+      endpoints: {
+        login: '/auth/login',
+        register: '/auth/register',
+        logout: '/auth/logout',
+        session: '/auth/session',
+        refresh: '/auth/refresh'
+      }
+    },
+    admin: {
+      endpoints: {
+        listUsers: '/admin/users'
+      }
+    }
+  }
+}
+```
+
+### List Users (`GET /admin/users`)
+
+PMNative sends:
+
+- `GET` to configured endpoint
+- `Authorization: Bearer <accessToken>` header
+
+Accepted response variants:
+
+#### Variant A (raw array)
+```json
+[
+  {
+    "id": "123",
+    "email": "admin@example.com",
+    "name": "Admin User",
+    "role": "admin"
+  }
+]
+```
+
+#### Variant B (users envelope)
+```json
+{
+  "users": [
+    {
+      "id": "123",
+      "email": "admin@example.com",
+      "name": "Admin User",
+      "role": "admin"
+    }
+  ]
+}
+```
+
+#### Variant C (success envelope)
+```json
+{
+  "success": true,
+  "data": {
+    "users": [
+      {
+        "id": "123",
+        "email": "admin@example.com",
+        "name": "Admin User",
+        "role": "admin"
+      }
+    ]
+  }
+}
+```
+
+Notes:
+
+- User object shape is the same normalized PMNative auth user shape.
+- `name` may be `null`; PMNative currently renders `Unknown user` fallback in Admin Users UI.
+- If the endpoint is not configured or no access token is available, PMNative falls back to a local placeholder directory containing the active session user.

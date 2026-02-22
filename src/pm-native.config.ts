@@ -99,6 +99,11 @@ export const pmNativeConfig: PMNativeConfig = {
       //     update: '/profile/me'
       //   }
       // }
+      // admin: {
+      //   endpoints: {
+      //     listUsers: '/admin/users'
+      //   }
+      // }
     },
     supabase: {
       urlEnvVar: 'EXPO_PUBLIC_SUPABASE_URL',

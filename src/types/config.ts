@@ -60,6 +60,10 @@ export interface GenericRestProfileEndpoints {
   update?: string
 }
 
+export interface GenericRestAdminEndpoints {
+  listUsers: string
+}
+
 export interface GenericRestBackendConfig {
   auth: {
     endpoints: GenericRestAuthEndpoints
@@ -69,6 +73,9 @@ export interface GenericRestBackendConfig {
   }
   profile?: {
     endpoints: GenericRestProfileEndpoints
+  }
+  admin?: {
+    endpoints: GenericRestAdminEndpoints
   }
 }
 

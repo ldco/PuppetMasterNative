@@ -20,6 +20,7 @@ interface UseAdminResult {
 export const useAdmin = (): UseAdminResult => {
   const config = useConfig()
   const activeUser = useAuthStore((state) => state.user)
+  const accessToken = useAuthStore((state) => state.token)
   const [isLoadingUsers, setIsLoadingUsers] = useState(Boolean(activeUser))
   const [isRefreshingUsers, setIsRefreshingUsers] = useState(false)
   const [usersError, setUsersError] = useState<string | null>(null)
@@ -55,7 +56,7 @@ export const useAdmin = (): UseAdminResult => {
     const requestId = ++requestIdRef.current
 
     void adminService
-      .listUsers({ activeUser })
+      .listUsers({ activeUser, accessToken })
       .then((loadedUsers) => {
         if (!mountedRef.current || requestId !== requestIdRef.current) {
           return
@@ -77,7 +78,7 @@ export const useAdmin = (): UseAdminResult => {
     return () => {
       mountedRef.current = false
     }
-  }, [activeUser])
+  }, [accessToken, activeUser])
 
   const refreshUsers = useCallback(async (): Promise<void> => {
     if (!activeUser || isRefreshingUsers) {
@@ -90,7 +91,7 @@ export const useAdmin = (): UseAdminResult => {
     const requestId = ++requestIdRef.current
 
     try {
-      const refreshedUsers = await adminService.refreshUsers({ activeUser })
+      const refreshedUsers = await adminService.refreshUsers({ activeUser, accessToken })
 
       if (!mountedRef.current || requestId !== requestIdRef.current) {
         return
@@ -108,7 +109,7 @@ export const useAdmin = (): UseAdminResult => {
         setIsRefreshingUsers(false)
       }
     }
-  }, [activeUser, isRefreshingUsers])
+  }, [accessToken, activeUser, isRefreshingUsers])
 
   return {
     activeUser,
