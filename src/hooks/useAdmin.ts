@@ -14,6 +14,8 @@ interface UseAdminResult {
   isLoadingUsers: boolean
   isRefreshingUsers: boolean
   usersError: string | null
+  usersSource: 'remote' | 'session-fallback'
+  usersSourceDetail: string
   refreshUsers: () => Promise<void>
 }
 
@@ -25,6 +27,8 @@ export const useAdmin = (): UseAdminResult => {
   const [isRefreshingUsers, setIsRefreshingUsers] = useState(false)
   const [usersError, setUsersError] = useState<string | null>(null)
   const [users, setUsers] = useState<AdminUserRow[]>([])
+  const [usersSource, setUsersSource] = useState<'remote' | 'session-fallback'>('session-fallback')
+  const [usersSourceDetail, setUsersSourceDetail] = useState('Not loaded yet')
   const requestIdRef = useRef(0)
   const mountedRef = useRef(true)
 
@@ -43,6 +47,8 @@ export const useAdmin = (): UseAdminResult => {
       requestIdRef.current += 1
       setUsers([])
       setUsersError(null)
+      setUsersSource('session-fallback')
+      setUsersSourceDetail('No active user')
       setIsLoadingUsers(false)
       setIsRefreshingUsers(false)
       return () => {
@@ -57,12 +63,14 @@ export const useAdmin = (): UseAdminResult => {
 
     void adminService
       .listUsers({ activeUser, accessToken })
-      .then((loadedUsers) => {
+      .then((result) => {
         if (!mountedRef.current || requestId !== requestIdRef.current) {
           return
         }
 
-        setUsers(loadedUsers)
+        setUsers(result.users)
+        setUsersSource(result.source)
+        setUsersSourceDetail(result.sourceDetail)
         setIsLoadingUsers(false)
       })
       .catch(() => {
@@ -72,6 +80,8 @@ export const useAdmin = (): UseAdminResult => {
 
         setUsers([])
         setUsersError('Failed to load admin users.')
+        setUsersSource('session-fallback')
+        setUsersSourceDetail('Provider request failed')
         setIsLoadingUsers(false)
       })
 
@@ -97,7 +107,9 @@ export const useAdmin = (): UseAdminResult => {
         return
       }
 
-      setUsers(refreshedUsers)
+      setUsers(refreshedUsers.users)
+      setUsersSource(refreshedUsers.source)
+      setUsersSourceDetail(refreshedUsers.sourceDetail)
     } catch {
       if (!mountedRef.current || requestId !== requestIdRef.current) {
         return
@@ -118,6 +130,8 @@ export const useAdmin = (): UseAdminResult => {
     isLoadingUsers,
     isRefreshingUsers,
     usersError,
+    usersSource,
+    usersSourceDetail,
     refreshUsers
   }
 }

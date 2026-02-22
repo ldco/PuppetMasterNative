@@ -85,6 +85,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - `PMN-070` profile fetch now has a provider-facing execution path: `generic-rest` remote fetch is implemented when `backend.genericRest.profile.endpoints.get` is configured; otherwise the service falls back to the auth session snapshot.
 - `PMN-070` profile update now has a provider-facing execution path: `generic-rest` remote update is implemented when `backend.genericRest.profile.endpoints.update` is configured.
 - `PMN-074` admin users list now has a provider-facing execution path: `generic-rest` remote list is implemented when `backend.genericRest.admin.endpoints.listUsers` is configured; otherwise the service falls back to a local session-user placeholder list.
+- Admin Users UI now explicitly shows whether data came from the remote provider endpoint or the session fallback directory (including source detail text).
 
 ### Remaining risks / TODO
 - `profileService` / `adminService` are still placeholder delay-based implementations; real provider/API contracts are still pending.
@@ -268,6 +269,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
   - service contract boundary is defined (`adminService`) and hidden global-state reads were removed
   - provider-facing admin contract is now scaffolded (`adminProvider`)
   - `generic-rest` remote admin users list path is implemented and config-gated via `backend.genericRest.admin.endpoints.listUsers`
+  - `useAdmin()` / Admin Users screen now surfaces users source metadata (`remote` vs `session-fallback`) for clearer diagnostics
   - next: document/test generic-rest admin users contract and add roles/settings/admin detail endpoint contracts
 
 ## Canonical Planning Docs (read these first)

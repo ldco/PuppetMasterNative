@@ -24,7 +24,9 @@ export default function AdminUsersScreen() {
     isRefreshingUsers,
     refreshUsers,
     users,
-    usersError
+    usersError,
+    usersSource,
+    usersSourceDetail
   } = useAdmin()
   const [query, setQuery] = useState('')
 
@@ -60,7 +62,7 @@ export default function AdminUsersScreen() {
 
   const simulateRefresh = (): void => {
     void refreshUsers()
-    toast('Refreshing user directory (placeholder)', 'info')
+    toast('Refreshing user directory', 'info')
   }
 
   if (!activeUser) {
@@ -82,7 +84,11 @@ export default function AdminUsersScreen() {
       <SectionHeader
         actionLabel="Refresh"
         onActionPress={simulateRefresh}
-        subtitle="Current bootstrap user directory."
+        subtitle={
+          usersSource === 'remote'
+            ? `Remote directory (${usersSourceDetail})`
+            : `Fallback directory (${usersSourceDetail})`
+        }
         title="Admin Users"
       />
 

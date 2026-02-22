@@ -15,6 +15,12 @@ export interface AdminDirectoryQueryInput {
   accessToken?: string | null
 }
 
+export interface AdminDirectoryResult {
+  users: AdminDirectoryUser[]
+  source: 'remote' | 'session-fallback'
+  sourceDetail: string
+}
+
 const toDirectoryUsers = (activeUser: AuthUser | null): AdminDirectoryUser[] => {
   if (!activeUser) {
     return []
@@ -40,53 +46,52 @@ const toAdminDirectoryUsers = (
 }
 
 export const adminService = {
-  async listUsers(input: AdminDirectoryQueryInput): Promise<AdminDirectoryUser[]> {
+  getCapabilities() {
+    return adminProvider.getCapabilities()
+  },
+
+  async listUsers(input: AdminDirectoryQueryInput): Promise<AdminDirectoryResult> {
     if (!input.activeUser) {
-      return []
+      return {
+        users: [],
+        source: 'session-fallback',
+        sourceDetail: 'No active user'
+      }
     }
 
     const capability = adminProvider.getCapabilities()
     if (!capability.canListUsersRemote) {
-      return toDirectoryUsers(input.activeUser)
+      return {
+        users: toDirectoryUsers(input.activeUser),
+        source: 'session-fallback',
+        sourceDetail: capability.detail
+      }
     }
 
     try {
       const users = await adminProvider.listUsers({ accessToken: input.accessToken })
-      return toAdminDirectoryUsers(users)
+      return {
+        users: toAdminDirectoryUsers(users),
+        source: 'remote',
+        sourceDetail: capability.detail
+      }
     } catch (error) {
       if (
         error instanceof AdminProviderError &&
         (error.code === 'CONFIG' || error.code === 'NOT_SUPPORTED' || error.code === 'UNAUTHORIZED')
       ) {
-        return toDirectoryUsers(input.activeUser)
+        return {
+          users: toDirectoryUsers(input.activeUser),
+          source: 'session-fallback',
+          sourceDetail: error.message
+        }
       }
 
       throw error
     }
   },
 
-  async refreshUsers(input: AdminDirectoryQueryInput): Promise<AdminDirectoryUser[]> {
-    if (!input.activeUser) {
-      return []
-    }
-
-    const capability = adminProvider.getCapabilities()
-    if (!capability.canListUsersRemote) {
-      return toDirectoryUsers(input.activeUser)
-    }
-
-    try {
-      const users = await adminProvider.listUsers({ accessToken: input.accessToken })
-      return toAdminDirectoryUsers(users)
-    } catch (error) {
-      if (
-        error instanceof AdminProviderError &&
-        (error.code === 'CONFIG' || error.code === 'NOT_SUPPORTED' || error.code === 'UNAUTHORIZED')
-      ) {
-        return toDirectoryUsers(input.activeUser)
-      }
-
-      throw error
-    }
+  async refreshUsers(input: AdminDirectoryQueryInput): Promise<AdminDirectoryResult> {
+    return adminService.listUsers(input)
   }
 }
