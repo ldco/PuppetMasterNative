@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { profileService } from '@/services/profile.service'
 import { useAuthStore } from '@/stores/auth.store'
 import type { AuthUser } from '@/types/auth'
 
@@ -10,60 +11,57 @@ interface UseProfileResult {
   refreshProfile: () => Promise<void>
 }
 
-const INITIAL_LOAD_DELAY_MS = 350
-const REFRESH_DELAY_MS = 550
-
 export const useProfile = (): UseProfileResult => {
-  const profile = useAuthStore((state) => state.user)
+  const sessionUser = useAuthStore((state) => state.user)
+  const [profile, setProfile] = useState<AuthUser | null>(sessionUser)
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mountedRef = useRef(true)
+  const requestIdRef = useRef(0)
 
   useEffect(() => {
     mountedRef.current = true
-    timerRef.current = setTimeout(() => {
-      if (!mountedRef.current) {
+
+    const requestId = ++requestIdRef.current
+
+    void profileService.getProfile().then((loadedProfile) => {
+      if (!mountedRef.current || requestId !== requestIdRef.current) {
         return
       }
 
+      setProfile(loadedProfile)
       setIsLoading(false)
-      timerRef.current = null
-    }, INITIAL_LOAD_DELAY_MS)
+    })
 
     return () => {
       mountedRef.current = false
-      if (timerRef.current) {
-        clearTimeout(timerRef.current)
-      }
     }
-  }, [])
+  }, [sessionUser?.id])
 
-  const refreshProfile = async (): Promise<void> => {
+  const refreshProfile = useCallback(async (): Promise<void> => {
     if (isRefreshing) {
       return
     }
 
-    if (timerRef.current) {
-      clearTimeout(timerRef.current)
-      timerRef.current = null
-    }
-
     setIsRefreshing(true)
     setIsLoading(true)
+    const requestId = ++requestIdRef.current
 
-    await new Promise<void>((resolve) => {
-      timerRef.current = setTimeout(() => {
-        if (mountedRef.current) {
-          setIsLoading(false)
-          setIsRefreshing(false)
-        }
+    try {
+      const refreshedProfile = await profileService.refreshProfile()
 
-        timerRef.current = null
-        resolve()
-      }, REFRESH_DELAY_MS)
-    })
-  }
+      if (!mountedRef.current || requestId !== requestIdRef.current) {
+        return
+      }
+
+      setProfile(refreshedProfile)
+      setIsLoading(false)
+    } finally {
+      if (mountedRef.current && requestId === requestIdRef.current) {
+        setIsRefreshing(false)
+      }
+    }
+  }, [isRefreshing])
 
   return {
     profile,

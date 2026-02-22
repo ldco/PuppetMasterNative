@@ -153,6 +153,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
   - Profile tab now uses `SkeletonCard` and `LoadingOverlay` during profile load/refresh placeholder states
   - initial `useSettings()` hook added with local MMKV-backed preference persistence (notifications/analytics) and Settings tab integration
   - initial `useAdmin()` hook added (role-gated sections + placeholder user-directory loading/refresh) and integrated into existing admin screens
+  - module service boundaries are now defined for profile/settings/admin (`profileService`, `settingsService`, `adminService`) and the hooks were refactored to consume them
 
 ## Known Remaining Risks / TODO
 
@@ -188,11 +189,11 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
    - `BottomSheet` now has admin + user-facing usages; next test nested scroll/gesture interactions once a scrollable sheet use case exists
 5. Phase 3 kickoff
    - `PMN-070` User Profile module kickoff is started (`useProfile()` + profile screen refinement)
-   - next: separate profile/view-model state from placeholder timers and define real profile fetch/update contract
+   - service contract boundary is defined (`profileService`); next: replace placeholder profile service with provider/API-backed fetch/update flow
    - `PMN-071` Settings module kickoff is started (`useSettings()` + persisted local preferences)
-   - next: define settings contract shape (local vs remote-sync), then move additional settings-screen state into the hook
+   - service contract boundary is defined (`settingsService`); next: define local-vs-remote settings sync strategy and move more settings-screen state into the hook
    - `PMN-074` Admin module kickoff is started (`useAdmin()` + existing admin screen integration)
-   - next: define admin data contract boundaries (directory/settings/roles APIs) and replace placeholder directory loading with real provider-backed queries
+   - service contract boundary is defined (`adminService`); next: define admin directory/settings/roles API contracts and replace placeholder directory loading with provider-backed queries
 
 ## Canonical Planning Docs (read these first)
 
