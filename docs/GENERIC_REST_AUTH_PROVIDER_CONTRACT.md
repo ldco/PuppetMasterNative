@@ -479,7 +479,7 @@ This section defines the current PMNative `generic-rest` profile fetch contract 
 Status:
 
 - remote fetch implemented (generic-rest, config-gated)
-- update endpoint contract planned (`backend.genericRest.profile.endpoints.update`)
+- remote update implemented (generic-rest, config-gated; current PMNative UI edits display name only)
 
 ### Endpoint Config
 
@@ -561,11 +561,31 @@ Accepted response variants:
 
 User shape is the same normalized PMNative auth user shape documented above (`id`, `email`, `name`, `role`).
 
+### Profile Update (`PATCH /profile/me`)
+
+PMNative currently sends (display-name edit flow):
+
+```json
+{
+  "name": "Updated Display Name"
+}
+```
+
+Accepted response variants:
+
+- same variants as **Profile Fetch** (`raw user`, `{ user }`, `{ success: true, data: { user } }`)
+
+Notes:
+
+- PMNative currently expects the updated normalized user to be returned in the response.
+- Additional profile fields can be added later with a schema versioned contract if needed.
+
 ### Behavior Notes
 
 - If the profile endpoint is not configured, PMNative falls back to the auth session snapshot for profile display.
 - If configured but no access token is available, PMNative falls back to the auth session snapshot.
 - Remote provider failures surface as profile refresh/load errors in the UI while retaining the last known profile state when possible.
+- If the update endpoint is not configured, PMNative disables the profile save action and shows provider capability details in the profile form helper text.
 
 ## Admin Users List (PMN-074) — Contract Extension
 

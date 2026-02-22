@@ -8,29 +8,52 @@ interface UseProfileResult {
   profile: AuthUser | null
   isLoading: boolean
   isRefreshing: boolean
+  isSaving: boolean
   error: string | null
+  saveError: string | null
+  canSaveRemote: boolean
+  profileProviderDetail: string
+  nameDraft: string
+  setNameDraft: (value: string) => void
   refreshProfile: () => Promise<void>
+  saveProfile: () => Promise<void>
 }
 
 export const useProfile = (): UseProfileResult => {
   const sessionUser = useAuthStore((state) => state.user)
   const accessToken = useAuthStore((state) => state.token)
+  const setUser = useAuthStore((state) => state.setUser)
+
   const [profile, setProfile] = useState<AuthUser | null>(sessionUser)
+  const [nameDraft, setNameDraft] = useState(sessionUser?.name ?? '')
   const [isLoading, setIsLoading] = useState(Boolean(sessionUser))
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const mountedRef = useRef(true)
   const requestIdRef = useRef(0)
+  const saveRequestIdRef = useRef(0)
+
+  const profileCapabilities = profileService.getCapabilities()
+
+  useEffect(() => {
+    setNameDraft(profile?.name ?? '')
+  }, [profile?.id, profile?.name])
 
   useEffect(() => {
     mountedRef.current = true
 
     if (!sessionUser) {
       requestIdRef.current += 1
+      saveRequestIdRef.current += 1
       setProfile(null)
+      setNameDraft('')
       setError(null)
+      setSaveError(null)
       setIsLoading(false)
       setIsRefreshing(false)
+      setIsSaving(false)
       return () => {
         mountedRef.current = false
       }
@@ -82,6 +105,9 @@ export const useProfile = (): UseProfileResult => {
       }
 
       setProfile(refreshedProfile)
+      if (refreshedProfile) {
+        setUser(refreshedProfile)
+      }
     } catch {
       if (!mountedRef.current || requestId !== requestIdRef.current) {
         return
@@ -93,13 +119,65 @@ export const useProfile = (): UseProfileResult => {
         setIsRefreshing(false)
       }
     }
-  }, [accessToken, isRefreshing, sessionUser])
+  }, [accessToken, isRefreshing, sessionUser, setUser])
+
+  const saveProfile = useCallback(async (): Promise<void> => {
+    if (isSaving || !sessionUser) {
+      return
+    }
+
+    const normalizedName = nameDraft.trim()
+    if (!normalizedName) {
+      setSaveError('Display name is required.')
+      throw new Error('Display name is required')
+    }
+
+    setSaveError(null)
+    setIsSaving(true)
+    const saveRequestId = ++saveRequestIdRef.current
+
+    try {
+      const updatedProfile = await profileService.updateProfile({
+        sessionUser,
+        accessToken,
+        profile: {
+          name: normalizedName
+        }
+      })
+
+      if (!mountedRef.current || saveRequestId !== saveRequestIdRef.current) {
+        return
+      }
+
+      setProfile(updatedProfile)
+      setUser(updatedProfile)
+      setNameDraft(updatedProfile.name ?? '')
+    } catch {
+      if (!mountedRef.current || saveRequestId !== saveRequestIdRef.current) {
+        throw new Error('Save request was interrupted')
+      }
+
+      setSaveError('Failed to save profile changes.')
+      throw new Error('Failed to save profile changes')
+    } finally {
+      if (mountedRef.current && saveRequestId === saveRequestIdRef.current) {
+        setIsSaving(false)
+      }
+    }
+  }, [accessToken, isSaving, nameDraft, sessionUser, setUser])
 
   return {
     profile,
     isLoading,
     isRefreshing,
+    isSaving,
     error,
-    refreshProfile
+    saveError,
+    canSaveRemote: profileCapabilities.canUpdateRemote,
+    profileProviderDetail: profileCapabilities.detail,
+    nameDraft,
+    setNameDraft,
+    refreshProfile,
+    saveProfile
   }
 }

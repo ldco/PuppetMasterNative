@@ -29,6 +29,8 @@ What is already done (high level):
   - `PMN-074` Admin
 - `PMN-070` profile provider-backed fetch path has started:
   - `generic-rest` profile endpoint support (`backend.genericRest.profile.endpoints.get`) is implemented and config-gated
+- `PMN-070` profile update path has started:
+  - `generic-rest` profile update endpoint support (`backend.genericRest.profile.endpoints.update`) is implemented and config-gated
 - `PMN-074` admin users provider-backed list path has started:
   - `generic-rest` admin users endpoint support (`backend.genericRest.admin.endpoints.listUsers`) is implemented and config-gated
 - Module architecture cleanup pass completed:
@@ -42,7 +44,7 @@ What is already done (high level):
 What is not finished:
 
 - Full provider-backed admin module APIs are not implemented yet (only users list remote path has started)
-- `PMN-070` profile update contract/endpoint (`update`) is not implemented yet
+- Profile editing UX is basic (display name only) and needs broader profile field contract decisions
 - `supabase` settings sync adapter or an explicit non-goal decision
 - Full auth test matrix execution (especially interactive Supabase/social smoke tests)
 - Telegram/VK runtime social auth adapters (currently capability-gated/doc-planned)
@@ -86,6 +88,6 @@ Use this rule:
 ## Immediate Next Implementation Targets (Practical)
 
 1. `PMN-071` Settings: document/test the `generic-rest` settings sync contract and decide whether `supabase` gets an adapter or remains unsupported
-2. `PMN-070` Profile: document/test generic-rest profile fetch contract and implement profile update endpoint contract (`update`)
+2. `PMN-070` Profile: document/test generic-rest profile update contract and expand beyond display-name-only editing
 3. `PMN-074` Admin: document/test generic-rest admin users list contract, then add roles/settings endpoints and replace remaining placeholder admin flows
 4. Execute auth/provider tests + Supabase smoke tests once runtime credentials/config are ready

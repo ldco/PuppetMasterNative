@@ -6,15 +6,31 @@ import { Button } from '@/components/atoms/Button'
 import { Divider } from '@/components/atoms/Divider'
 import { Text } from '@/components/atoms/Text'
 import { ErrorState } from '@/components/molecules/ErrorState'
+import { FormField } from '@/components/molecules/FormField'
 import { SkeletonCard } from '@/components/molecules/SkeletonCard'
 import { LoadingOverlay } from '@/components/organisms/LoadingOverlay'
 import { ScreenHeader } from '@/components/organisms/ScreenHeader'
 import { useProfile } from '@/hooks/useProfile'
 import { useTheme } from '@/hooks/useTheme'
+import { useToast } from '@/hooks/useToast'
 
 export default function ProfileTabScreen() {
   const { colors, tokens } = useTheme()
-  const { error, profile, isLoading, isRefreshing, refreshProfile } = useProfile()
+  const { toast } = useToast()
+  const {
+    canSaveRemote,
+    error,
+    isLoading,
+    isRefreshing,
+    isSaving,
+    nameDraft,
+    profile,
+    profileProviderDetail,
+    refreshProfile,
+    saveError,
+    saveProfile,
+    setNameDraft
+  } = useProfile()
 
   const styles = StyleSheet.create({
     screen: {
@@ -24,7 +40,6 @@ export default function ProfileTabScreen() {
       padding: tokens.spacing.lg
     },
     card: {
-      alignItems: 'center',
       backgroundColor: colors.surface,
       borderColor: colors.border,
       borderRadius: tokens.radius.lg,
@@ -33,7 +48,18 @@ export default function ProfileTabScreen() {
       padding: tokens.spacing.lg
     },
     actions: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: tokens.spacing.sm,
       marginTop: tokens.spacing.xs
+    },
+    identity: {
+      alignItems: 'center',
+      gap: tokens.spacing.sm
+    },
+    form: {
+      gap: tokens.spacing.sm,
+      width: '100%'
     }
   })
 
@@ -58,14 +84,30 @@ export default function ProfileTabScreen() {
         />
       ) : (
         <View style={styles.card}>
-          <Avatar name={profile.name} size="lg" />
-          <Badge
-            label={`Role: ${profile.role}`}
-            tone={profile.role === 'master' || profile.role === 'admin' ? 'brand' : 'neutral'}
-          />
+          <View style={styles.identity}>
+            <Avatar name={profile.name} size="lg" />
+            <Badge
+              label={`Role: ${profile.role}`}
+              tone={profile.role === 'master' || profile.role === 'admin' ? 'brand' : 'neutral'}
+            />
+          </View>
           <Divider inset={4} />
-          <Text tone="secondary">Name: {profile.name ?? 'Unnamed user'}</Text>
-          <Text tone="secondary">Email: {profile.email}</Text>
+          <View style={styles.form}>
+            <FormField
+              autoCapitalize="words"
+              errorText={saveError ?? undefined}
+              helperText={
+                canSaveRemote
+                  ? `Remote update enabled (${profileProviderDetail})`
+                  : `Remote update unavailable (${profileProviderDetail})`
+              }
+              label="Display Name"
+              onChangeText={setNameDraft}
+              placeholder="Enter display name"
+              value={nameDraft}
+            />
+            <Text tone="secondary">Email: {profile.email}</Text>
+          </View>
           <View style={styles.actions}>
             <Button
               disabled={isRefreshing}
@@ -76,11 +118,23 @@ export default function ProfileTabScreen() {
               size="sm"
               variant="outline"
             />
+            <Button
+              disabled={!canSaveRemote || isSaving || nameDraft.trim() === (profile.name ?? '').trim()}
+              label={isSaving ? 'Saving...' : 'Save profile'}
+              onPress={() => {
+                void saveProfile().then(() => {
+                  toast('Profile updated', 'success')
+                }).catch(() => {
+                  // Errors are reflected in hook state; toast is omitted to avoid duplicate UX.
+                })
+              }}
+              size="sm"
+            />
           </View>
         </View>
       )}
 
-      <LoadingOverlay label="Refreshing profile..." visible={isRefreshing} />
+      <LoadingOverlay label={isSaving ? 'Saving profile...' : 'Refreshing profile...'} visible={isRefreshing || isSaving} />
     </View>
   )
 }
