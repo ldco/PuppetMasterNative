@@ -33,6 +33,7 @@ What is already done (high level):
   - `generic-rest` profile update endpoint support (`backend.genericRest.profile.endpoints.update`) is implemented and config-gated
 - `PMN-074` admin users provider-backed list path has started:
   - `generic-rest` admin users endpoint support (`backend.genericRest.admin.endpoints.listUsers`) is implemented and config-gated
+  - admin user-detail route/provider path is implemented (`backend.genericRest.admin.endpoints.getUser`, config-gated)
 - Module architecture cleanup pass completed:
   - shared settings store (`useSettingsStore`)
   - explicit service inputs (no hidden global store reads in services)
@@ -89,5 +90,5 @@ Use this rule:
 
 1. `PMN-071` Settings: document/test the `generic-rest` settings sync contract and decide whether `supabase` gets an adapter or remains unsupported
 2. `PMN-070` Profile: document/test generic-rest profile update contract and expand beyond display-name-only editing
-3. `PMN-074` Admin: document/test generic-rest admin users list contract, then add roles/settings endpoints and replace remaining placeholder admin flows
+3. `PMN-074` Admin: document/test generic-rest admin user-detail contract, then add roles/settings endpoints and replace remaining placeholder admin flows
 4. Execute auth/provider tests + Supabase smoke tests once runtime credentials/config are ready

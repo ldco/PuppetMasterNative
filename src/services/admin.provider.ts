@@ -7,6 +7,7 @@ import {
   AdminProviderError,
   type AdminProvider,
   type AdminProviderDirectoryUser,
+  type AdminProviderGetUserInput,
   type AdminProviderListUsersInput
 } from '@/services/admin.provider.types'
 
@@ -19,6 +20,19 @@ const genericRestAdminUsersPayloadSchema = z.union([
     success: z.literal(true),
     data: z.object({
       users: z.array(genericRestUserSchema)
+    })
+  })
+])
+
+const genericRestAdminUserPayloadSchema = z.union([
+  genericRestUserSchema,
+  z.object({
+    user: genericRestUserSchema
+  }),
+  z.object({
+    success: z.literal(true),
+    data: z.object({
+      user: genericRestUserSchema
     })
   })
 ])
@@ -37,20 +51,61 @@ const normalizeGenericRestUsersPayload = (
   return payload.users
 }
 
-const genericRestListUsersEndpoint = pmNativeConfig.backend.genericRest?.admin?.endpoints.listUsers
+const normalizeGenericRestUserPayload = (
+  payload: z.infer<typeof genericRestAdminUserPayloadSchema>
+): AdminProviderDirectoryUser => {
+  if ('data' in payload) {
+    return payload.data.user
+  }
+
+  if ('user' in payload) {
+    return payload.user
+  }
+
+  return payload
+}
+
+const genericRestAdminEndpoints = pmNativeConfig.backend.genericRest?.admin?.endpoints
+const genericRestListUsersEndpoint = genericRestAdminEndpoints?.listUsers
+const genericRestGetUserEndpointTemplate = genericRestAdminEndpoints?.getUser
+
+const resolveGetUserEndpoint = (userId: string): string => {
+  if (!genericRestGetUserEndpointTemplate) {
+    throw new AdminProviderError('generic-rest admin user detail endpoint is not configured', 'CONFIG')
+  }
+
+  if (!genericRestGetUserEndpointTemplate.includes(':id')) {
+    throw new AdminProviderError(
+      'generic-rest admin user detail endpoint must include :id placeholder',
+      'CONFIG'
+    )
+  }
+
+  return genericRestGetUserEndpointTemplate.replace(':id', encodeURIComponent(userId))
+}
+
+const requireAccessToken = (accessToken?: string | null): string => {
+  if (!accessToken) {
+    throw new AdminProviderError('No access token available for admin request', 'UNAUTHORIZED')
+  }
+
+  return accessToken
+}
 
 const genericRestAdminProvider: AdminProvider = {
   getCapabilities() {
-    if (!genericRestListUsersEndpoint) {
-      return {
-        canListUsersRemote: false,
-        detail: 'generic-rest admin users endpoint is not configured (backend.genericRest.admin.endpoints.listUsers)'
-      }
-    }
+    const canListUsersRemote = Boolean(genericRestListUsersEndpoint)
+    const canGetUserRemote = Boolean(genericRestGetUserEndpointTemplate)
 
     return {
-      canListUsersRemote: true,
-      detail: `GET ${genericRestListUsersEndpoint}`
+      canListUsersRemote,
+      canGetUserRemote,
+      listUsersDetail: canListUsersRemote
+        ? `GET ${genericRestListUsersEndpoint}`
+        : 'generic-rest admin users endpoint is not configured (backend.genericRest.admin.endpoints.listUsers)',
+      getUserDetail: canGetUserRemote
+        ? `GET ${genericRestGetUserEndpointTemplate}`
+        : 'generic-rest admin user detail endpoint is not configured (backend.genericRest.admin.endpoints.getUser)'
     }
   },
 
@@ -59,12 +114,10 @@ const genericRestAdminProvider: AdminProvider = {
       throw new AdminProviderError('generic-rest admin users endpoint is not configured', 'CONFIG')
     }
 
-    if (!input.accessToken) {
-      throw new AdminProviderError('No access token available for admin users request', 'UNAUTHORIZED')
-    }
+    const accessToken = requireAccessToken(input.accessToken)
 
     const payload = await apiRequest(genericRestListUsersEndpoint, {
-      token: input.accessToken,
+      token: accessToken,
       schema: genericRestAdminUsersPayloadSchema,
       useAuthToken: false
     }).catch((error: unknown) => {
@@ -75,6 +128,24 @@ const genericRestAdminProvider: AdminProvider = {
     })
 
     return normalizeGenericRestUsersPayload(payload)
+  },
+
+  async getUser(input: AdminProviderGetUserInput): Promise<AdminProviderDirectoryUser> {
+    const endpoint = resolveGetUserEndpoint(input.userId)
+    const accessToken = requireAccessToken(input.accessToken)
+
+    const payload = await apiRequest(endpoint, {
+      token: accessToken,
+      schema: genericRestAdminUserPayloadSchema,
+      useAuthToken: false
+    }).catch((error: unknown) => {
+      throw new AdminProviderError(
+        error instanceof Error ? error.message : 'Admin user detail request failed',
+        'PROVIDER'
+      )
+    })
+
+    return normalizeGenericRestUserPayload(payload)
   }
 }
 
@@ -82,11 +153,17 @@ const notSupportedProvider = (provider: string): AdminProvider => ({
   getCapabilities() {
     return {
       canListUsersRemote: false,
-      detail: `${provider} admin provider is not implemented yet`
+      canGetUserRemote: false,
+      listUsersDetail: `${provider} admin provider is not implemented yet`,
+      getUserDetail: `${provider} admin provider is not implemented yet`
     }
   },
 
   async listUsers() {
+    throw new AdminProviderError(`${provider} admin provider is not implemented yet`, 'NOT_SUPPORTED')
+  },
+
+  async getUser() {
     throw new AdminProviderError(`${provider} admin provider is not implemented yet`, 'NOT_SUPPORTED')
   }
 })

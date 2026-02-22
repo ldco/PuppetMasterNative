@@ -37,7 +37,8 @@ const genericRestProfileEndpointsSchema = z.object({
 })
 
 const genericRestAdminEndpointsSchema = z.object({
-  listUsers: z.string().min(1)
+  listUsers: z.string().min(1),
+  getUser: z.string().min(1).optional()
 })
 
 export const pmNativeConfigSchema = z.object({

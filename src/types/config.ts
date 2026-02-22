@@ -62,6 +62,7 @@ export interface GenericRestProfileEndpoints {
 
 export interface GenericRestAdminEndpoints {
   listUsers: string
+  getUser?: string
 }
 
 export interface GenericRestBackendConfig {

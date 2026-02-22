@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
+import { useRouter } from 'expo-router'
 
 import { Avatar } from '@/components/atoms/Avatar'
 import { Badge } from '@/components/atoms/Badge'
+import { Icon } from '@/components/atoms/Icon'
 import { Card } from '@/components/molecules/Card'
 import { EmptyState } from '@/components/molecules/EmptyState'
 import { ErrorState } from '@/components/molecules/ErrorState'
@@ -16,6 +18,7 @@ import { useTheme } from '@/hooks/useTheme'
 import { useToast } from '@/hooks/useToast'
 
 export default function AdminUsersScreen() {
+  const router = useRouter()
   const { colors, tokens } = useTheme()
   const { toast } = useToast()
   const {
@@ -57,6 +60,11 @@ export default function AdminUsersScreen() {
     },
     searchRow: {
       marginBottom: tokens.spacing.xs
+    },
+    trailingRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: tokens.spacing.xs
     }
   })
 
@@ -119,14 +127,20 @@ export default function AdminUsersScreen() {
               <ListItem
                 key={entry.id}
                 leading={<Avatar name={entry.name} size="sm" />}
+                onPress={() => {
+                  router.push(`/(admin)/users/${encodeURIComponent(entry.id)}`)
+                }}
                 showDivider={index < filteredUsers.length - 1}
                 subtitle={entry.email}
                 title={entry.name}
                 trailing={
-                  <Badge
-                    label={entry.role}
-                    tone={entry.role === 'master' || entry.role === 'admin' ? 'brand' : 'neutral'}
-                  />
+                  <View style={styles.trailingRow}>
+                    <Badge
+                      label={entry.role}
+                      tone={entry.role === 'master' || entry.role === 'admin' ? 'brand' : 'neutral'}
+                    />
+                    <Icon name="chevron-forward" size={16} tone="secondary" />
+                  </View>
                 }
               />
             ))}

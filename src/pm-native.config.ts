@@ -101,7 +101,8 @@ export const pmNativeConfig: PMNativeConfig = {
       // }
       // admin: {
       //   endpoints: {
-      //     listUsers: '/admin/users'
+      //     listUsers: '/admin/users',
+      //     getUser: '/admin/users/:id'
       //   }
       // }
     },

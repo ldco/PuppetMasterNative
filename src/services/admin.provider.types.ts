@@ -2,7 +2,9 @@ import type { AuthUser } from '@/types/auth'
 
 export interface AdminProviderCapabilities {
   canListUsersRemote: boolean
-  detail: string
+  canGetUserRemote: boolean
+  listUsersDetail: string
+  getUserDetail: string
 }
 
 export type AdminProviderErrorCode =
@@ -26,6 +28,11 @@ export interface AdminProviderListUsersInput {
   accessToken?: string | null
 }
 
+export interface AdminProviderGetUserInput {
+  accessToken?: string | null
+  userId: string
+}
+
 export interface AdminProviderDirectoryUser {
   id: string
   email: string
@@ -36,4 +43,5 @@ export interface AdminProviderDirectoryUser {
 export interface AdminProvider {
   getCapabilities: () => AdminProviderCapabilities
   listUsers: (input: AdminProviderListUsersInput) => Promise<AdminProviderDirectoryUser[]>
+  getUser: (input: AdminProviderGetUserInput) => Promise<AdminProviderDirectoryUser>
 }

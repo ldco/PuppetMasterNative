@@ -397,7 +397,8 @@ backend: {
     },
     admin: {
       endpoints: {
-        listUsers: '/admin/users'
+        listUsers: '/admin/users',
+        getUser: '/admin/users/:id'
       }
     }
   }
@@ -601,6 +602,7 @@ Status:
 PMNative config path:
 
 - `backend.genericRest.admin.endpoints.listUsers`
+- `backend.genericRest.admin.endpoints.getUser` (optional; required for admin user-detail route remote fetch)
 
 Example:
 
@@ -619,7 +621,8 @@ backend: {
     },
     admin: {
       endpoints: {
-        listUsers: '/admin/users'
+        listUsers: '/admin/users',
+        getUser: '/admin/users/:id'
       }
     }
   }
@@ -683,3 +686,58 @@ Notes:
 - User object shape is the same normalized PMNative auth user shape.
 - `name` may be `null`; PMNative currently renders `Unknown user` fallback in Admin Users UI.
 - If the endpoint is not configured or no access token is available, PMNative falls back to a local placeholder directory containing the active session user.
+
+### Get User Detail (`GET /admin/users/:id`)
+
+PMNative config uses a route template string with a required `:id` placeholder, for example:
+
+- `'/admin/users/:id'`
+
+PMNative sends:
+
+- `GET` to the configured endpoint with `:id` replaced by `encodeURIComponent(userId)`
+- `Authorization: Bearer <accessToken>` header
+
+Accepted response variants:
+
+#### Variant A (raw user)
+```json
+{
+  "id": "123",
+  "email": "user@example.com",
+  "name": "Jane Doe",
+  "role": "user"
+}
+```
+
+#### Variant B (user envelope)
+```json
+{
+  "user": {
+    "id": "123",
+    "email": "user@example.com",
+    "name": "Jane Doe",
+    "role": "user"
+  }
+}
+```
+
+#### Variant C (success envelope)
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "123",
+      "email": "user@example.com",
+      "name": "Jane Doe",
+      "role": "user"
+    }
+  }
+}
+```
+
+Behavior notes:
+
+- If `getUser` is not configured, PMNative falls back to local detail only for the active session user ID.
+- If the requested user is not the active session user and no remote detail endpoint is available, PMNative will show a fallback "user unavailable" state.

@@ -86,6 +86,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - `PMN-070` profile update now has a provider-facing execution path: `generic-rest` remote update is implemented when `backend.genericRest.profile.endpoints.update` is configured.
 - `PMN-074` admin users list now has a provider-facing execution path: `generic-rest` remote list is implemented when `backend.genericRest.admin.endpoints.listUsers` is configured; otherwise the service falls back to a local session-user placeholder list.
 - Admin Users UI now explicitly shows whether data came from the remote provider endpoint or the session fallback directory (including source detail text).
+- `PMN-074` admin user detail now has a provider-facing execution path and route (`/(admin)/users/[id]`), with `generic-rest` remote fetch implemented when `backend.genericRest.admin.endpoints.getUser` is configured.
 
 ### Remaining risks / TODO
 - `profileService` / `adminService` are still placeholder delay-based implementations; real provider/API contracts are still pending.
@@ -169,6 +170,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - `generic-rest` user payload parsing is now shared between auth and profile providers via `src/services/genericRest.schemas.ts`.
 - Profile tab now includes a basic editable display-name field and save action wired through `useProfile()` -> `profileService` -> `profileProvider`.
 - `PMN-074` `generic-rest` admin users list contract path is implemented and config-validated (`backend.genericRest.admin.endpoints.listUsers`).
+- `PMN-074` `generic-rest` admin user detail contract path is implemented and config-validated (`backend.genericRest.admin.endpoints.getUser`, `:id` placeholder).
 - `docs/pmnative/PMNative_Implementation_Epic_—_Phases,_Milestones_&_MVP.md` updated to include social auth in MVP/auth milestone and `PMN-021`.
 - `docs/pmnative/PMN-021_SOCIAL_AUTH.md` added (scope, acceptance criteria, implementation order, risks).
 
@@ -269,8 +271,10 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
   - service contract boundary is defined (`adminService`) and hidden global-state reads were removed
   - provider-facing admin contract is now scaffolded (`adminProvider`)
   - `generic-rest` remote admin users list path is implemented and config-gated via `backend.genericRest.admin.endpoints.listUsers`
+  - `generic-rest` remote admin user detail path is implemented and config-gated via `backend.genericRest.admin.endpoints.getUser` (`:id` template)
+  - Admin Users rows now navigate to `/(admin)/users/[id]` detail screens
   - `useAdmin()` / Admin Users screen now surfaces users source metadata (`remote` vs `session-fallback`) for clearer diagnostics
-  - next: document/test generic-rest admin users contract and add roles/settings/admin detail endpoint contracts
+  - next: document/test generic-rest admin user-detail contract and add roles/settings endpoints/contracts
 
 ## Canonical Planning Docs (read these first)
 
