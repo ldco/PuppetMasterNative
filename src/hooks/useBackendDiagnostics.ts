@@ -99,6 +99,60 @@ export const useBackendDiagnostics = (): BackendDiagnostics => {
       })
     }
 
+    const socialAuth = config.backend.socialAuth
+    const isGoogleEnabled = Boolean(socialAuth?.google)
+    const isTelegramEnabled = Boolean(socialAuth?.telegram)
+    const isVkEnabled = Boolean(socialAuth?.vk)
+
+    items.push({
+      key: 'social-google',
+      label: 'Social auth: Google',
+      status:
+        config.backend.provider === 'supabase'
+          ? isGoogleEnabled
+            ? 'ok'
+            : 'warning'
+          : isGoogleEnabled
+            ? 'warning'
+            : 'info',
+      detail:
+        config.backend.provider === 'supabase'
+          ? isGoogleEnabled
+            ? 'Enabled (PMN-021 runtime path implemented)'
+            : 'Disabled in backend.socialAuth.google'
+          : isGoogleEnabled
+            ? 'Enabled in config, but runtime support is not implemented for this provider'
+            : 'Disabled'
+    })
+
+    items.push({
+      key: 'social-telegram',
+      label: 'Social auth: Telegram',
+      status: isTelegramEnabled ? 'warning' : 'info',
+      detail: isTelegramEnabled
+        ? 'Flag enabled, but provider adapters are not implemented yet'
+        : 'Disabled'
+    })
+
+    items.push({
+      key: 'social-vk',
+      label: 'Social auth: VK',
+      status: isVkEnabled ? 'warning' : 'info',
+      detail: isVkEnabled
+        ? 'Flag enabled, but provider adapters are not implemented yet'
+        : 'Disabled'
+    })
+
+    items.push({
+      key: 'social-callback-route',
+      label: 'Social auth callback route',
+      status: config.backend.provider === 'supabase' && isGoogleEnabled ? 'ok' : 'info',
+      detail:
+        config.backend.provider === 'supabase' && isGoogleEnabled
+          ? 'App route /oauth-callback is implemented; confirm Supabase redirect URLs include native + web callbacks'
+          : 'Route exists at /oauth-callback (only used when social auth is enabled)'
+    })
+
     return {
       provider: config.backend.provider,
       items

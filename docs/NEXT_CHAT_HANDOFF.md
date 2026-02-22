@@ -28,6 +28,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - Added config gating check to Supabase `completeSocialAuthCallback()` (blocks callback completion when Google social auth is disabled).
 - Added missing-callback timeout handling in `src/app/(auth)/oauth-callback.tsx` to route back to login with an error toast.
 - Added mode-aware success toast in `oauth-callback` (`Social sign-in completed` vs `Social registration completed`).
+- Started next PMN-021 phase by extending Admin Settings backend diagnostics with social-auth status/callback-route visibility.
 - Verified type safety with `npm run typecheck` after the review fixes.
 
 ### Remaining risks / TODO
@@ -100,6 +101,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
   - capability-gated social start (`signInWithOAuth`)
   - callback route (`/oauth-callback`)
   - callback completion (`exchangeCodeForSession` / token fallback)
+- Admin Settings backend diagnostics now surfaces social-auth flags (`Google`, `Telegram`, `VK`) and callback-route readiness notes.
 
 ## Known Remaining Risks / TODO
 
@@ -129,6 +131,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 5. Provider diagnostics / setup validation screen
    - show active provider
    - show missing env vars
+   - social auth status/callback route visibility is started; next add explicit native/web redirect URL values and validation hints
 
 ## Canonical Planning Docs (read these first)
 
