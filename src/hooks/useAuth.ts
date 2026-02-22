@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 
 import { ApiError } from '@/services/api'
 import {
+  PENDING_SOCIAL_AUTH_CONTEXT_KEY,
   SESSION_REFRESH_TOKEN_KEY,
   SESSION_TOKEN_KEY,
   SESSION_USER_KEY
@@ -9,6 +10,7 @@ import {
 import { authProvider } from '@/services/auth/provider'
 import {
   AuthProviderError,
+  type SocialAuthMode,
   type SocialAuthProvider
 } from '@/services/auth/provider.types'
 import { storageService } from '@/services/storage.service'
@@ -71,6 +73,134 @@ const persistSession = async (session: AuthSession): Promise<void> => {
   }
 
   storageService.setItem(SESSION_USER_KEY, JSON.stringify(session.user))
+}
+
+interface PendingSocialAuthContext {
+  provider: SocialAuthProvider
+  mode: SocialAuthMode
+  createdAt: number
+}
+
+const PENDING_SOCIAL_AUTH_TTL_MS = 15 * 60 * 1000
+
+const parsePendingSocialAuthContext = (payload: string | null): PendingSocialAuthContext | null => {
+  if (!payload) {
+    return null
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(payload)
+
+    if (typeof parsed !== 'object' || parsed === null) {
+      return null
+    }
+
+    const candidate = parsed as Partial<PendingSocialAuthContext>
+    const validProvider = ['google', 'telegram', 'vk'].includes(candidate.provider ?? '')
+    const validMode = candidate.mode === 'login' || candidate.mode === 'register'
+
+    if (!validProvider || !validMode || typeof candidate.createdAt !== 'number') {
+      return null
+    }
+
+    return {
+      provider: candidate.provider as SocialAuthProvider,
+      mode: candidate.mode as SocialAuthMode,
+      createdAt: candidate.createdAt
+    }
+  } catch {
+    return null
+  }
+}
+
+const setPendingSocialAuthContext = (provider: SocialAuthProvider, mode: SocialAuthMode): void => {
+  const payload: PendingSocialAuthContext = {
+    provider,
+    mode,
+    createdAt: Date.now()
+  }
+
+  storageService.setItem(PENDING_SOCIAL_AUTH_CONTEXT_KEY, JSON.stringify(payload))
+}
+
+const clearPendingSocialAuthContext = (): void => {
+  storageService.removeItem(PENDING_SOCIAL_AUTH_CONTEXT_KEY)
+}
+
+const getStoredPendingSocialAuthContext = (): PendingSocialAuthContext | null => {
+  const parsed = parsePendingSocialAuthContext(storageService.getItem(PENDING_SOCIAL_AUTH_CONTEXT_KEY))
+
+  if (!parsed) {
+    clearPendingSocialAuthContext()
+    return null
+  }
+
+  if (Date.now() - parsed.createdAt > PENDING_SOCIAL_AUTH_TTL_MS) {
+    clearPendingSocialAuthContext()
+    return null
+  }
+
+  return parsed
+}
+
+const parseCallbackSocialContext = (
+  callbackUrl: string
+): { provider: SocialAuthProvider | null; mode: SocialAuthMode | null } => {
+  try {
+    const parsedUrl = new URL(callbackUrl)
+
+    const provider = parsedUrl.searchParams.get('provider')
+    const mode = parsedUrl.searchParams.get('mode')
+
+    return {
+      provider:
+        provider === 'google' || provider === 'telegram' || provider === 'vk'
+          ? provider
+          : null,
+      mode: mode === 'login' || mode === 'register' ? mode : null
+    }
+  } catch {
+    const location = (globalThis as { location?: { origin?: string } }).location
+    const webOrigin = typeof location?.origin === 'string' ? location.origin : null
+
+    if (!webOrigin) {
+      return { provider: null, mode: null }
+    }
+
+    try {
+      const parsedUrl = new URL(callbackUrl, webOrigin)
+      const provider = parsedUrl.searchParams.get('provider')
+      const mode = parsedUrl.searchParams.get('mode')
+
+      return {
+        provider:
+          provider === 'google' || provider === 'telegram' || provider === 'vk'
+            ? provider
+            : null,
+        mode: mode === 'login' || mode === 'register' ? mode : null
+      }
+    } catch {
+      return { provider: null, mode: null }
+    }
+  }
+}
+
+const validatePendingSocialAuthCallback = (callbackUrl: string): void => {
+  const pendingContext = getStoredPendingSocialAuthContext()
+
+  if (!pendingContext) {
+    throw new AuthProviderError('Missing pending social auth context. Please start social sign-in again.', 'PROVIDER')
+  }
+
+  const callbackContext = parseCallbackSocialContext(callbackUrl)
+
+  if (callbackContext.provider && callbackContext.provider !== pendingContext.provider) {
+    throw new AuthProviderError('Social auth callback provider does not match the started flow', 'PROVIDER')
+  }
+
+  if (callbackContext.mode && callbackContext.mode !== pendingContext.mode) {
+    throw new AuthProviderError('Social auth callback mode does not match the started flow', 'PROVIDER')
+  }
 }
 
 const isUnauthorizedAuthError = (error: unknown): boolean => {
@@ -226,43 +356,69 @@ export const useAuth = () => {
 
   const registerWithSocial = useCallback(
     async (provider: SocialAuthProvider): Promise<AuthSocialResult> => {
-      const result = await authProvider.signInWithSocial(provider, 'register')
+      setPendingSocialAuthContext(provider, 'register')
 
-      if (result.kind === 'session') {
-        await persistSession(result.session)
-        setSession(result.session.user, result.session.token)
+      try {
+        const result = await authProvider.signInWithSocial(provider, 'register')
+
+        if (result.kind === 'session') {
+          clearPendingSocialAuthContext()
+          await persistSession(result.session)
+          setSession(result.session.user, result.session.token)
+        }
+
+        return result
+      } catch (error) {
+        clearPendingSocialAuthContext()
+        throw error
       }
-
-      return result
     },
     [setSession]
   )
 
   const signInWithSocial = useCallback(
     async (provider: SocialAuthProvider): Promise<AuthSocialResult> => {
-      const result = await authProvider.signInWithSocial(provider, 'login')
+      setPendingSocialAuthContext(provider, 'login')
 
-      if (result.kind === 'redirect_started') {
+      try {
+        const result = await authProvider.signInWithSocial(provider, 'login')
+
+        if (result.kind === 'redirect_started') {
+          return result
+        }
+
+        if (result.kind !== 'session') {
+          clearPendingSocialAuthContext()
+          throw new AuthProviderError(
+            `${provider} social login did not return a session`,
+            'PROVIDER'
+          )
+        }
+
+        clearPendingSocialAuthContext()
+        await persistSession(result.session)
+        setSession(result.session.user, result.session.token)
+
         return result
+      } catch (error) {
+        clearPendingSocialAuthContext()
+        throw error
       }
-
-      if (result.kind !== 'session') {
-        throw new AuthProviderError(`${provider} social login did not return a session`, 'PROVIDER')
-      }
-
-      await persistSession(result.session)
-      setSession(result.session.user, result.session.token)
-
-      return result
     },
     [setSession]
   )
 
   const completeSocialAuthCallback = useCallback(
     async (callbackUrl: string): Promise<void> => {
-      const session = await authProvider.completeSocialAuthCallback(callbackUrl)
-      await persistSession(session)
-      setSession(session.user, session.token)
+      validatePendingSocialAuthCallback(callbackUrl)
+
+      try {
+        const session = await authProvider.completeSocialAuthCallback(callbackUrl)
+        await persistSession(session)
+        setSession(session.user, session.token)
+      } finally {
+        clearPendingSocialAuthContext()
+      }
     },
     [setSession]
   )

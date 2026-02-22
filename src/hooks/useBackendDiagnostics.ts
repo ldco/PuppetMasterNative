@@ -1,3 +1,4 @@
+import * as ExpoLinking from 'expo-linking'
 import { useMemo } from 'react'
 
 import { useConfig } from '@/hooks/useConfig'
@@ -28,6 +29,14 @@ const getRuntimeEnv = (): Record<string, string | undefined> => {
 
 const hasValue = (value: string | undefined): boolean => {
   return typeof value === 'string' && value.trim().length > 0
+}
+
+const resolveRuntimeSocialCallbackUrl = (): string | null => {
+  try {
+    return ExpoLinking.createURL('/oauth-callback')
+  } catch {
+    return null
+  }
 }
 
 export const useBackendDiagnostics = (): BackendDiagnostics => {
@@ -151,6 +160,15 @@ export const useBackendDiagnostics = (): BackendDiagnostics => {
         config.backend.provider === 'supabase' && isGoogleEnabled
           ? 'App route /oauth-callback is implemented; confirm Supabase redirect URLs include native + web callbacks'
           : 'Route exists at /oauth-callback (only used when social auth is enabled)'
+    })
+
+    const runtimeSocialCallbackUrl = resolveRuntimeSocialCallbackUrl()
+
+    items.push({
+      key: 'social-callback-url-runtime',
+      label: 'Social callback URL (runtime)',
+      status: runtimeSocialCallbackUrl ? 'info' : 'warning',
+      detail: runtimeSocialCallbackUrl ?? 'Unable to resolve callback URL at runtime'
     })
 
     return {

@@ -103,10 +103,11 @@ const getWebOrigin = (): string | null => {
   return typeof location?.origin === 'string' && location.origin.length > 0 ? location.origin : null
 }
 
-const buildSocialRedirectUrl = (mode: SocialAuthMode): string => {
+const buildSocialRedirectUrl = (provider: SocialAuthProvider, mode: SocialAuthMode): string => {
   const rawUrl = ExpoLinking.createURL('/oauth-callback')
   const webOrigin = getWebOrigin()
   const url = webOrigin ? new URL(rawUrl, webOrigin) : new URL(rawUrl)
+  url.searchParams.set('provider', provider)
   url.searchParams.set('mode', mode)
   return url.toString()
 }
@@ -228,7 +229,7 @@ export const supabaseAuthProvider: AuthProvider = {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: buildSocialRedirectUrl(mode),
+        redirectTo: buildSocialRedirectUrl(provider, mode),
         skipBrowserRedirect: true
       }
     })

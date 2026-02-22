@@ -28,13 +28,15 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - Added config gating check to Supabase `completeSocialAuthCallback()` (blocks callback completion when Google social auth is disabled).
 - Added missing-callback timeout handling in `src/app/(auth)/oauth-callback.tsx` to route back to login with an error toast.
 - Added mode-aware success toast in `oauth-callback` (`Social sign-in completed` vs `Social registration completed`).
+- Added pending social auth context persistence + callback correlation validation (provider/mode + TTL) in `useAuth()` across OAuth redirects.
 - Started next PMN-021 phase by extending Admin Settings backend diagnostics with social-auth status/callback-route visibility.
+- Added runtime social callback URL preview to backend diagnostics (`ExpoLinking.createURL('/oauth-callback')`) to aid Supabase redirect allow-list setup.
 - Verified type safety with `npm run typecheck` after the review fixes.
 
 ### Remaining risks / TODO
-- Social auth callback flow still lacks persisted "pending social auth context" validation (provider/mode correlation across redirect).
 - Native social auth currently uses `Linking.openURL` (works for redirect flow, but `expo-web-browser`/auth-session UX hardening is still a future improvement).
 - Real Supabase smoke test still required (Google provider config + deep-link/web callback validation).
+- Callback validation currently relies on locally stored pending context (expected), so direct/manual callback URL opens without a started flow will be rejected and redirected to login.
 
 ## Ground Rules (important)
 
@@ -102,6 +104,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
   - callback route (`/oauth-callback`)
   - callback completion (`exchangeCodeForSession` / token fallback)
 - Admin Settings backend diagnostics now surfaces social-auth flags (`Google`, `Telegram`, `VK`) and callback-route readiness notes.
+- Admin Settings backend diagnostics now also shows the runtime-resolved social callback URL.
 
 ## Known Remaining Risks / TODO
 
@@ -131,7 +134,8 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 5. Provider diagnostics / setup validation screen
    - show active provider
    - show missing env vars
-   - social auth status/callback route visibility is started; next add explicit native/web redirect URL values and validation hints
+   - social auth status/callback route visibility is started; runtime callback URL preview is now shown
+   - next add clearer native/web redirect allow-list examples + validation hints
 
 ## Canonical Planning Docs (read these first)
 
@@ -146,10 +150,12 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - `src/services/auth/providers/supabaseAuthProvider.ts` now implements `google` social auth:
   - `signInWithSocial()` returns `redirect_started` and opens provider URL
   - `completeSocialAuthCallback()` exchanges OAuth callback into a PMNative auth session
+  - redirect URL includes `provider` + `mode` query params for callback correlation
 - `src/app/(auth)/oauth-callback.tsx` completes social auth and routes to tabs/login with toast feedback.
+- `src/hooks/useAuth.ts` persists pending social auth context before redirect start and validates callback correlation (`provider` / `mode`, 15m TTL) before completion.
 - `src/services/auth/providers/genericRestAuthProvider.ts` still returns `NOT_SUPPORTED` for social auth methods.
 - `src/pm-native.config.ts` includes `backend.socialAuth` flags (default all `false`); `google` must be enabled to expose the button and callback completion.
 - Next implementation target should be runtime validation + QA:
   - Supabase Google smoke test (web + native deep link)
-  - pending social auth context persistence/validation
   - provider diagnostics for social auth callback config visibility
+  - optional: migrate native redirect UX to `expo-auth-session` / `expo-web-browser` flow for better auth handoff behavior
