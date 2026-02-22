@@ -31,9 +31,28 @@ const hasValue = (value: string | undefined): boolean => {
   return typeof value === 'string' && value.trim().length > 0
 }
 
+const getWebOrigin = (): string | null => {
+  const location = (globalThis as { location?: { origin?: string } }).location
+  return typeof location?.origin === 'string' && location.origin.length > 0 ? location.origin : null
+}
+
 const resolveRuntimeSocialCallbackUrl = (): string | null => {
   try {
     return ExpoLinking.createURL('/oauth-callback')
+  } catch {
+    return null
+  }
+}
+
+const resolveWebSocialCallbackUrl = (): string | null => {
+  const webOrigin = getWebOrigin()
+
+  if (!webOrigin) {
+    return null
+  }
+
+  try {
+    return new URL('/oauth-callback', webOrigin).toString()
   } catch {
     return null
   }
@@ -45,6 +64,11 @@ export const useBackendDiagnostics = (): BackendDiagnostics => {
   return useMemo(() => {
     const env = getRuntimeEnv()
     const items: BackendDiagnosticItem[] = []
+    const supabaseConfig = config.backend.supabase
+    const supabaseUrlValue = supabaseConfig ? env[supabaseConfig.urlEnvVar] : undefined
+    const supabaseAnonKeyValue = supabaseConfig ? env[supabaseConfig.anonKeyEnvVar] : undefined
+    const hasSupabaseUrl = hasValue(supabaseUrlValue)
+    const hasSupabaseAnonKey = hasValue(supabaseAnonKeyValue)
 
     items.push({
       key: 'provider',
@@ -54,8 +78,6 @@ export const useBackendDiagnostics = (): BackendDiagnostics => {
     })
 
     if (config.backend.provider === 'supabase') {
-      const supabaseConfig = config.backend.supabase
-
       if (!supabaseConfig) {
         items.push({
           key: 'supabase-config',
@@ -64,21 +86,18 @@ export const useBackendDiagnostics = (): BackendDiagnostics => {
           detail: 'Missing backend.supabase configuration'
         })
       } else {
-        const urlValue = env[supabaseConfig.urlEnvVar]
-        const anonKeyValue = env[supabaseConfig.anonKeyEnvVar]
-
         items.push({
           key: 'supabase-url',
           label: supabaseConfig.urlEnvVar,
-          status: hasValue(urlValue) ? 'ok' : 'error',
-          detail: hasValue(urlValue) ? 'Configured' : 'Missing env value'
+          status: hasSupabaseUrl ? 'ok' : 'error',
+          detail: hasSupabaseUrl ? 'Configured' : 'Missing env value'
         })
 
         items.push({
           key: 'supabase-anon',
           label: supabaseConfig.anonKeyEnvVar,
-          status: hasValue(anonKeyValue) ? 'ok' : 'error',
-          detail: hasValue(anonKeyValue) ? 'Configured' : 'Missing env value'
+          status: hasSupabaseAnonKey ? 'ok' : 'error',
+          detail: hasSupabaseAnonKey ? 'Configured' : 'Missing env value'
         })
       }
 
@@ -163,12 +182,67 @@ export const useBackendDiagnostics = (): BackendDiagnostics => {
     })
 
     const runtimeSocialCallbackUrl = resolveRuntimeSocialCallbackUrl()
+    const webSocialCallbackUrl = resolveWebSocialCallbackUrl()
+
+    items.push({
+      key: 'social-google-readiness',
+      label: 'Google social readiness',
+      status:
+        config.backend.provider !== 'supabase'
+          ? isGoogleEnabled
+            ? 'warning'
+            : 'info'
+          : !isGoogleEnabled
+            ? 'warning'
+            : !supabaseConfig
+              ? 'error'
+              : hasSupabaseUrl && hasSupabaseAnonKey
+                ? 'ok'
+                : 'error',
+      detail:
+        config.backend.provider !== 'supabase'
+          ? isGoogleEnabled
+            ? 'Switch backend.provider to supabase for current Google social runtime support'
+            : 'Disabled'
+          : !isGoogleEnabled
+            ? 'Enable backend.socialAuth.google to expose the button and callback flow'
+            : !supabaseConfig
+              ? 'Missing backend.supabase configuration'
+              : hasSupabaseUrl && hasSupabaseAnonKey
+                ? 'Ready in app config. Next verify Supabase redirect URL allow-list.'
+                : 'Supabase env vars are required before Google social auth can run'
+    })
 
     items.push({
       key: 'social-callback-url-runtime',
       label: 'Social callback URL (runtime)',
       status: runtimeSocialCallbackUrl ? 'info' : 'warning',
       detail: runtimeSocialCallbackUrl ?? 'Unable to resolve callback URL at runtime'
+    })
+
+    items.push({
+      key: 'social-callback-query-note',
+      label: 'Social callback query params',
+      status: 'info',
+      detail:
+        'PMNative appends provider/mode query params to the callback URL at runtime for redirect correlation'
+    })
+
+    items.push({
+      key: 'social-callback-allowlist-native',
+      label: 'Supabase allow-list (native)',
+      status: 'info',
+      detail:
+        'Register the native callback base URL in Supabase URL config (use the runtime URL above when testing on device/simulator)'
+    })
+
+    items.push({
+      key: 'social-callback-allowlist-web',
+      label: 'Supabase allow-list (web)',
+      status: webSocialCallbackUrl ? 'info' : 'warning',
+      detail:
+        webSocialCallbackUrl ??
+        'Open PMNative web locally to resolve the current web callback URL (/oauth-callback on your web origin)'
     })
 
     return {
