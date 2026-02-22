@@ -80,6 +80,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - Global/session/shared UI domain state belongs in stores (Zustand), not duplicated in hook-local state.
 - Preview/contract-building logic for planned backend sync should live in a dedicated sync-domain service, not in local settings persistence service.
 - Hooks may orchestrate async state, but must expose explicit loading/error/refresh state to keep screens simple and future API migrations safe.
+- Settings sync now has a provider-facing execution contract (`settingsSyncProvider`) separate from preview/draft builders (`settingsSyncService`); execution remains intentionally stubbed until a real endpoint is defined.
 
 ### Remaining risks / TODO
 - `profileService` / `adminService` are still placeholder delay-based implementations; real provider/API contracts are still pending.
@@ -203,6 +204,10 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
     - sync preview/payload builders moved to dedicated `settingsSyncService`
     - `profileService` / `adminService` now take explicit inputs (no hidden auth-store reads)
     - `useProfile()` / `useAdmin()` now expose safer async loading/refresh/error state
+  - next-phase settings sync contract scaffolding started:
+    - provider-facing `settingsSyncProvider` + typed provider errors/capabilities added
+    - new `useSettingsSync()` hook now composes config/auth/settings + preview/draft/provider capability
+    - Admin Settings sync sheet now runs against the provider contract (`Validate sync`) and reports explicit `NOT_SUPPORTED` status instead of relying on screen-local assumptions
 
 ## Known Remaining Risks / TODO
 
@@ -241,7 +246,8 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
   - service contract boundary is defined (`profileService`); next: replace placeholder profile service with provider/API-backed fetch/update flow
   - `PMN-071` Settings module kickoff is started (`useSettings()` + persisted local preferences)
   - settings local-state architecture is now store-backed (`useSettingsStore`) and sync contract preview logic is split into `settingsSyncService`
-  - next: finalize local-vs-remote settings sync strategy, map `pmnative.settings.sync/1` draft payload to a real provider-backed endpoint contract, and define conflict/merge behavior
+  - provider-facing execution contract is now scaffolded (`settingsSyncProvider`, currently stubbed per backend provider)
+  - next: implement a real settings sync endpoint contract for at least one provider (likely `generic-rest` first), map `pmnative.settings.sync/1` to request/response schemas, and define conflict/merge behavior
   - `PMN-074` Admin module kickoff is started (`useAdmin()` + existing admin screen integration)
   - service contract boundary is defined (`adminService`) and hidden global-state reads were removed; next: define admin directory/settings/roles API contracts and replace placeholder directory loading with provider-backed queries
 

@@ -10,39 +10,19 @@ import { ListItem } from '@/components/molecules/ListItem'
 import { SectionHeader } from '@/components/molecules/SectionHeader'
 import { BottomSheet } from '@/components/organisms/BottomSheet'
 import { useBackendDiagnostics } from '@/hooks/useBackendDiagnostics'
+import { useSettingsSync } from '@/hooks/useSettingsSync'
 import { useTheme } from '@/hooks/useTheme'
 import { useToast } from '@/hooks/useToast'
 import { useConfig } from '@/hooks/useConfig'
-import { useSettings } from '@/hooks/useSettings'
-import { settingsSyncService } from '@/services/settingsSync.service'
-import { useAuthStore } from '@/stores/auth.store'
+import { SettingsSyncProviderError } from '@/services/settingsSync.provider.types'
 
 export default function AdminSettingsScreen() {
   const { colors, tokens } = useTheme()
   const { toast } = useToast()
   const config = useConfig()
-  const activeUser = useAuthStore((state) => state.user)
-  const { analyticsEnabled, notificationsEnabled } = useSettings()
   const backendDiagnostics = useBackendDiagnostics()
+  const { capability, draft: syncPayloadDraft, executeSync, preview: syncPreview } = useSettingsSync()
   const [showSyncSheet, setShowSyncSheet] = useState(false)
-  const syncPreviewInput = {
-    preferences: {
-      notificationsEnabled,
-      analyticsEnabled
-    },
-    backendProvider: config.backend.provider,
-    hasAdminModule: config.hasAdmin,
-    actor: activeUser
-      ? {
-          id: activeUser.id,
-          email: activeUser.email,
-          role: activeUser.role
-        }
-      : null,
-    hasRemoteSyncEndpoint: false
-  }
-  const syncPreview = settingsSyncService.buildPreview(syncPreviewInput)
-  const syncPayloadDraft = settingsSyncService.buildRequestDraft(syncPreviewInput)
 
   const styles = StyleSheet.create({
     screen: {
@@ -59,6 +39,7 @@ export default function AdminSettingsScreen() {
     },
     sheetFooterButtons: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       gap: tokens.spacing.sm
     }
   })
@@ -160,6 +141,25 @@ export default function AdminSettingsScreen() {
         footer={
           <View style={styles.sheetFooterButtons}>
             <Button
+              label="Validate sync"
+              onPress={() => {
+                void executeSync()
+                  .then(() => {
+                    toast('Settings sync executed', 'success')
+                  })
+                  .catch((error: unknown) => {
+                    if (error instanceof SettingsSyncProviderError) {
+                      toast(error.message, error.code === 'NOT_SUPPORTED' ? 'warning' : 'error')
+                      return
+                    }
+
+                    toast('Settings sync failed', 'error')
+                  })
+              }}
+              size="sm"
+              variant="outline"
+            />
+            <Button
               label="Copy payload"
               onPress={() => {
                 void copyDiagnosticValue('Sync payload', JSON.stringify(syncPayloadDraft, null, 2))
@@ -203,6 +203,9 @@ export default function AdminSettingsScreen() {
           ))}
           <Text tone={syncPreview.status === 'warning' ? 'secondary' : 'muted'} variant="caption">
             Next step: {syncPreview.nextStep}
+          </Text>
+          <Text tone="muted" variant="caption">
+            Provider contract: {capability.canExecute ? 'ready' : 'not executable'} ({capability.detail})
           </Text>
           <Text tone="muted" variant="caption">
             Payload schema: `pmnative.settings.sync/1`
