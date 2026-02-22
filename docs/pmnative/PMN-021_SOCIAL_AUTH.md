@@ -41,6 +41,18 @@ Shipping `Google`, `Telegram`, and `VK` out of the box improves:
 
 - `docs/pmnative/PMN-021_AUTH_TEST_MATRIX.md` (full auth + social test matrix, including Telegram/VK gating coverage)
 
+## Validation Sequencing (Important for PMNative Development)
+
+PMNative is being built as a framework first.
+
+Testing order for PMN-021 should be:
+
+1. contracts/types/capability gating/error handling
+2. mocked or local non-secret validation
+3. final live integration validation (real provider credentials, redirect config, OAuth callbacks)
+
+This means real Supabase/Google values are not required to continue PMN-021 implementation work and refactors.
+
 ## Scope
 
 ### In Scope

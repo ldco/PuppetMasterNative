@@ -123,6 +123,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - Do not optimize for backward compatibility with Puppet Master backend.
 - Supabase is the default provider, but PMNative must remain backend-agnostic.
 - Use provider-first contracts and config-driven behavior for new auth features (including social auth).
+- Framework-first testing policy: use mocks/contracts/placeholders first; defer live backend/provider credentials and OAuth smoke tests to final integration validation.
 
 ## Current Architecture Direction
 
@@ -224,7 +225,13 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 
 ## Known Remaining Risks / TODO
 
-### Immediate validation (recommended)
+### Immediate validation (framework phase, no real secrets required)
+1. Run local static/framework checks first:
+   - `npm run typecheck`
+   - provider contract/config validation checks
+   - screen-flow/manual QA with fallback/mock paths
+
+### Final integration validation (deferred; real values required)
 1. Run Supabase smoke test in Expo against a real project:
    - sign up (with and without email confirmation)
    - sign in
@@ -239,7 +246,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
    - auth hydration/refresh edge cases
 2. Out-of-the-box social auth support
    - `Google` in `supabase` provider runtime support is now implemented (capability-gated)
-   - next: real Supabase smoke test for callback/deep-link flow (native + web)
+   - next (final integration phase): real Supabase smoke test for callback/deep-link flow (native + web)
    - pending social auth context persistence/validation across redirect (provider/mode + TTL) is implemented
    - `Telegram` / `VK` support via capability gating + provider adapters
    - generic-rest code support for proposed social endpoints (docs are in place)
@@ -250,7 +257,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
    - native/web allow-list examples + readiness hints are now shown
    - callback URL copy-to-clipboard is implemented for runtime/web rows
    - copyable Supabase allow-list snippet + Google setup checklist are now implemented
-   - next: real Supabase Google smoke test (web + native deep link) and document any platform-specific callback URL quirks (including auth-session vs fallback behavior)
+   - next (final integration phase): real Supabase Google smoke test (web + native deep link) and document any platform-specific callback URL quirks (including auth-session vs fallback behavior)
 4. Phase 2 integration pass
    - `SkeletonList` and `LoadingOverlay` now have real in-app usages; next expand `SkeletonText`/`SkeletonCard` usage into additional screens
    - `BottomSheet` now has admin + user-facing usages; next test nested scroll/gesture interactions once a scrollable sheet use case exists
@@ -297,7 +304,9 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - `SocialAuthMode` (`login` / `register`) is documented as UI intent/context; provider lifecycle may still be unified sign-in/sign-up.
 - `src/services/auth/providers/genericRestAuthProvider.ts` still returns `NOT_SUPPORTED` for social auth methods.
 - `src/pm-native.config.ts` includes `backend.socialAuth` flags (default all `false`); `google` must be enabled to expose the button and callback completion.
-- Next implementation target should be runtime validation + QA:
-  - Supabase Google smoke test (web + native deep link)
+- Next implementation target should remain framework-first:
+  - mocked/contract-based validation for auth/social/provider flows
   - provider diagnostics for social auth callback config visibility
   - document platform-specific auth-session/fallback behavior and any redirect URL allow-list quirks
+- Final integration validation target (deferred):
+  - Supabase Google smoke test (web + native deep link)

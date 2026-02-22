@@ -70,6 +70,11 @@ npm install
 
 Why: the default backend provider is `supabase`, and the app reads credentials from Expo public env variables.
 
+Framework-first note:
+
+- Real Supabase values are only required for live integration testing.
+- For framework development (architecture, UI, provider contracts, docs), placeholders are acceptable and expected.
+
 1. Copy the example environment file:
 
 ```bash
@@ -85,6 +90,8 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=[YOUR_SUPABASE_ANON_KEY]
 # Optional (only used if you switch provider to generic-rest)
 EXPO_PUBLIC_API_BASE_URL=https://[YOUR_API_BASE_URL]
 ```
+
+If you are not doing live auth testing yet, keep placeholders and focus on `npm run typecheck` + framework implementation work.
 
 `.env.example` included in this repo:
 

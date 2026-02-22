@@ -2,6 +2,12 @@
 
 This guide is the exact setup path to run a real PMN-021 Google social auth smoke test in PMNative.
 
+Important:
+
+- This is a live integration validation guide (real values / real provider config).
+- For framework development, keep this deferred until the final validation phase.
+- Most PMNative implementation work does not require these secrets.
+
 Use this when you want to test:
 
 - Google login from `Login` screen
@@ -9,7 +15,7 @@ Use this when you want to test:
 - callback return to PMNative (`/oauth-callback`)
 - session creation/hydration after the callback
 
-## What You Need Before Starting
+## What You Need Before Starting (Final Integration Phase)
 
 - A Supabase project you control
 - A Google Cloud project (for OAuth client credentials)

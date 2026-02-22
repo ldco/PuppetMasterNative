@@ -55,6 +55,16 @@ Implication for testing:
 - `Manual interactive`: requires browser/device login interaction
 - `Future automated`: should become unit/integration/e2e coverage later
 
+## Execution Policy (Framework Phase)
+
+Until PMNative reaches final integration validation:
+
+- prioritize `Automated now` and mock/contract-driven checks
+- use `Manual interactive` rows as planned coverage and deferred validation tasks
+- do not require real provider secrets/redirect configuration to continue framework implementation
+
+Live provider validation (real Supabase project, real OAuth config, real callbacks) is deferred to the final integration phase.
+
 ## Test Matrix
 
 | ID | Area | Provider | Platform | Scenario | Preconditions | Expected Result | Mode | Priority |
@@ -100,9 +110,9 @@ Implication for testing:
 1. `BUILD-001`
 2. `AUTH-001` through `AUTH-007`
 3. `SOC-012`, `SOC-013`, `SOC-015` (fast gating checks)
-4. `SOC-001` through `SOC-011` (Google web/native interactive)
+4. `AUTH-010`, `SOC-017` (generic-rest regression/contract checks)
 5. `DX-001` through `DX-005`
-6. `AUTH-010`, `SOC-017` (generic-rest regression/contract checks)
+6. Final integration phase: `SOC-001` through `SOC-011` (Google web/native interactive)
 7. `DOC-001`
 
 ## Telegram-Specific Notes (Current vs Future)

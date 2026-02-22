@@ -50,15 +50,20 @@ What is not finished:
 - Full auth test matrix execution (especially interactive Supabase/social smoke tests)
 - Telegram/VK runtime social auth adapters (currently capability-gated/doc-planned)
 
+Testing policy for this framework phase:
+
+- Build and validate with mocks/contracts first (no real secrets required)
+- Defer live integration smoke tests (real env values, real provider config, real OAuth redirects) to the final validation phase
+
 ## What Comes After Auth (Current Practical Sequence)
 
 Auth is not "done-done" yet; it is in validation + extension mode:
 
-1. Finish auth validation and tests
-- Core auth regression (email login/register/forgot/logout/hydration/refresh)
-- PMN-021 social auth validation (Google web/native)
+1. Continue framework-first auth validation (no real secrets)
+- Core auth regression via unit/integration-style tests and contract checks
 - Telegram/VK capability-gating checks
 - Provider tests (`supabase`, `generic-rest`) and auth edge-case tests
+- PMN-021 callback/state handling validation with mocked flows
 
 2. Phase 2 integration polish (component gaps are implemented, now expand usage + QA)
 - Expand real-screen usage of `SkeletonText` / `SkeletonCard`
@@ -72,6 +77,12 @@ Auth is not "done-done" yet; it is in validation + extension mode:
 - `PMN-074` Admin module
 - `PMN-075` Help/support
 - `PMN-076` Offline support
+
+4. Final integration validation (real values / real backends / real OAuth)
+- Supabase smoke tests (web + native)
+- PMN-021 social auth live validation (`Google`, then future `Telegram`/`VK`)
+- Real redirect/deep-link behavior verification
+- Final provider diagnostics verification against live config
 
 ## Why It Feels Unclear
 
@@ -91,4 +102,5 @@ Use this rule:
 1. `PMN-071` Settings: document/test the `generic-rest` settings sync contract and decide whether `supabase` gets an adapter or remains unsupported
 2. `PMN-070` Profile: document/test generic-rest profile update contract and expand beyond display-name-only editing
 3. `PMN-074` Admin: document/test generic-rest admin user-detail contract, then add roles/settings endpoints and replace remaining placeholder admin flows
-4. Execute auth/provider tests + Supabase smoke tests once runtime credentials/config are ready
+4. Add a test harness and mocked provider tests (auth/profile/settings/admin provider paths)
+5. Defer live Supabase/social smoke tests to final integration validation phase

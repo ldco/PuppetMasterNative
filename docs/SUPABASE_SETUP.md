@@ -2,6 +2,11 @@
 
 PMNative is backend-agnostic, but the default auth provider is `supabase`.
 
+Framework-first note:
+
+- You can continue most PMNative framework implementation without real Supabase credentials.
+- Real Supabase values are only required for live integration validation (manual auth/social smoke tests).
+
 ## Required Environment Variables
 
 Set these in your Expo environment (for local dev and builds):
