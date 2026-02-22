@@ -93,6 +93,12 @@ export const pmNativeConfig: PMNativeConfig = {
       //     sync: '/settings/sync'
       //   }
       // }
+      // profile: {
+      //   endpoints: {
+      //     get: '/profile/me',
+      //     update: '/profile/me'
+      //   }
+      // }
     },
     supabase: {
       urlEnvVar: 'EXPO_PUBLIC_SUPABASE_URL',

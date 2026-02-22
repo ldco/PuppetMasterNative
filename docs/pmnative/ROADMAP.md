@@ -27,6 +27,8 @@ What is already done (high level):
   - `PMN-070` Profile
   - `PMN-071` Settings
   - `PMN-074` Admin
+- `PMN-070` profile provider-backed fetch path has started:
+  - `generic-rest` profile endpoint support (`backend.genericRest.profile.endpoints.get`) is implemented and config-gated
 - Module architecture cleanup pass completed:
   - shared settings store (`useSettingsStore`)
   - explicit service inputs (no hidden global store reads in services)
@@ -37,7 +39,8 @@ What is already done (high level):
 
 What is not finished:
 
-- Real provider-backed profile/admin APIs (placeholder services still exist)
+- Real provider-backed admin APIs (placeholder services still exist)
+- `PMN-070` profile update contract/endpoint (`update`) is not implemented yet
 - `supabase` settings sync adapter or an explicit non-goal decision
 - Full auth test matrix execution (especially interactive Supabase/social smoke tests)
 - Telegram/VK runtime social auth adapters (currently capability-gated/doc-planned)
@@ -81,6 +84,6 @@ Use this rule:
 ## Immediate Next Implementation Targets (Practical)
 
 1. `PMN-071` Settings: document/test the `generic-rest` settings sync contract and decide whether `supabase` gets an adapter or remains unsupported
-2. `PMN-070` Profile: replace placeholder profile service with provider/API-backed fetch/update
+2. `PMN-070` Profile: document/test generic-rest profile fetch contract and implement profile update endpoint contract (`update`)
 3. `PMN-074` Admin: define admin directory/settings/roles API contracts and replace placeholder directory loading
 4. Execute auth/provider tests + Supabase smoke tests once runtime credentials/config are ready

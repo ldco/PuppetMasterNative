@@ -55,12 +55,20 @@ export interface GenericRestSettingsEndpoints {
   sync: string
 }
 
+export interface GenericRestProfileEndpoints {
+  get: string
+  update?: string
+}
+
 export interface GenericRestBackendConfig {
   auth: {
     endpoints: GenericRestAuthEndpoints
   }
   settings?: {
     endpoints: GenericRestSettingsEndpoints
+  }
+  profile?: {
+    endpoints: GenericRestProfileEndpoints
   }
 }
 

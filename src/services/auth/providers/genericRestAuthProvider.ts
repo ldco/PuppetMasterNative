@@ -3,24 +3,13 @@ import { z } from 'zod'
 import { pmNativeConfig } from '@/pm-native.config'
 import { apiRequest } from '@/services/api'
 import { AuthProviderError, defaultAuthProviderCapabilities, type AuthProvider } from '@/services/auth/provider.types'
+import { genericRestUserSchema } from '@/services/genericRest.schemas'
 import type { AuthRegisterResult, AuthSession, RefreshSessionResult } from '@/types/auth'
-
-const authUserSchema = z
-  .object({
-    id: z.union([z.string().min(1), z.number().int().nonnegative()]),
-    email: z.string().email(),
-    name: z.string().min(1).nullable(),
-    role: z.enum(['master', 'admin', 'editor', 'user'])
-  })
-  .transform((value) => ({
-    ...value,
-    id: String(value.id)
-  }))
 
 const authSessionSchema = z.object({
   token: z.string().min(1),
   refreshToken: z.string().min(1).nullable().optional(),
-  user: authUserSchema
+  user: genericRestUserSchema
 })
 
 const authSessionPayloadSchema = z.union([
@@ -28,7 +17,7 @@ const authSessionPayloadSchema = z.union([
   z.object({
     accessToken: z.string().min(1),
     refreshToken: z.string().min(1).nullable().optional(),
-    user: authUserSchema
+    user: genericRestUserSchema
   }),
   z.object({
     success: z.literal(true),
@@ -36,7 +25,7 @@ const authSessionPayloadSchema = z.union([
       token: z.string().min(1).optional(),
       accessToken: z.string().min(1).optional(),
       refreshToken: z.string().min(1).nullable().optional(),
-      user: authUserSchema
+      user: genericRestUserSchema
     }).refine((value) => Boolean(value.token || value.accessToken), {
       message: 'Auth session payload requires token or accessToken'
     })
@@ -46,12 +35,12 @@ const authSessionPayloadSchema = z.union([
 const sessionPayloadSchema = z.union([
   authSessionSchema,
   z.object({
-    user: authUserSchema
+    user: genericRestUserSchema
   }),
   z.object({
     success: z.literal(true),
     data: z.object({
-      user: authUserSchema
+      user: genericRestUserSchema
     })
   })
 ])
@@ -60,12 +49,12 @@ const refreshPayloadSchema = z.union([
   z.object({
     token: z.string().min(1),
     refreshToken: z.string().min(1).nullable().optional(),
-    user: authUserSchema.optional()
+    user: genericRestUserSchema.optional()
   }),
   z.object({
     accessToken: z.string().min(1),
     refreshToken: z.string().min(1).nullable().optional(),
-    user: authUserSchema.optional()
+    user: genericRestUserSchema.optional()
   }),
   z.object({
     success: z.literal(true),
@@ -73,7 +62,7 @@ const refreshPayloadSchema = z.union([
       token: z.string().min(1).optional(),
       accessToken: z.string().min(1).optional(),
       refreshToken: z.string().min(1).nullable().optional(),
-      user: authUserSchema.optional()
+      user: genericRestUserSchema.optional()
     }).refine((value) => Boolean(value.token || value.accessToken), {
       message: 'Refresh payload requires token or accessToken'
     })

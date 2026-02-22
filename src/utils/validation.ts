@@ -31,6 +31,11 @@ const genericRestSettingsEndpointsSchema = z.object({
   sync: z.string().min(1)
 })
 
+const genericRestProfileEndpointsSchema = z.object({
+  get: z.string().min(1),
+  update: z.string().min(1).optional()
+})
+
 export const pmNativeConfigSchema = z.object({
   app: z.object({
     name: z.string().min(1),
@@ -92,6 +97,9 @@ export const pmNativeConfigSchema = z.object({
       }),
       settings: z.object({
         endpoints: genericRestSettingsEndpointsSchema
+      }).optional(),
+      profile: z.object({
+        endpoints: genericRestProfileEndpointsSchema
       }).optional()
     }).optional(),
     supabase: z.object({

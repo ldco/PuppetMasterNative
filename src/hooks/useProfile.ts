@@ -14,6 +14,7 @@ interface UseProfileResult {
 
 export const useProfile = (): UseProfileResult => {
   const sessionUser = useAuthStore((state) => state.user)
+  const accessToken = useAuthStore((state) => state.token)
   const [profile, setProfile] = useState<AuthUser | null>(sessionUser)
   const [isLoading, setIsLoading] = useState(Boolean(sessionUser))
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -40,7 +41,7 @@ export const useProfile = (): UseProfileResult => {
     const requestId = ++requestIdRef.current
 
     void profileService
-      .getProfile({ sessionUser })
+      .getProfile({ sessionUser, accessToken })
       .then((loadedProfile) => {
         if (!mountedRef.current || requestId !== requestIdRef.current) {
           return
@@ -54,7 +55,7 @@ export const useProfile = (): UseProfileResult => {
           return
         }
 
-        setProfile(null)
+        setProfile(sessionUser)
         setError('Failed to load profile data.')
         setIsLoading(false)
       })
@@ -62,7 +63,7 @@ export const useProfile = (): UseProfileResult => {
     return () => {
       mountedRef.current = false
     }
-  }, [sessionUser])
+  }, [accessToken, sessionUser])
 
   const refreshProfile = useCallback(async (): Promise<void> => {
     if (isRefreshing || !sessionUser) {
@@ -74,7 +75,7 @@ export const useProfile = (): UseProfileResult => {
     const requestId = ++requestIdRef.current
 
     try {
-      const refreshedProfile = await profileService.refreshProfile({ sessionUser })
+      const refreshedProfile = await profileService.refreshProfile({ sessionUser, accessToken })
 
       if (!mountedRef.current || requestId !== requestIdRef.current) {
         return
@@ -92,7 +93,7 @@ export const useProfile = (): UseProfileResult => {
         setIsRefreshing(false)
       }
     }
-  }, [isRefreshing, sessionUser])
+  }, [accessToken, isRefreshing, sessionUser])
 
   return {
     profile,

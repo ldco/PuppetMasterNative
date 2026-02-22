@@ -388,6 +388,12 @@ backend: {
       endpoints: {
         sync: '/settings/sync'
       }
+    },
+    profile: {
+      endpoints: {
+        get: '/profile/me',
+        update: '/profile/me'
+      }
     }
   }
 }
@@ -460,3 +466,98 @@ Useful machine codes:
 - `UNAUTHORIZED`
 
 PMNative currently maps generic-rest settings sync provider errors into typed `SettingsSyncProviderError` codes (`CONFIG` / `PROVIDER`) at the framework layer.
+
+## Profile (PMN-070) — Contract Extension
+
+This section defines the current PMNative `generic-rest` profile fetch contract used by `profileProvider` when `backend.genericRest.profile.endpoints.get` is configured.
+
+Status:
+
+- remote fetch implemented (generic-rest, config-gated)
+- update endpoint contract planned (`backend.genericRest.profile.endpoints.update`)
+
+### Endpoint Config
+
+PMNative config path:
+
+- `backend.genericRest.profile.endpoints.get`
+- `backend.genericRest.profile.endpoints.update` (reserved for upcoming profile update flow)
+
+Example:
+
+```ts
+backend: {
+  provider: 'generic-rest',
+  genericRest: {
+    auth: {
+      endpoints: {
+        login: '/auth/login',
+        register: '/auth/register',
+        logout: '/auth/logout',
+        session: '/auth/session',
+        refresh: '/auth/refresh'
+      }
+    },
+    profile: {
+      endpoints: {
+        get: '/profile/me',
+        update: '/profile/me'
+      }
+    }
+  }
+}
+```
+
+### Profile Fetch (`GET /profile/me`)
+
+PMNative sends:
+
+- `GET` to configured endpoint
+- `Authorization: Bearer <accessToken>` header
+
+Accepted response variants:
+
+#### Variant A (raw user)
+```json
+{
+  "id": "123",
+  "email": "user@example.com",
+  "name": "Jane Doe",
+  "role": "user"
+}
+```
+
+#### Variant B (user envelope)
+```json
+{
+  "user": {
+    "id": "123",
+    "email": "user@example.com",
+    "name": "Jane Doe",
+    "role": "user"
+  }
+}
+```
+
+#### Variant C (success envelope)
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "123",
+      "email": "user@example.com",
+      "name": "Jane Doe",
+      "role": "user"
+    }
+  }
+}
+```
+
+User shape is the same normalized PMNative auth user shape documented above (`id`, `email`, `name`, `role`).
+
+### Behavior Notes
+
+- If the profile endpoint is not configured, PMNative falls back to the auth session snapshot for profile display.
+- If configured but no access token is available, PMNative falls back to the auth session snapshot.
+- Remote provider failures surface as profile refresh/load errors in the UI while retaining the last known profile state when possible.

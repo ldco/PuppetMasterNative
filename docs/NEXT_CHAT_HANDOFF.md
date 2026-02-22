@@ -82,6 +82,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - Hooks may orchestrate async state, but must expose explicit loading/error/refresh state to keep screens simple and future API migrations safe.
 - Settings sync now has a provider-facing execution contract (`settingsSyncProvider`) separate from preview/draft builders (`settingsSyncService`); execution remains intentionally stubbed until a real endpoint is defined.
 - `generic-rest` settings sync execution is now implemented when `backend.genericRest.settings.endpoints.sync` is configured; `supabase` remains intentionally stubbed.
+- `PMN-070` profile fetch now has a provider-facing execution path: `generic-rest` remote fetch is implemented when `backend.genericRest.profile.endpoints.get` is configured; otherwise the service falls back to the auth session snapshot.
 
 ### Remaining risks / TODO
 - `profileService` / `adminService` are still placeholder delay-based implementations; real provider/API contracts are still pending.
@@ -162,6 +163,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - `docs/SUPABASE_SETUP.md` extended with PMN-021 social auth prep guidance (`Google` first, capability gating for `Telegram` / `VK`).
 - `docs/GENERIC_REST_AUTH_PROVIDER_CONTRACT.md` extended with a proposed PMN-021 social auth contract (`socialCapabilities`, `socialStart`, `socialComplete`).
 - `docs/GENERIC_REST_AUTH_PROVIDER_CONTRACT.md` now also documents the PMN-071 `generic-rest` settings sync contract extension (`backend.genericRest.settings.endpoints.sync`, `pmnative.settings.sync/1`, required `{ syncedAt }` response).
+- `generic-rest` user payload parsing is now shared between auth and profile providers via `src/services/genericRest.schemas.ts`.
 - `docs/pmnative/PMNative_Implementation_Epic_—_Phases,_Milestones_&_MVP.md` updated to include social auth in MVP/auth milestone and `PMN-021`.
 - `docs/pmnative/PMN-021_SOCIAL_AUTH.md` added (scope, acceptance criteria, implementation order, risks).
 
@@ -247,7 +249,10 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
    - `BottomSheet` now has admin + user-facing usages; next test nested scroll/gesture interactions once a scrollable sheet use case exists
 5. Phase 3 kickoff
   - `PMN-070` User Profile module kickoff is started (`useProfile()` + profile screen refinement)
-  - service contract boundary is defined (`profileService`); next: replace placeholder profile service with provider/API-backed fetch/update flow
+  - service contract boundary is defined (`profileService`)
+  - provider-facing profile contract is now scaffolded (`profileProvider`)
+  - `generic-rest` remote profile fetch path is implemented and config-gated via `backend.genericRest.profile.endpoints.get`
+  - next: document/test generic-rest profile contract and implement profile update endpoint contract (`update`)
   - `PMN-071` Settings module kickoff is started (`useSettings()` + persisted local preferences)
   - settings local-state architecture is now store-backed (`useSettingsStore`) and sync contract preview logic is split into `settingsSyncService`
   - provider-facing execution contract is now scaffolded (`settingsSyncProvider`)
