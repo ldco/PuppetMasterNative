@@ -64,8 +64,9 @@ export default function RegisterScreen() {
         return
       }
 
-      toast(`Check ${result.email} for a confirmation link before logging in.`, 'success')
-      router.replace('/(auth)/login')
+      if (result.kind === 'redirect_started') {
+        return
+      }
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Social registration failed', 'error')
     } finally {

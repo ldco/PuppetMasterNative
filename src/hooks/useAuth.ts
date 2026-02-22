@@ -15,6 +15,7 @@ import { storageService } from '@/services/storage.service'
 import { useAuthStore } from '@/stores/auth.store'
 import type {
   AuthRegisterResult,
+  AuthSocialResult,
   AuthSession,
   AuthUser,
   ForgotPasswordInput,
@@ -224,7 +225,7 @@ export const useAuth = () => {
   )
 
   const registerWithSocial = useCallback(
-    async (provider: SocialAuthProvider): Promise<AuthRegisterResult> => {
+    async (provider: SocialAuthProvider): Promise<AuthSocialResult> => {
       const result = await authProvider.signInWithSocial(provider, 'register')
 
       if (result.kind === 'session') {
@@ -238,18 +239,30 @@ export const useAuth = () => {
   )
 
   const signInWithSocial = useCallback(
-    async (provider: SocialAuthProvider): Promise<void> => {
+    async (provider: SocialAuthProvider): Promise<AuthSocialResult> => {
       const result = await authProvider.signInWithSocial(provider, 'login')
 
+      if (result.kind === 'redirect_started') {
+        return result
+      }
+
       if (result.kind !== 'session') {
-        throw new AuthProviderError(
-          `${provider} social login did not return a session`,
-          'PROVIDER'
-        )
+        throw new AuthProviderError(`${provider} social login did not return a session`, 'PROVIDER')
       }
 
       await persistSession(result.session)
       setSession(result.session.user, result.session.token)
+
+      return result
+    },
+    [setSession]
+  )
+
+  const completeSocialAuthCallback = useCallback(
+    async (callbackUrl: string): Promise<void> => {
+      const session = await authProvider.completeSocialAuthCallback(callbackUrl)
+      await persistSession(session)
+      setSession(session.user, session.token)
     },
     [setSession]
   )
@@ -284,6 +297,7 @@ export const useAuth = () => {
     hydrateSession,
     signIn,
     signInWithSocial,
+    completeSocialAuthCallback,
     register,
     registerWithSocial,
     requestPasswordReset,

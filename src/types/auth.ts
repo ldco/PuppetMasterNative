@@ -38,6 +38,15 @@ export type AuthRegisterResult =
       email: string
     }
 
+export type AuthSocialResult =
+  | {
+      kind: 'session'
+      session: AuthSession
+    }
+  | {
+      kind: 'redirect_started'
+    }
+
 export interface RefreshSessionResult {
   token: string
   refreshToken?: string | null

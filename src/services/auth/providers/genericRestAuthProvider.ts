@@ -172,6 +172,10 @@ export const genericRestAuthProvider: AuthProvider = {
     throw new AuthProviderError('generic-rest social auth is not implemented yet', 'NOT_SUPPORTED')
   },
 
+  async completeSocialAuthCallback() {
+    throw new AuthProviderError('generic-rest social auth is not implemented yet', 'NOT_SUPPORTED')
+  },
+
   async requestPasswordReset(input) {
     const endpoints = getEndpoints()
 

@@ -20,6 +20,9 @@ const notImplementedProvider = (provider: string): AuthProvider => ({
   async signInWithSocial() {
     throw new AuthProviderError(`${provider} social auth is not implemented yet`, 'NOT_SUPPORTED')
   },
+  async completeSocialAuthCallback() {
+    throw new AuthProviderError(`${provider} social auth is not implemented yet`, 'NOT_SUPPORTED')
+  },
   async requestPasswordReset() {
     throw new AuthProviderError(`${provider} auth provider is not implemented yet`, 'PROVIDER')
   },

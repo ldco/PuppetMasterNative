@@ -52,8 +52,11 @@ export default function LoginScreen() {
 
     try {
       setSocialSubmittingProvider(provider)
-      await signInWithSocial(provider)
-      router.replace('/(tabs)')
+      const result = await signInWithSocial(provider)
+
+      if (result.kind === 'session') {
+        router.replace('/(tabs)')
+      }
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Social login failed', 'error')
     } finally {
