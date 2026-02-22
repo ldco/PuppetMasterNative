@@ -143,6 +143,8 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - Phase 2 component gaps are now implemented in code:
   - `PMN-060`: `SkeletonText`, `SkeletonCard`, `SkeletonList`, `LoadingOverlay`
   - `PMN-054` remaining organism: `BottomSheet`
+- Phase 2 integration pass has started:
+  - Admin Settings "Sync settings with backend" placeholder now opens the new `BottomSheet` organism (first in-app usage)
 
 ## Known Remaining Risks / TODO
 
@@ -175,7 +177,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
    - next: real Supabase Google smoke test (web + native deep link) and document any platform-specific callback URL quirks (including auth-session vs fallback behavior)
 4. Phase 2 integration pass
    - wire `Skeleton*` / `LoadingOverlay` into real loading states
-   - add first in-app usage of `BottomSheet`
+   - first in-app `BottomSheet` usage is now wired in Admin Settings; next add a second usage in a data-heavy/user-facing flow
 5. Phase 3 kickoff
    - `PMN-070` User Profile module (`useProfile()` + profile screen refinement)
 

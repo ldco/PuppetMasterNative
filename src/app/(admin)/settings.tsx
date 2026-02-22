@@ -1,11 +1,14 @@
+import { useState } from 'react'
 import * as Clipboard from 'expo-clipboard'
 import { StyleSheet, View } from 'react-native'
 
 import { Badge } from '@/components/atoms/Badge'
+import { Button } from '@/components/atoms/Button'
 import { Text } from '@/components/atoms/Text'
 import { Card } from '@/components/molecules/Card'
 import { ListItem } from '@/components/molecules/ListItem'
 import { SectionHeader } from '@/components/molecules/SectionHeader'
+import { BottomSheet } from '@/components/organisms/BottomSheet'
 import { useBackendDiagnostics } from '@/hooks/useBackendDiagnostics'
 import { useTheme } from '@/hooks/useTheme'
 import { useToast } from '@/hooks/useToast'
@@ -16,6 +19,7 @@ export default function AdminSettingsScreen() {
   const { toast } = useToast()
   const config = useConfig()
   const backendDiagnostics = useBackendDiagnostics()
+  const [showSyncSheet, setShowSyncSheet] = useState(false)
 
   const styles = StyleSheet.create({
     screen: {
@@ -74,7 +78,7 @@ export default function AdminSettingsScreen() {
 
       <Card title="Admin Actions">
         <ListItem
-          onPress={() => toast('Config sync placeholder executed', 'info')}
+          onPress={() => setShowSyncSheet(true)}
           subtitle="Stub for future server-side sync endpoint"
           title="Sync settings with backend"
           trailing={<Badge label="todo" tone="warning" />}
@@ -121,6 +125,26 @@ export default function AdminSettingsScreen() {
           })}
         </View>
       </Card>
+
+      <BottomSheet
+        footer={
+          <Button
+            label="Close"
+            onPress={() => setShowSyncSheet(false)}
+            size="sm"
+            variant="outline"
+          />
+        }
+        onClose={() => setShowSyncSheet(false)}
+        subtitle="Phase 3 will add actual server-side settings sync for framework/admin modules."
+        title="Settings Sync (Planned)"
+        visible={showSyncSheet}
+      >
+        <Text tone="secondary">
+          This action is currently a placeholder. The new bottom sheet is now wired as the first in-app
+          usage of the `BottomSheet` organism.
+        </Text>
+      </BottomSheet>
     </View>
   )
 }
