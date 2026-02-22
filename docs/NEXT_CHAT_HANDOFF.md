@@ -155,6 +155,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
   - initial `useAdmin()` hook added (role-gated sections + placeholder user-directory loading/refresh) and integrated into existing admin screens
   - module service boundaries are now defined for profile/settings/admin (`profileService`, `settingsService`, `adminService`) and the hooks were refactored to consume them
   - Admin Settings "Sync settings with backend" sheet now renders a typed runtime sync preview (actor/provider/local prefs/admin module state) via `settingsService.buildSyncPreview()` instead of static placeholder copy
+  - Admin Settings sync sheet now also exposes a copyable typed draft payload (`pmnative.settings.sync/1`) via `settingsService.buildSyncRequestDraft()`
 
 ## Known Remaining Risks / TODO
 
@@ -193,7 +194,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
   - service contract boundary is defined (`profileService`); next: replace placeholder profile service with provider/API-backed fetch/update flow
   - `PMN-071` Settings module kickoff is started (`useSettings()` + persisted local preferences)
   - service contract boundary is defined (`settingsService`); Admin Settings now has a typed sync preview builder for future server sync
-  - next: define local-vs-remote settings sync strategy, request payload shape, and provider-backed sync endpoint contract (including conflict/merge behavior)
+  - next: finalize local-vs-remote settings sync strategy, map `pmnative.settings.sync/1` draft payload to a real provider-backed endpoint contract, and define conflict/merge behavior
   - `PMN-074` Admin module kickoff is started (`useAdmin()` + existing admin screen integration)
   - service contract boundary is defined (`adminService`); next: define admin directory/settings/roles API contracts and replace placeholder directory loading with provider-backed queries
 

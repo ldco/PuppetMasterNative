@@ -44,6 +44,19 @@ export interface BuildSettingsSyncPreviewInput {
   hasRemoteSyncEndpoint: boolean
 }
 
+export interface SettingsSyncRequestDraft {
+  schema: 'pmnative.settings.sync/1'
+  backendProvider: BackendProvider
+  actor: SettingsSyncPreviewActor | null
+  preferences: SettingsPreferences
+  context: {
+    source: 'admin-settings'
+    hasAdminModule: boolean
+    hasRemoteSyncEndpoint: boolean
+    mode: 'preview'
+  }
+}
+
 export const defaultSettingsPreferences: SettingsPreferences = {
   notificationsEnabled: true,
   analyticsEnabled: false
@@ -139,6 +152,21 @@ export const settingsService = {
         ? 'Invoke the configured settings sync endpoint and handle conflict/merge rules.'
         : 'Define a provider-backed settings sync endpoint and map this preview payload to the request body.',
       rows
+    }
+  },
+
+  buildSyncRequestDraft(input: BuildSettingsSyncPreviewInput): SettingsSyncRequestDraft {
+    return {
+      schema: 'pmnative.settings.sync/1',
+      backendProvider: input.backendProvider,
+      actor: input.actor,
+      preferences: input.preferences,
+      context: {
+        source: 'admin-settings',
+        hasAdminModule: input.hasAdminModule,
+        hasRemoteSyncEndpoint: input.hasRemoteSyncEndpoint,
+        mode: 'preview'
+      }
     }
   }
 }

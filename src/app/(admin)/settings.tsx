@@ -25,7 +25,7 @@ export default function AdminSettingsScreen() {
   const { analyticsEnabled, notificationsEnabled } = useSettings()
   const backendDiagnostics = useBackendDiagnostics()
   const [showSyncSheet, setShowSyncSheet] = useState(false)
-  const syncPreview = settingsService.buildSyncPreview({
+  const syncPreviewInput = {
     preferences: {
       notificationsEnabled,
       analyticsEnabled
@@ -40,7 +40,9 @@ export default function AdminSettingsScreen() {
         }
       : null,
     hasRemoteSyncEndpoint: false
-  })
+  }
+  const syncPreview = settingsService.buildSyncPreview(syncPreviewInput)
+  const syncPayloadDraft = settingsService.buildSyncRequestDraft(syncPreviewInput)
 
   const styles = StyleSheet.create({
     screen: {
@@ -53,6 +55,10 @@ export default function AdminSettingsScreen() {
       gap: tokens.spacing.xs
     },
     sheetContent: {
+      gap: tokens.spacing.sm
+    },
+    sheetFooterButtons: {
+      flexDirection: 'row',
       gap: tokens.spacing.sm
     }
   })
@@ -152,12 +158,22 @@ export default function AdminSettingsScreen() {
 
       <BottomSheet
         footer={
-          <Button
-            label="Close"
-            onPress={() => setShowSyncSheet(false)}
-            size="sm"
-            variant="outline"
-          />
+          <View style={styles.sheetFooterButtons}>
+            <Button
+              label="Copy payload"
+              onPress={() => {
+                void copyDiagnosticValue('Sync payload', JSON.stringify(syncPayloadDraft, null, 2))
+              }}
+              size="sm"
+              variant="secondary"
+            />
+            <Button
+              label="Close"
+              onPress={() => setShowSyncSheet(false)}
+              size="sm"
+              variant="outline"
+            />
+          </View>
         }
         onClose={() => setShowSyncSheet(false)}
         subtitle={syncPreview.summary}
@@ -187,6 +203,9 @@ export default function AdminSettingsScreen() {
           ))}
           <Text tone={syncPreview.status === 'warning' ? 'secondary' : 'muted'} variant="caption">
             Next step: {syncPreview.nextStep}
+          </Text>
+          <Text tone="muted" variant="caption">
+            Payload schema: `pmnative.settings.sync/1`
           </Text>
         </View>
       </BottomSheet>
