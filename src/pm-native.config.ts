@@ -87,6 +87,12 @@ export const pmNativeConfig: PMNativeConfig = {
           refresh: '/auth/refresh'
         }
       }
+      // Optional future endpoint contract for PMN-071 settings sync:
+      // settings: {
+      //   endpoints: {
+      //     sync: '/settings/sync'
+      //   }
+      // }
     },
     supabase: {
       urlEnvVar: 'EXPO_PUBLIC_SUPABASE_URL',

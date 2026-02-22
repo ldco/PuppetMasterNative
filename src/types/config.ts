@@ -51,9 +51,16 @@ export interface GenericRestAuthEndpoints {
   refresh: string
 }
 
+export interface GenericRestSettingsEndpoints {
+  sync: string
+}
+
 export interface GenericRestBackendConfig {
   auth: {
     endpoints: GenericRestAuthEndpoints
+  }
+  settings?: {
+    endpoints: GenericRestSettingsEndpoints
   }
 }
 

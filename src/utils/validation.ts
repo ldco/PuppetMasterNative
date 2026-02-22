@@ -27,6 +27,10 @@ const genericRestAuthEndpointsSchema = z.object({
   refresh: z.string().min(1)
 })
 
+const genericRestSettingsEndpointsSchema = z.object({
+  sync: z.string().min(1)
+})
+
 export const pmNativeConfigSchema = z.object({
   app: z.object({
     name: z.string().min(1),
@@ -85,7 +89,10 @@ export const pmNativeConfigSchema = z.object({
     genericRest: z.object({
       auth: z.object({
         endpoints: genericRestAuthEndpointsSchema
-      })
+      }),
+      settings: z.object({
+        endpoints: genericRestSettingsEndpointsSchema
+      }).optional()
     }).optional(),
     supabase: z.object({
       urlEnvVar: z.string().min(1),

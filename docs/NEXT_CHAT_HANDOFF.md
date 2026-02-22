@@ -81,6 +81,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - Preview/contract-building logic for planned backend sync should live in a dedicated sync-domain service, not in local settings persistence service.
 - Hooks may orchestrate async state, but must expose explicit loading/error/refresh state to keep screens simple and future API migrations safe.
 - Settings sync now has a provider-facing execution contract (`settingsSyncProvider`) separate from preview/draft builders (`settingsSyncService`); execution remains intentionally stubbed until a real endpoint is defined.
+- `generic-rest` settings sync execution is now implemented when `backend.genericRest.settings.endpoints.sync` is configured; `supabase` remains intentionally stubbed.
 
 ### Remaining risks / TODO
 - `profileService` / `adminService` are still placeholder delay-based implementations; real provider/API contracts are still pending.
@@ -156,6 +157,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 
 ### Docs / DX updates
 - `README.md` rewritten into a DX-focused onboarding README (golden path setup, env config, success checks, troubleshooting).
+- `docs/pmnative/ROADMAP.md` now includes a current-state snapshot and practical "what is left" priorities (not just links/index text).
 - `LICENSE` added (GNU GPL v3; `GPL-3.0-only`), and `package.json` now includes SPDX license metadata.
 - `docs/SUPABASE_SETUP.md` extended with PMN-021 social auth prep guidance (`Google` first, capability gating for `Telegram` / `VK`).
 - `docs/GENERIC_REST_AUTH_PROVIDER_CONTRACT.md` extended with a proposed PMN-021 social auth contract (`socialCapabilities`, `socialStart`, `socialComplete`).
@@ -208,6 +210,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
     - provider-facing `settingsSyncProvider` + typed provider errors/capabilities added
     - new `useSettingsSync()` hook now composes config/auth/settings + preview/draft/provider capability
     - Admin Settings sync sheet now runs against the provider contract (`Validate sync`) and reports explicit `NOT_SUPPORTED` status instead of relying on screen-local assumptions
+    - `generic-rest` settings sync provider path can now execute a real `POST` request when `backend.genericRest.settings.endpoints.sync` is configured (response schema requires `syncedAt`)
 
 ## Known Remaining Risks / TODO
 
@@ -246,8 +249,9 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
   - service contract boundary is defined (`profileService`); next: replace placeholder profile service with provider/API-backed fetch/update flow
   - `PMN-071` Settings module kickoff is started (`useSettings()` + persisted local preferences)
   - settings local-state architecture is now store-backed (`useSettingsStore`) and sync contract preview logic is split into `settingsSyncService`
-  - provider-facing execution contract is now scaffolded (`settingsSyncProvider`, currently stubbed per backend provider)
-  - next: implement a real settings sync endpoint contract for at least one provider (likely `generic-rest` first), map `pmnative.settings.sync/1` to request/response schemas, and define conflict/merge behavior
+  - provider-facing execution contract is now scaffolded (`settingsSyncProvider`)
+  - `generic-rest` execution path is implemented and config-gated via `backend.genericRest.settings.endpoints.sync`
+  - next: document the generic-rest settings-sync endpoint contract (request/response/error schema), add tests, and implement a `supabase` adapter or explicit non-goal
   - `PMN-074` Admin module kickoff is started (`useAdmin()` + existing admin screen integration)
   - service contract boundary is defined (`adminService`) and hidden global-state reads were removed; next: define admin directory/settings/roles API contracts and replace placeholder directory loading with provider-backed queries
 
