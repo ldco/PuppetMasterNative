@@ -34,10 +34,11 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - Added Google social readiness diagnostics + native/web Supabase allow-list guidance entries in Admin Settings backend diagnostics.
 - Added tap-to-copy support in Admin Settings backend diagnostics for callback URL rows (runtime/web) using `expo-clipboard`.
 - Added copyable Supabase redirect allow-list snippet + Google social setup checklist entries in Admin Settings backend diagnostics.
+- Upgraded native Supabase social auth handoff to `expo-web-browser` auth sessions with `Linking.openURL` fallback.
 - Verified type safety with `npm run typecheck` after the review fixes.
 
 ### Remaining risks / TODO
-- Native social auth currently uses `Linking.openURL` (works for redirect flow, but `expo-web-browser`/auth-session UX hardening is still a future improvement).
+- Native social auth now attempts `expo-web-browser` auth sessions first, but still needs real-device validation across platforms.
 - Real Supabase smoke test still required (Google provider config + deep-link/web callback validation).
 - Callback validation currently relies on locally stored pending context (expected), so direct/manual callback URL opens without a started flow will be rejected and redirected to login.
 
@@ -136,7 +137,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 4. Out-of-the-box social auth support
    - `Google` in `supabase` provider runtime support is now implemented (capability-gated)
    - next: real Supabase smoke test for callback/deep-link flow (native + web)
-   - next: persist pending social auth context across redirect (provider/mode validation)
+   - pending social auth context persistence/validation across redirect (provider/mode + TTL) is implemented
    - `Telegram` / `VK` support via capability gating + provider adapters
    - generic-rest code support for proposed social endpoints (docs are in place)
 5. Provider diagnostics / setup validation screen
@@ -146,7 +147,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
    - native/web allow-list examples + readiness hints are now shown
    - callback URL copy-to-clipboard is implemented for runtime/web rows
    - copyable Supabase allow-list snippet + Google setup checklist are now implemented
-   - next: real Supabase Google smoke test (web + native deep link) and document any platform-specific callback URL quirks
+   - next: real Supabase Google smoke test (web + native deep link) and document any platform-specific callback URL quirks (including auth-session vs fallback behavior)
 
 ## Canonical Planning Docs (read these first)
 
@@ -159,9 +160,10 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 
 - Social auth buttons are wired into `LoginForm` / `RegisterForm`, and remain hidden unless provider capabilities are `true`.
 - `src/services/auth/providers/supabaseAuthProvider.ts` now implements `google` social auth:
-  - `signInWithSocial()` returns `redirect_started` and opens provider URL
+  - `signInWithSocial()` returns `redirect_started` for redirect-based flows and can return `session` when native auth-session returns a callback URL inline
   - `completeSocialAuthCallback()` exchanges OAuth callback into a PMNative auth session
   - redirect URL includes `provider` + `mode` query params for callback correlation
+  - native flow attempts `WebBrowser.openAuthSessionAsync()` first, with `Linking.openURL` fallback
 - `src/app/(auth)/oauth-callback.tsx` completes social auth and routes to tabs/login with toast feedback.
 - `src/hooks/useAuth.ts` persists pending social auth context before redirect start and validates callback correlation (`provider` / `mode`, 15m TTL) before completion.
 - `src/services/auth/providers/genericRestAuthProvider.ts` still returns `NOT_SUPPORTED` for social auth methods.
@@ -169,4 +171,4 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - Next implementation target should be runtime validation + QA:
   - Supabase Google smoke test (web + native deep link)
   - provider diagnostics for social auth callback config visibility
-  - optional: migrate native redirect UX to `expo-auth-session` / `expo-web-browser` flow for better auth handoff behavior
+  - document platform-specific auth-session/fallback behavior and any redirect URL allow-list quirks

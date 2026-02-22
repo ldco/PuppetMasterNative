@@ -1,5 +1,6 @@
 import type { AuthError, User } from '@supabase/supabase-js'
 import * as ExpoLinking from 'expo-linking'
+import * as WebBrowser from 'expo-web-browser'
 import { Platform } from 'react-native'
 
 import { pmNativeConfig } from '@/pm-native.config'
@@ -112,17 +113,54 @@ const buildSocialRedirectUrl = (provider: SocialAuthProvider, mode: SocialAuthMo
   return url.toString()
 }
 
-const openSocialRedirect = async (url: string): Promise<void> => {
+const openSocialRedirect = async (
+  url: string,
+  redirectTo: string
+): Promise<{ kind: 'redirect_started' } | { kind: 'callback_url'; callbackUrl: string }> => {
   if (Platform.OS === 'web') {
     const location = (globalThis as { location?: { assign?: (href: string) => void } }).location
 
     if (location?.assign) {
       location.assign(url)
-      return
+      return {
+        kind: 'redirect_started'
+      }
     }
   }
 
-  await ExpoLinking.openURL(url)
+  try {
+    const result = await WebBrowser.openAuthSessionAsync(url, redirectTo)
+
+    if (result.type === 'success' && 'url' in result && typeof result.url === 'string') {
+      return {
+        kind: 'callback_url',
+        callbackUrl: result.url
+      }
+    }
+
+    if (result.type === 'cancel' || result.type === 'dismiss') {
+      throw new AuthProviderError('Social sign-in was cancelled', 'CANCELLED')
+    }
+
+    if (result.type === 'locked') {
+      throw new AuthProviderError('Another auth session is already in progress', 'PROVIDER')
+    }
+
+    return {
+      kind: 'redirect_started'
+    }
+  } catch (error) {
+    // Fallback to system deep-link redirect flow when auth session APIs are unavailable.
+    if (error instanceof AuthProviderError) {
+      throw error
+    }
+
+    await ExpoLinking.openURL(url)
+
+    return {
+      kind: 'redirect_started'
+    }
+  }
 }
 
 const parseCallbackUrl = (callbackUrl: string): URL => {
@@ -226,10 +264,11 @@ export const supabaseAuthProvider: AuthProvider = {
     }
 
     const supabase = getSupabaseClient()
+    const redirectTo = buildSocialRedirectUrl(provider, mode)
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: buildSocialRedirectUrl(provider, mode),
+        redirectTo,
         skipBrowserRedirect: true
       }
     })
@@ -242,7 +281,14 @@ export const supabaseAuthProvider: AuthProvider = {
       throw new AuthProviderError('Supabase did not return a social auth redirect URL', 'PROVIDER')
     }
 
-    await openSocialRedirect(data.url)
+    const redirectResult = await openSocialRedirect(data.url, redirectTo)
+
+    if (redirectResult.kind === 'callback_url') {
+      return {
+        kind: 'session',
+        session: await supabaseAuthProvider.completeSocialAuthCallback(redirectResult.callbackUrl)
+      }
+    }
 
     return {
       kind: 'redirect_started'
