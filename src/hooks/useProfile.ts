@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { SESSION_REFRESH_TOKEN_KEY } from '@/services/auth.constants'
+import {
+  SESSION_REFRESH_TOKEN_KEY,
+  SESSION_TOKEN_KEY,
+  SESSION_USER_KEY
+} from '@/services/auth.constants'
 import { profileService } from '@/services/profile.service'
 import { storageService } from '@/services/storage.service'
 import { useAuthStore } from '@/stores/auth.store'
@@ -16,7 +20,9 @@ interface UseProfileResult {
   canSaveRemote: boolean
   profileProviderDetail: string
   nameDraft: string
+  avatarUrlDraft: string
   setNameDraft: (value: string) => void
+  setAvatarUrlDraft: (value: string) => void
   refreshProfile: () => Promise<void>
   saveProfile: () => Promise<void>
 }
@@ -24,10 +30,12 @@ interface UseProfileResult {
 export const useProfile = (): UseProfileResult => {
   const sessionUser = useAuthStore((state) => state.user)
   const accessToken = useAuthStore((state) => state.token)
+  const setSession = useAuthStore((state) => state.setSession)
   const setUser = useAuthStore((state) => state.setUser)
 
   const [profile, setProfile] = useState<AuthUser | null>(sessionUser)
   const [nameDraft, setNameDraft] = useState(sessionUser?.name ?? '')
+  const [avatarUrlDraft, setAvatarUrlDraft] = useState(sessionUser?.avatarUrl ?? '')
   const [isLoading, setIsLoading] = useState(Boolean(sessionUser))
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -41,7 +49,8 @@ export const useProfile = (): UseProfileResult => {
 
   useEffect(() => {
     setNameDraft(profile?.name ?? '')
-  }, [profile?.id, profile?.name])
+    setAvatarUrlDraft(profile?.avatarUrl ?? '')
+  }, [profile?.avatarUrl, profile?.id, profile?.name])
 
   useEffect(() => {
     mountedRef.current = true
@@ -51,6 +60,7 @@ export const useProfile = (): UseProfileResult => {
       saveRequestIdRef.current += 1
       setProfile(null)
       setNameDraft('')
+      setAvatarUrlDraft('')
       setError(null)
       setSaveError(null)
       setIsLoading(false)
@@ -108,6 +118,7 @@ export const useProfile = (): UseProfileResult => {
 
       setProfile(refreshedProfile)
       if (refreshedProfile) {
+        storageService.setItem(SESSION_USER_KEY, JSON.stringify(refreshedProfile))
         setUser(refreshedProfile)
       }
     } catch {
@@ -129,6 +140,7 @@ export const useProfile = (): UseProfileResult => {
     }
 
     const normalizedName = nameDraft.trim()
+    const normalizedAvatarUrl = avatarUrlDraft.trim()
     if (!normalizedName) {
       setSaveError('Display name is required.')
       throw new Error('Display name is required')
@@ -140,12 +152,13 @@ export const useProfile = (): UseProfileResult => {
 
     try {
       const refreshToken = await storageService.getSecureItem(SESSION_REFRESH_TOKEN_KEY)
-      const updatedProfile = await profileService.updateProfile({
+      const updateResult = await profileService.updateProfile({
         sessionUser,
         accessToken,
         refreshToken,
         profile: {
-          name: normalizedName
+          name: normalizedName,
+          avatarUrl: normalizedAvatarUrl.length > 0 ? normalizedAvatarUrl : null
         }
       })
 
@@ -153,9 +166,28 @@ export const useProfile = (): UseProfileResult => {
         return
       }
 
+      const updatedProfile = updateResult.user
+      const rotatedSession = updateResult.rotatedSession
+
+      storageService.setItem(SESSION_USER_KEY, JSON.stringify(updatedProfile))
+
+      if (rotatedSession) {
+        await storageService.setSecureItem(SESSION_TOKEN_KEY, rotatedSession.token)
+
+        if (rotatedSession.refreshToken) {
+          await storageService.setSecureItem(SESSION_REFRESH_TOKEN_KEY, rotatedSession.refreshToken)
+        } else {
+          await storageService.removeSecureItem(SESSION_REFRESH_TOKEN_KEY)
+        }
+
+        setSession(updatedProfile, rotatedSession.token)
+      } else {
+        setUser(updatedProfile)
+      }
+
       setProfile(updatedProfile)
-      setUser(updatedProfile)
       setNameDraft(updatedProfile.name ?? '')
+      setAvatarUrlDraft(updatedProfile.avatarUrl ?? '')
     } catch {
       if (!mountedRef.current || saveRequestId !== saveRequestIdRef.current) {
         throw new Error('Save request was interrupted')
@@ -168,7 +200,7 @@ export const useProfile = (): UseProfileResult => {
         setIsSaving(false)
       }
     }
-  }, [accessToken, isSaving, nameDraft, sessionUser, setUser])
+  }, [accessToken, avatarUrlDraft, isSaving, nameDraft, sessionUser, setSession, setUser])
 
   return {
     profile,
@@ -180,7 +212,9 @@ export const useProfile = (): UseProfileResult => {
     canSaveRemote: profileCapabilities.canUpdateRemote,
     profileProviderDetail: profileCapabilities.detail,
     nameDraft,
+    avatarUrlDraft,
     setNameDraft,
+    setAvatarUrlDraft,
     refreshProfile,
     saveProfile
   }

@@ -1,6 +1,9 @@
 import { profileProvider } from '@/services/profile.provider'
 import type { AuthUser } from '@/types/auth'
-import { ProfileProviderError } from '@/services/profile.provider.types'
+import {
+  ProfileProviderError,
+  type ProfileProviderUpdateResult
+} from '@/services/profile.provider.types'
 
 export interface ProfileServiceInput {
   sessionUser: AuthUser | null
@@ -11,8 +14,11 @@ export interface ProfileServiceInput {
 export interface UpdateProfileInput extends ProfileServiceInput {
   profile: {
     name: string
+    avatarUrl?: string | null
   }
 }
+
+export type UpdateProfileResult = ProfileProviderUpdateResult
 
 export const profileService = {
   getCapabilities() {
@@ -67,7 +73,7 @@ export const profileService = {
     }
   },
 
-  async updateProfile(input: UpdateProfileInput): Promise<AuthUser> {
+  async updateProfile(input: UpdateProfileInput): Promise<UpdateProfileResult> {
     if (!input.sessionUser) {
       throw new Error('Cannot update profile without an authenticated user')
     }
@@ -81,7 +87,8 @@ export const profileService = {
       accessToken: input.accessToken,
       refreshToken: input.refreshToken,
       profile: {
-        name: input.profile.name
+        name: input.profile.name,
+        avatarUrl: input.profile.avatarUrl
       }
     })
   }

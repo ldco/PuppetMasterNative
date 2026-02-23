@@ -1,4 +1,5 @@
 import { StyleSheet, View } from 'react-native'
+import { useRouter } from 'expo-router'
 
 import { Avatar } from '@/components/atoms/Avatar'
 import { Badge } from '@/components/atoms/Badge'
@@ -11,15 +12,19 @@ import { SkeletonCard } from '@/components/molecules/SkeletonCard'
 import { LoadingOverlay } from '@/components/organisms/LoadingOverlay'
 import { ScreenHeader } from '@/components/organisms/ScreenHeader'
 import { useProfile } from '@/hooks/useProfile'
+import { useConfig } from '@/hooks/useConfig'
 import { useTheme } from '@/hooks/useTheme'
 import { useToast } from '@/hooks/useToast'
 
 export default function ProfileTabScreen() {
+  const router = useRouter()
+  const config = useConfig()
   const { colors, tokens } = useTheme()
   const { toast } = useToast()
   const {
     canSaveRemote,
     error,
+    avatarUrlDraft,
     isLoading,
     isRefreshing,
     isSaving,
@@ -29,8 +34,16 @@ export default function ProfileTabScreen() {
     refreshProfile,
     saveError,
     saveProfile,
+    setAvatarUrlDraft,
     setNameDraft
   } = useProfile()
+
+  const normalizedNameDraft = nameDraft.trim()
+  const normalizedAvatarUrlDraft = avatarUrlDraft.trim()
+  const normalizedProfileName = (profile?.name ?? '').trim()
+  const normalizedProfileAvatarUrl = (profile?.avatarUrl ?? '').trim()
+  const hasPendingProfileChanges =
+    normalizedNameDraft !== normalizedProfileName || normalizedAvatarUrlDraft !== normalizedProfileAvatarUrl
 
   const styles = StyleSheet.create({
     screen: {
@@ -85,7 +98,7 @@ export default function ProfileTabScreen() {
       ) : (
         <View style={styles.card}>
           <View style={styles.identity}>
-            <Avatar name={profile.name} size="lg" />
+            <Avatar imageUrl={profile.avatarUrl} name={profile.name} size="lg" />
             <Badge
               label={`Role: ${profile.role}`}
               tone={profile.role === 'master' || profile.role === 'admin' ? 'brand' : 'neutral'}
@@ -106,6 +119,14 @@ export default function ProfileTabScreen() {
               placeholder="Enter display name"
               value={nameDraft}
             />
+            <FormField
+              autoCapitalize="none"
+              helperText="Optional. Paste a public image URL until avatar upload is wired."
+              label="Avatar URL"
+              onChangeText={setAvatarUrlDraft}
+              placeholder="https://example.com/avatar.jpg"
+              value={avatarUrlDraft}
+            />
             <Text tone="secondary">Email: {profile.email}</Text>
           </View>
           <View style={styles.actions}>
@@ -118,8 +139,18 @@ export default function ProfileTabScreen() {
               size="sm"
               variant="outline"
             />
+            {config.features.forgotPassword ? (
+              <Button
+                label="Change password"
+                onPress={() => {
+                  router.push('./change-password')
+                }}
+                size="sm"
+                variant="outline"
+              />
+            ) : null}
             <Button
-              disabled={!canSaveRemote || isSaving || nameDraft.trim() === (profile.name ?? '').trim()}
+              disabled={!canSaveRemote || isSaving || !hasPendingProfileChanges}
               label={isSaving ? 'Saving...' : 'Save profile'}
               onPress={() => {
                 void saveProfile().then(() => {

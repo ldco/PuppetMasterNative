@@ -7,6 +7,92 @@ Planning note:
 - Canonical current roadmap + immediate next-step list now lives in `docs/pmnative/ROADMAP.md`.
 - This handoff file is for session history, implementation notes, and review findings.
 
+## Session Update (2026-02-23, review pass: PMN-070 profile + README/docs)
+
+### Current status
+- Reviewed the newly added `PMN-070` profile changes (`avatarUrl`, change-password reset-link screen) plus README documentation updates.
+- No functional regressions were found in the provider/service/hook test-covered paths after review validation.
+- One code-quality/type-safety issue was fixed in the new profile-to-change-password navigation path.
+- Changes are still uncommitted at this point in the working tree (commit/push requested next).
+
+### Scope of analysis
+- Profile module changes:
+  - `src/app/(tabs)/profile.tsx`
+  - `src/app/(tabs)/change-password.tsx`
+  - `src/app/(tabs)/_layout.tsx`
+  - `src/hooks/useProfile.ts`
+  - `src/services/profile.*`
+  - `src/services/genericRest.schemas.ts`
+  - `src/services/auth/providers/supabaseAuthProvider.ts`
+  - profile-related tests
+- Documentation changes:
+  - `README.md`
+  - `docs/pmnative/ROADMAP.md`
+  - `docs/NEXT_CHAT_HANDOFF.md`
+
+### Issues discovered
+- `src/app/(tabs)/profile.tsx`
+  - The new "Change password" navigation used `router.push('/change-password' as never)`, which suppressed Expo Router typed-route checks and could hide future route-string mistakes.
+
+### Fixes implemented
+- Replaced the unsafe route cast with a typed relative route navigation:
+  - `router.push('./change-password')` in `src/app/(tabs)/profile.tsx`
+- Re-ran validation after the fix:
+  - `npm run typecheck` passed
+  - `npm test -- --run` passed (`17` tests)
+
+### Completed work (this review pass)
+- Reviewed recent `PMN-070` profile/avatar URL contract expansion and hidden tabs-route change-password screen.
+- Reviewed README updates (logo path, project status, docs index, prerequisites versions).
+- Applied the safe navigation type-safety fix in the profile screen and revalidated.
+
+### Open tasks
+- Commit and push the current working tree changes to `master`.
+- Continue `PMN-070` toward a real avatar-upload flow and/or a true in-session password update form.
+- Run live Supabase smoke validation later for profile token rotation and social auth callbacks (final integration phase).
+
+### Recommended next step
+- After commit/push, continue `PMN-070` with either (1) avatar upload UX/storage contract design or (2) a true authenticated password-change form (provider contract + UI), keeping the current reset-link screen as fallback.
+
+### Remaining risks / TODO
+- Expo Router generated typed routes (`.expo/types/router.d.ts`) may be stale until the next route typegen refresh/dev startup; runtime route works, but generated route unions may lag newly added screens temporarily.
+- `tests/hooks/useProfile.test.ts` uses a custom mocked React hook runtime (pragmatic for current dependency set); consider migrating to a standard hook renderer later if test complexity grows.
+
+## Session Update (2026-02-23, latest working-tree snapshot)
+
+### Current status
+- Continuing roadmap work on `PMN-070` (profile module hardening), non-UI.
+- Supabase profile-save token rotation propagation is implemented in code and validated locally.
+- Hook-level tests now cover rotated-session token persistence side effects in `useProfile()`.
+- Profile editing is no longer display-name-only: `avatarUrl` is now supported across auth/profile normalization, provider/service contracts, `useProfile()`, and the profile tab UI (manual URL entry; upload flow still pending).
+- Profile tab now links to a hidden tabs-route `Change Password` screen that sends a password-reset link to the signed-in account email via `useAuth.requestPasswordReset()` (reset-link flow, not a direct password-update form).
+- Changes are currently uncommitted in the working tree.
+
+### Current uncommitted work (latest)
+- `src/app/(tabs)/_layout.tsx`
+- `src/services/profile.provider.types.ts`
+- `src/services/profile.provider.ts`
+- `src/services/profile.service.ts`
+- `src/services/genericRest.schemas.ts`
+- `src/services/auth/providers/supabaseAuthProvider.ts`
+- `src/hooks/useProfile.ts`
+- `src/types/auth.ts`
+- `src/app/(tabs)/profile.tsx`
+- `src/app/(tabs)/change-password.tsx`
+- `tests/services/profile.provider.test.ts`
+- `tests/services/profile.service.test.ts`
+- `tests/hooks/useProfile.test.ts`
+- `tests/services/settingsSync.provider.test.ts` (expectation aligned to intentional unsupported text)
+- `docs/pmnative/ROADMAP.md`
+- `docs/NEXT_CHAT_HANDOFF.md`
+
+### Validation (latest)
+- `npm run typecheck` passed
+- `npm test -- --run` passed (`17` tests)
+
+### Recommended next step
+- Continue `PMN-070` from name+avatarUrl editing + reset-link change-password screen toward a real avatar-upload flow and/or a true in-session password update form, while keeping live Supabase smoke validation for token rotation behavior in the final integration pass.
+
 ## Session Update (2026-02-23, review comments pass)
 
 ### Scope of work
@@ -43,7 +129,38 @@ Planning note:
 ### Remaining risks / TODO
 - Admin `supabase` provider is still a stub (capability-off); real Supabase admin endpoints/flows remain out of scope until explicitly designed.
 - Settings sync for `supabase` remains intentionally unsupported; keep feature capability-gated unless a concrete adapter contract is approved.
-- Profile provider token-rotation contract gap (Supabase `setSession()` during profile update) remains unresolved; tracked in roadmap/handoff notes.
+- Profile token rotation propagation is now implemented in the profile provider/service path, but it still needs real Supabase smoke validation to confirm observed token-rotation behavior on device/web.
+
+## Session Update (2026-02-23, PMN-070 token propagation)
+
+### Scope of work
+- Continued the next canonical roadmap step for `PMN-070` profile hardening.
+- Closed the Supabase profile-update token-rotation propagation gap and aligned tests/docs.
+
+### Changes completed
+- Extended profile update contract to return `{ user, rotatedSession? }` instead of only `AuthUser`:
+  - `src/services/profile.provider.types.ts`
+  - `src/services/profile.service.ts`
+- `src/services/profile.provider.ts`
+  - `supabase` update path now captures rotated session tokens from `supabase.auth.setSession(...)`
+  - returns `rotatedSession` when available
+  - `generic-rest` update path now returns `{ user }` under the new contract
+- `src/hooks/useProfile.ts`
+  - persists refreshed profile user snapshot to `SESSION_USER_KEY` on refresh/save
+  - persists rotated access/refresh tokens (when returned) to secure storage on profile save
+  - updates auth store session token when a rotated token is returned
+- Test updates:
+  - `tests/services/profile.provider.test.ts` covers rotated-session token propagation from Supabase update
+  - `tests/services/profile.service.test.ts` updated for new update result shape
+  - `tests/services/settingsSync.provider.test.ts` expectation aligned with intentional unsupported-detail text
+
+### Validation status
+- `npm run typecheck` passed
+- `npm test -- --run` passed (`15` tests)
+
+### Remaining risks / TODO
+- No hook-level automated tests yet for `useProfile()` persistence side effects (storage writes + auth store token update).
+- Live Supabase validation is still required to confirm whether `setSession()` returns rotated tokens consistently across web/native runtimes.
 
 ## Session Snapshot (2026-02-22)
 

@@ -1,4 +1,4 @@
-import type { User } from '@supabase/supabase-js'
+import type { Session, User } from '@supabase/supabase-js'
 import { z } from 'zod'
 
 import { pmNativeConfig } from '@/pm-native.config'
@@ -9,7 +9,8 @@ import {
   ProfileProviderError,
   type ProfileProvider,
   type ProfileProviderGetInput,
-  type ProfileProviderUpdateInput
+  type ProfileProviderUpdateInput,
+  type ProfileProviderUpdateResult
 } from '@/services/profile.provider.types'
 import type { AuthUser } from '@/types/auth'
 import type { Role } from '@/types/config'
@@ -30,15 +31,25 @@ const genericRestProfilePayloadSchema = z.union([
 const normalizeGenericRestProfilePayload = (
   payload: z.infer<typeof genericRestProfilePayloadSchema>
 ) => {
+  const normalizeUser = (user: AuthUser | (AuthUser & { avatar_url?: string | null })) => {
+    const { avatar_url, ...rawUser } = user as AuthUser & { avatar_url?: string | null }
+    const avatarUrl = (rawUser.avatarUrl ?? avatar_url)?.trim() || null
+
+    return {
+      ...rawUser,
+      avatarUrl
+    }
+  }
+
   if ('data' in payload) {
-    return payload.data.user
+    return normalizeUser(payload.data.user)
   }
 
   if ('user' in payload) {
-    return payload.user
+    return normalizeUser(payload.user)
   }
 
-  return payload
+  return normalizeUser(payload)
 }
 
 const genericRestProfileGetEndpoint = pmNativeConfig.backend.genericRest?.profile?.endpoints.get
@@ -70,6 +81,19 @@ const resolveSupabaseName = (user: User): string | null => {
   return typeof value === 'string' ? value.trim() : null
 }
 
+const resolveSupabaseAvatarUrl = (user: User): string | null => {
+  const candidates = [
+    user.user_metadata?.avatar_url,
+    user.user_metadata?.avatarUrl,
+    user.user_metadata?.picture
+  ]
+  const value = candidates.find((candidate) => {
+    return typeof candidate === 'string' && candidate.trim().length > 0
+  })
+
+  return typeof value === 'string' ? value.trim() : null
+}
+
 const mapSupabaseUser = (user: User): AuthUser => {
   if (!user.email) {
     throw new ProfileProviderError('Supabase user is missing email', 'PROVIDER')
@@ -79,6 +103,7 @@ const mapSupabaseUser = (user: User): AuthUser => {
     id: user.id,
     email: user.email,
     name: resolveSupabaseName(user),
+    avatarUrl: resolveSupabaseAvatarUrl(user),
     role: resolveSupabaseRole(user)
   }
 }
@@ -101,6 +126,19 @@ const requireRefreshToken = (refreshToken?: string | null): string => {
 
 const toSupabaseProfileErrorCode = (status?: number): 'UNAUTHORIZED' | 'PROVIDER' => {
   return status === 401 || status === 403 ? 'UNAUTHORIZED' : 'PROVIDER'
+}
+
+const toRotatedSession = (
+  session: Session | null | undefined
+): ProfileProviderUpdateResult['rotatedSession'] => {
+  if (!session?.access_token) {
+    return undefined
+  }
+
+  return {
+    token: session.access_token,
+    refreshToken: typeof session.refresh_token === 'string' ? session.refresh_token : null
+  }
 }
 
 const genericRestProfileProvider: ProfileProvider = {
@@ -162,7 +200,8 @@ const genericRestProfileProvider: ProfileProvider = {
       method: 'PATCH',
       token: input.accessToken,
       body: {
-        name: input.profile.name
+        name: input.profile.name,
+        avatarUrl: input.profile.avatarUrl ?? null
       },
       schema: genericRestProfilePayloadSchema,
       useAuthToken: false
@@ -173,7 +212,9 @@ const genericRestProfileProvider: ProfileProvider = {
       )
     })
 
-    return normalizeGenericRestProfilePayload(payload)
+    return {
+      user: normalizeGenericRestProfilePayload(payload)
+    }
   }
 }
 
@@ -182,7 +223,7 @@ const supabaseProfileProvider: ProfileProvider = {
     return {
       canFetchRemote: true,
       canUpdateRemote: true,
-      detail: 'GET supabase.auth.getUser(token) | UPDATE supabase.auth.updateUser(user_metadata.name)'
+      detail: 'GET supabase.auth.getUser(token) | UPDATE supabase.auth.updateUser(user_metadata.name/avatar_url)'
     }
   },
 
@@ -207,7 +248,7 @@ const supabaseProfileProvider: ProfileProvider = {
     const refreshToken = requireRefreshToken(_input.refreshToken)
     const supabase = getSupabaseClient()
 
-    const { error: setSessionError } = await supabase.auth.setSession({
+    const { data: setSessionData, error: setSessionError } = await supabase.auth.setSession({
       access_token: accessToken,
       refresh_token: refreshToken
     })
@@ -221,7 +262,8 @@ const supabaseProfileProvider: ProfileProvider = {
 
     const { data, error } = await supabase.auth.updateUser({
       data: {
-        name: _input.profile.name
+        name: _input.profile.name,
+        avatar_url: _input.profile.avatarUrl ?? null
       }
     })
 
@@ -233,7 +275,10 @@ const supabaseProfileProvider: ProfileProvider = {
       throw new ProfileProviderError('Supabase profile update did not return a user', 'PROVIDER')
     }
 
-    return mapSupabaseUser(data.user)
+    return {
+      user: mapSupabaseUser(data.user),
+      rotatedSession: toRotatedSession(setSessionData.session)
+    }
   }
 }
 

@@ -35,6 +35,7 @@ What is already done (high level):
 - `PMN-070` profile update path has started:
   - `generic-rest` profile update endpoint support (`backend.genericRest.profile.endpoints.update`) is implemented and config-gated
   - `supabase` profile remote update path is implemented via `setSession` + `auth.updateUser({ data: { name } })`
+  - rotated tokens from Supabase `setSession(...)` are now propagated through the profile provider/service and persisted back to auth storage/store during profile save
 - `PMN-074` admin users provider-backed list path has started:
   - `generic-rest` admin users endpoint support (`backend.genericRest.admin.endpoints.listUsers`) is implemented and config-gated
   - admin user-detail route/provider path is implemented (`backend.genericRest.admin.endpoints.getUser`, config-gated)
@@ -53,7 +54,7 @@ What is already done (high level):
 What is not finished:
 
 - Full provider-backed admin module APIs are not implemented yet (only users list remote path has started)
-- Profile editing UX is basic (display name only) and needs broader profile field contract decisions
+- Profile module now supports display name + avatar URL (manual URL entry) and a profile-linked change-password reset-link screen; avatar upload and true in-session password update flows are still pending
 - `supabase` settings sync adapter or an explicit non-goal decision
 - Full auth test matrix execution (especially interactive Supabase/social smoke tests)
 - Telegram/VK runtime social auth adapters (currently capability-gated/doc-planned)
@@ -102,7 +103,7 @@ Use this rule:
 
 ## Immediate Next Implementation Targets (Practical)
 
-1. `PMN-070` Profile: add `profileProvider` tests (generic-rest payload normalization + Supabase error mapping) and resolve/document the token-rotation contract gap from Supabase `setSession(...)` during profile update.
+1. `PMN-070` Profile: continue from name+avatarUrl editing + reset-link change-password screen to real avatar upload and/or true in-session password update flow (token-rotation persistence path already covered by hook tests).
 2. `PMN-071` Settings: keep Supabase settings sync unsupported for now (capability-gated), and continue `generic-rest` contract tests/docs until a Supabase adapter is explicitly approved/in-scope.
 3. `PMN-074` Admin: extend provider tests/contracts and decide next admin endpoints (`roles`/`settings`) before wiring more admin actions in UI.
 4. Expand mocked provider tests (auth/profile/settings/admin provider paths) on top of the `vitest` harness before live provider smoke tests.

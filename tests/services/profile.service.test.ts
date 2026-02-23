@@ -89,7 +89,8 @@ describe('profileService', () => {
     }
     const updatedUser = {
       ...sessionUser,
-      name: 'Updated'
+      name: 'Updated',
+      avatarUrl: 'https://cdn.example/avatar.png'
     }
 
     mockProfileProvider.getCapabilities.mockReturnValue({
@@ -97,14 +98,21 @@ describe('profileService', () => {
       canUpdateRemote: true,
       detail: 'test'
     })
-    mockProfileProvider.updateProfile.mockResolvedValueOnce(updatedUser)
+    mockProfileProvider.updateProfile.mockResolvedValueOnce({
+      user: updatedUser,
+      rotatedSession: {
+        token: 'rotated-access',
+        refreshToken: 'rotated-refresh'
+      }
+    })
 
     const result = await profileService.updateProfile({
       sessionUser,
       accessToken: 'access-token',
       refreshToken: 'refresh-token',
       profile: {
-        name: 'Updated'
+        name: 'Updated',
+        avatarUrl: 'https://cdn.example/avatar.png'
       }
     })
 
@@ -112,9 +120,16 @@ describe('profileService', () => {
       accessToken: 'access-token',
       refreshToken: 'refresh-token',
       profile: {
-        name: 'Updated'
+        name: 'Updated',
+        avatarUrl: 'https://cdn.example/avatar.png'
       }
     })
-    expect(result).toEqual(updatedUser)
+    expect(result).toEqual({
+      user: updatedUser,
+      rotatedSession: {
+        token: 'rotated-access',
+        refreshToken: 'rotated-refresh'
+      }
+    })
   })
 })

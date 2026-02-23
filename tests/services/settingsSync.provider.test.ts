@@ -77,7 +77,8 @@ describe('settingsSyncProvider', () => {
 
     expect(settingsSyncProvider.getCapabilities()).toEqual({
       canExecute: false,
-      detail: 'supabase settings sync endpoint is not implemented yet'
+      detail:
+        'supabase (intentionally unsupported for settings sync in current roadmap scope) settings sync endpoint is not implemented yet'
     })
 
     await expect(

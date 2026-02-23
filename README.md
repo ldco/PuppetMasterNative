@@ -1,4 +1,4 @@
-<div align="center"><img src="logo.png" alt="Project Logo" width="500"/></div>
+<div align="center"><img src="logo.png" alt="PMNative Logo" width="500"/></div>
 
 <div align="center">
 
@@ -30,6 +30,17 @@ Why it exists:
 - to make them reusable in a standalone, backend-flexible project
 - to give new contributors a predictable starting point with strong DX
 
+## Project Status (Work in Progress)
+
+PMNative is in active development and is not production-ready yet.
+
+Current focus areas still in progress:
+
+- live Supabase/social auth validation (especially Google callback/deeplink smoke tests)
+- provider-backed admin APIs beyond the current scaffolding/stubbed paths
+- settings sync provider expansion (Supabase remains intentionally unsupported/capability-gated)
+- profile module follow-ups (avatar upload and deeper account-management flows)
+
 ## Features
 
 - `Expo Router` app structure with typed routes enabled
@@ -40,6 +51,16 @@ Why it exists:
 - Admin module scaffolding and diagnostics screen support
 - TypeScript-first codebase with a `typecheck` script
 
+## Documentation
+
+Use these docs based on what you are trying to do:
+
+- `docs/SUPABASE_SETUP.md`: initial Supabase project/app configuration for PMNative local development.
+- `docs/SUPABASE_GOOGLE_SOCIAL_AUTH_SMOKE_TEST_SETUP.md`: run live Google social auth smoke tests (redirects/deep-links/callback validation).
+- `docs/GENERIC_REST_AUTH_PROVIDER_CONTRACT.md`: implement or validate a backend against the `generic-rest` auth provider contract.
+- `docs/pmnative/ROADMAP.md`: canonical current status and immediate next implementation targets.
+- `docs/NEXT_CHAT_HANDOFF.md`: recent session history, implementation notes, and handoff context.
+
 ## 🚀 Quick Start
 
 This is the fastest path to a running app using the default `supabase` provider.
@@ -48,13 +69,18 @@ This is the fastest path to a running app using the default `supabase` provider.
 
 Why: PMNative runs on Expo, so you need Node/npm to install dependencies and an Expo-compatible runtime to launch the app.
 
-- Node.js (LTS recommended)
-- npm (bundled with Node.js)
+- Node.js `18 LTS` or `20 LTS` (supported targets for this repo)
+- npm `9+` (bundled with supported Node LTS versions)
+- Expo SDK `52` (`expo@~52.0.0`) / React Native `0.76.9` (current project target in `package.json`)
 - A Supabase project (for the default auth provider)
 - One runtime target:
   - Expo Go on a phone, or
   - iOS Simulator / Android Emulator, or
   - a web browser (for quick local validation)
+
+Version note:
+
+- `npm run doctor:expo` is expected to be run against the project's current Expo SDK/RN target (`Expo SDK 52`, `React Native 0.76.9`) and compatible Node/npm versions above.
 
 ### Installation
 

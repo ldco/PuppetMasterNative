@@ -46,6 +46,20 @@ const resolveName = (user: User): string | null => {
   return typeof value === 'string' ? value.trim() : null
 }
 
+const resolveAvatarUrl = (user: User): string | null => {
+  const candidates = [
+    user.user_metadata?.avatar_url,
+    user.user_metadata?.avatarUrl,
+    user.user_metadata?.picture
+  ]
+
+  const value = candidates.find((candidate) => {
+    return typeof candidate === 'string' && candidate.trim().length > 0
+  })
+
+  return typeof value === 'string' ? value.trim() : null
+}
+
 const mapSupabaseUser = (user: User): AuthUser => {
   if (!user.email) {
     throw new Error('Supabase user is missing email')
@@ -55,6 +69,7 @@ const mapSupabaseUser = (user: User): AuthUser => {
     id: user.id,
     email: user.email,
     name: resolveName(user),
+    avatarUrl: resolveAvatarUrl(user),
     role: resolveRole(user)
   }
 }

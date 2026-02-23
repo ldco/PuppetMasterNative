@@ -32,11 +32,22 @@ export interface ProfileProviderUpdateInput {
   refreshToken?: string | null
   profile: {
     name: string
+    avatarUrl?: string | null
   }
+}
+
+export interface ProfileProviderRotatedSession {
+  token: string
+  refreshToken: string | null
+}
+
+export interface ProfileProviderUpdateResult {
+  user: AuthUser
+  rotatedSession?: ProfileProviderRotatedSession
 }
 
 export interface ProfileProvider {
   getCapabilities: () => ProfileProviderCapabilities
   getProfile: (input: ProfileProviderGetInput) => Promise<AuthUser>
-  updateProfile: (input: ProfileProviderUpdateInput) => Promise<AuthUser>
+  updateProfile: (input: ProfileProviderUpdateInput) => Promise<ProfileProviderUpdateResult>
 }

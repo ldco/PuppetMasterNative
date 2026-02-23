@@ -81,6 +81,7 @@ describe('profileProvider', () => {
         id: '1',
         email: 'user@example.com',
         name: 'User',
+        avatar_url: 'https://cdn.example/user-1.png',
         role: 'user'
       })
       .mockResolvedValueOnce({
@@ -88,6 +89,7 @@ describe('profileProvider', () => {
           id: '2',
           email: 'editor@example.com',
           name: 'Editor',
+          avatarUrl: 'https://cdn.example/user-2.png',
           role: 'editor'
         }
       })
@@ -98,6 +100,7 @@ describe('profileProvider', () => {
             id: '3',
             email: 'admin@example.com',
             name: 'Admin',
+            avatar_url: 'https://cdn.example/user-3.png',
             role: 'admin'
           }
         }
@@ -115,28 +118,32 @@ describe('profileProvider', () => {
       id: '1',
       email: 'user@example.com',
       name: 'User',
+      avatarUrl: 'https://cdn.example/user-1.png',
       role: 'user'
     })
     await expect(profileProvider.getProfile({ accessToken: 'token' })).resolves.toEqual({
       id: '2',
       email: 'editor@example.com',
       name: 'Editor',
+      avatarUrl: 'https://cdn.example/user-2.png',
       role: 'editor'
     })
     await expect(profileProvider.getProfile({ accessToken: 'token' })).resolves.toEqual({
       id: '3',
       email: 'admin@example.com',
       name: 'Admin',
+      avatarUrl: 'https://cdn.example/user-3.png',
       role: 'admin'
     })
   })
 
-  it('generic-rest updateProfile sends PATCH name payload', async () => {
+  it('generic-rest updateProfile sends PATCH profile payload with avatarUrl', async () => {
     const apiRequestMock = vi.fn().mockResolvedValue({
       user: {
         id: '1',
         email: 'user@example.com',
         name: 'Updated',
+        avatarUrl: 'https://cdn.example/updated.png',
         role: 'user'
       }
     })
@@ -153,20 +160,27 @@ describe('profileProvider', () => {
     await expect(
       profileProvider.updateProfile({
         accessToken: 'token',
-        profile: { name: 'Updated' }
+        profile: {
+          name: 'Updated',
+          avatarUrl: 'https://cdn.example/updated.png'
+        }
       })
     ).resolves.toEqual({
-      id: '1',
-      email: 'user@example.com',
-      name: 'Updated',
-      role: 'user'
+      user: {
+        id: '1',
+        email: 'user@example.com',
+        name: 'Updated',
+        avatarUrl: 'https://cdn.example/updated.png',
+        role: 'user'
+      }
     })
 
     expect(apiRequestMock).toHaveBeenCalledWith('/profile/me', {
       method: 'PATCH',
       token: 'token',
       body: {
-        name: 'Updated'
+        name: 'Updated',
+        avatarUrl: 'https://cdn.example/updated.png'
       },
       schema: expect.any(Object),
       useAuthToken: false
@@ -213,6 +227,76 @@ describe('profileProvider', () => {
     ).rejects.toMatchObject({
       name: 'ProfileProviderError',
       code: 'UNAUTHORIZED'
+    })
+  })
+
+  it('supabase updateProfile returns rotated session tokens from setSession and maps avatar_url', async () => {
+    const supabaseClient = {
+      auth: {
+        getUser: vi.fn(),
+        setSession: vi.fn().mockResolvedValue({
+          data: {
+            session: {
+              access_token: 'rotated-access',
+              refresh_token: 'rotated-refresh'
+            }
+          },
+          error: null
+        }),
+        updateUser: vi.fn().mockResolvedValue({
+          data: {
+            user: {
+              id: 'user-1',
+              email: 'user@example.com',
+              app_metadata: { role: 'user' },
+              user_metadata: {
+                name: 'Updated',
+                avatar_url: 'https://cdn.example/supabase-updated.png'
+              }
+            }
+          },
+          error: null
+        })
+      }
+    }
+
+    const { profileProvider } = await loadProfileProviderModule({
+      provider: 'supabase',
+      supabaseClientImpl: supabaseClient
+    })
+
+    await expect(
+      profileProvider.updateProfile({
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+        profile: {
+          name: 'Updated',
+          avatarUrl: 'https://cdn.example/supabase-updated.png'
+        }
+      })
+    ).resolves.toEqual({
+      user: {
+        id: 'user-1',
+        email: 'user@example.com',
+        name: 'Updated',
+        avatarUrl: 'https://cdn.example/supabase-updated.png',
+        role: 'user'
+      },
+      rotatedSession: {
+        token: 'rotated-access',
+        refreshToken: 'rotated-refresh'
+      }
+    })
+
+    expect(supabaseClient.auth.setSession).toHaveBeenCalledWith({
+      access_token: 'access-token',
+      refresh_token: 'refresh-token'
+    })
+    expect(supabaseClient.auth.updateUser).toHaveBeenCalledWith({
+      data: {
+        name: 'Updated',
+        avatar_url: 'https://cdn.example/supabase-updated.png'
+      }
     })
   })
 })
