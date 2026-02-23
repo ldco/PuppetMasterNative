@@ -26,9 +26,10 @@ export default function RegisterScreen() {
     },
     screen: {
       flexGrow: 1,
+      gap: tokens.spacing.md,
       justifyContent: 'center',
       padding: tokens.spacing.lg
-    },
+    }
   })
 
   const submit = async (values: RegisterFormValues): Promise<void> => {

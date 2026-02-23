@@ -8,8 +8,8 @@ import { Text } from '@/components/atoms/Text'
 import { Card } from '@/components/molecules/Card'
 import { ListItem } from '@/components/molecules/ListItem'
 import { SectionHeader } from '@/components/molecules/SectionHeader'
+import { BackendDiagnosticsCard } from '@/components/organisms/BackendDiagnosticsCard'
 import { BottomSheet } from '@/components/organisms/BottomSheet'
-import { useBackendDiagnostics } from '@/hooks/useBackendDiagnostics'
 import { useSettingsSync } from '@/hooks/useSettingsSync'
 import { useTheme } from '@/hooks/useTheme'
 import { useToast } from '@/hooks/useToast'
@@ -20,7 +20,6 @@ export default function AdminSettingsScreen() {
   const { colors, tokens } = useTheme()
   const { toast } = useToast()
   const config = useConfig()
-  const backendDiagnostics = useBackendDiagnostics()
   const { capability, draft: syncPayloadDraft, executeSync, preview: syncPreview } = useSettingsSync()
   const [showSyncSheet, setShowSyncSheet] = useState(false)
 
@@ -44,7 +43,7 @@ export default function AdminSettingsScreen() {
     }
   })
 
-  const copyDiagnosticValue = async (label: string, value: string): Promise<void> => {
+  const copyText = async (label: string, value: string): Promise<void> => {
     try {
       await Clipboard.setStringAsync(value)
       toast(`${label} copied`, 'success')
@@ -96,46 +95,7 @@ export default function AdminSettingsScreen() {
         />
       </Card>
 
-      <Card
-        subtitle="Provider + environment readiness for local setup"
-        title="Backend Diagnostics"
-      >
-        <View style={styles.list}>
-          {backendDiagnostics.items.map((item, index) => {
-            const copyValue = item.copyValue
-
-            return (
-              <ListItem
-                key={item.key}
-                onPress={
-                  copyValue
-                    ? () => {
-                        void copyDiagnosticValue(item.copyToastLabel ?? item.label, copyValue)
-                      }
-                    : undefined
-                }
-                showDivider={index < backendDiagnostics.items.length - 1}
-                subtitle={copyValue ? `${item.detail} • Tap to copy` : item.detail}
-                title={item.label}
-                trailing={
-                  <Badge
-                    label={item.status}
-                    tone={
-                      item.status === 'ok'
-                        ? 'success'
-                        : item.status === 'warning'
-                          ? 'warning'
-                          : item.status === 'error'
-                            ? 'error'
-                            : 'neutral'
-                    }
-                  />
-                }
-              />
-            )
-          })}
-        </View>
-      </Card>
+      <BackendDiagnosticsCard />
 
       <BottomSheet
         footer={
@@ -162,7 +122,7 @@ export default function AdminSettingsScreen() {
             <Button
               label="Copy payload"
               onPress={() => {
-                void copyDiagnosticValue('Sync payload', JSON.stringify(syncPayloadDraft, null, 2))
+                void copyText('Sync payload', JSON.stringify(syncPayloadDraft, null, 2))
               }}
               size="sm"
               variant="secondary"

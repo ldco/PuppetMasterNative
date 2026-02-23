@@ -1,14 +1,51 @@
 # PMNative Next Chat Handoff
 
-Last updated: 2026-02-22
+Last updated: 2026-02-23
 Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 
 ## Session Snapshot (2026-02-22)
 
 - `docs/NEXT_CHAT_HANDOFF.md` remains the canonical handoff doc in this repo (root `NEXT_CHAT_HANDOFF.md` now points here).
+- Expo/EAS setup progressed manually in local dev environment:
+  - user ran `npx eas-cli@latest init --id 3d77d346-0399-4039-a29a-5d51abc8db1e`
+  - user logged into Expo manually during EAS setup
+  - local Expo config was synced for EAS linkage (`app.json`: `owner`, `extra.eas.projectId`, slug currently `pmnative-test`)
+  - Expo CLI generated local support changes (`expo-env.d.ts` ignore entry, `.expo/types/**/*.ts` tsconfig include, explicit `expo-asset` dependency/plugin)
 - PMN-021 moved from scaffold-only social auth to a working Supabase Google OAuth redirect/callback implementation.
 - Follow-up review pass analyzed the newly added social auth code and fixed callback flow edge cases (see "Latest Review Pass").
 - Phase 2 component gaps (`PMN-060` skeleton/loading states + `BottomSheet`) were implemented and reviewed for runtime issues.
+
+## DX / Runtime Review Pass (2026-02-23)
+
+### Scope of analysis
+- Reviewed newly added DX/bootstrap/runtime changes introduced during local Expo setup stabilization:
+  - `scripts/expo-start.mjs`
+  - `scripts/doctor-local.mjs`
+  - `scripts/setup-local.mjs`
+  - `src/services/storage.service.ts` (web / Expo Go fallback behavior)
+  - Admin diagnostics UI extraction reuse (`BackendDiagnosticsCard`)
+- Re-ran validation after fixes:
+  - `npm run typecheck`
+  - `node --check` on new scripts
+  - `npm run doctor:local`
+
+### Issues discovered
+1. `storageService.getSecureItem()` fallback path on web did not actually catch async `SecureStore.getItemAsync()` rejections (`return` without `await` inside `try`).
+2. Web storage fallback could lose data when `localStorage` was unavailable because a new in-memory fallback store was created on each call (`set` / `get` / `remove` not sharing state).
+3. `createWebStorage()` could throw during `globalThis.localStorage` access in restricted browser contexts, causing the fallback path to fail early.
+4. New DX scripts spawned `npm` directly (`npm`, not `npm.cmd` on Windows), which would break `doctor/setup/tunnel` preflight on Windows shells.
+
+### Fixes implemented
+- Fixed `storageService.getSecureItem()` to `await` `SecureStore.getItemAsync()` so web fallback catches async failures correctly.
+- Added a shared singleton web storage instance and shared in-memory fallback store so web fallback values persist across calls within the app session.
+- Wrapped web `localStorage` initialization in a safe `try/catch`, with fallback to in-memory storage when access is blocked.
+- Updated `scripts/expo-start.mjs`, `scripts/doctor-local.mjs`, and `scripts/setup-local.mjs` to use platform-aware `npm` command resolution (`npm.cmd` on Windows).
+- Re-verified DX checks and type safety after fixes.
+
+### Remaining risks / TODO
+- CLI diagnostics are now the intended dev path (`doctor:local`, `doctor:expo`, `setup`), but app-side Admin diagnostics UI still exists for framework scaffolding and is not a product feature.
+- `react-native-mmkv` fallback now prevents web / Expo Go startup crashes, but Expo Go still uses in-memory storage (expected); persistence semantics differ from MMKV until a product-approved fallback strategy is finalized.
+- `doctor:local` currently validates local machine/runtime setup but does not yet test network reachability to Metro from phone devices (Wi-Fi isolation / firewall checks remain manual).
 
 ## Latest Review Pass (2026-02-22)
 
@@ -164,6 +201,17 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 ### Docs / DX updates
 - `README.md` rewritten into a DX-focused onboarding README (golden path setup, env config, success checks, troubleshooting).
 - `docs/pmnative/ROADMAP.md` now includes a current-state snapshot and practical "what is left" priorities (not just links/index text).
+- Local Expo/EAS project linkage has been initialized manually by the user (`eas init` with project ID `3d77d346-0399-4039-a29a-5d51abc8db1e`); preserve this linkage in subsequent build/deploy setup work.
+- Local Expo config/package sync changes were introduced during EAS/DX setup work and should be preserved:
+  - `app.json` owner/project linkage + slug change (`pmnative-test`)
+  - `expo-asset` added as explicit dependency/plugin (lockfile updated; package dedupe moved nested `expo-asset`)
+  - `.gitignore` / `tsconfig.json` updated for Expo generated typings (`expo-env.d.ts`, `.expo/types/**/*.ts`)
+- DX bootstrap tooling was added for dev-PC-first diagnostics and startup guidance:
+  - `npm run doctor:local`
+  - `npm run doctor:expo`
+  - `npm run setup`
+  - `npm run phone` / `npm run tunnel` wrappers (Expo startup preflight)
+- App-side non-admin diagnostics route experiment was reverted (user-facing diagnostics access removed); diagnostics remain a dev-PC concern and Admin scaffolding tool only.
 - `LICENSE` added (GNU GPL v3; `GPL-3.0-only`), and `package.json` now includes SPDX license metadata.
 - `docs/SUPABASE_SETUP.md` extended with PMN-021 social auth prep guidance (`Google` first, capability gating for `Telegram` / `VK`).
 - `docs/GENERIC_REST_AUTH_PROVIDER_CONTRACT.md` extended with a proposed PMN-021 social auth contract (`socialCapabilities`, `socialStart`, `socialComplete`).
@@ -178,6 +226,9 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 ## Verified
 
 - `npm run typecheck` passes in this repo after latest changes (including PMN-021 scaffold).
+- `npm run typecheck` passes after DX/runtime review fixes (`storageService` web/Expo Go fallback + script cross-platform `npm` spawning).
+- `node --check` passes for new DX scripts (`scripts/expo-start.mjs`, `scripts/doctor-local.mjs`, `scripts/setup-local.mjs`).
+- `npm run doctor:local` runs successfully after DX/runtime review fixes.
 - `npm run typecheck` passes after Supabase Google social auth redirect/callback implementation and review fixes.
 - Admin Settings now includes backend provider/environment diagnostics UI.
 - Supabase registration flow now supports email confirmation projects (no immediate session).
@@ -230,6 +281,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
    - `npm run typecheck`
    - provider contract/config validation checks
    - screen-flow/manual QA with fallback/mock paths
+   - re-check Expo config after EAS sync changes (`app.json` slug/owner/projectId, plugin list, generated typings include)
 
 ### Final integration validation (deferred; real values required)
 1. Run Supabase smoke test in Expo against a real project:
@@ -282,6 +334,10 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
   - Admin Users rows now navigate to `/(admin)/users/[id]` detail screens
   - `useAdmin()` / Admin Users screen now surfaces users source metadata (`remote` vs `session-fallback`) for clearer diagnostics
   - next: document/test generic-rest admin user-detail contract and add roles/settings endpoints/contracts
+6. DX / dev tooling follow-up (dev-PC path; non-product)
+  - optionally add LAN connectivity diagnostics helper (host IP + firewall/Wi-Fi isolation guidance) to `doctor:local`
+  - optionally add `adb devices` summary when `adb` is available (device authorization state)
+  - keep user-facing app UX free of diagnostics shortcuts unless explicitly product-approved
 
 ## Canonical Planning Docs (read these first)
 

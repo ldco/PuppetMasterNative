@@ -28,6 +28,7 @@ export default function LoginScreen() {
     },
     screen: {
       flexGrow: 1,
+      gap: tokens.spacing.md,
       justifyContent: 'center',
       padding: tokens.spacing.lg
     }

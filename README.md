@@ -115,7 +115,29 @@ Why: this starts the Expo dev server with the app router root configured to `src
 npm run start
 ```
 
+Before choosing a target, you can run a local environment preflight:
+
+```bash
+npm run doctor:local
+```
+
+Recommended bootstrap check (local doctor + Expo doctor + typecheck):
+
+```bash
+npm run setup
+```
+
+Recommended phone flow (Expo Go, same Wi-Fi/LAN):
+
+```bash
+npm run phone
+```
+
 Optional launch targets (same project, same config):
+
+```bash
+npm run tunnel
+```
 
 ```bash
 npm run web
@@ -128,6 +150,13 @@ npm run ios
 ```bash
 npm run android
 ```
+
+Notes:
+
+- `npm run phone` uses Expo LAN mode and does not require Android SDK or `adb`.
+- `npm run tunnel` uses Expo tunnel mode and depends on `@expo/ngrok` + network availability.
+- `npm run android` launches via `adb` and requires a working Android SDK installation.
+- `npm run setup` runs `doctor:local`, `doctor:expo`, and `typecheck` as a preflight bootstrap pass.
 
 ### ✅ Success Check
 
@@ -318,6 +347,66 @@ npm run start -- --clear
 ```
 
 Then relaunch your target (`w`, `i`, or `a`) from the Expo terminal.
+
+### Expo warns about dependency compatibility (expected package versions)
+
+Why it happens:
+
+- one or more native dependencies drifted from the Expo SDK-compatible versions
+
+Fix:
+
+```bash
+npm run doctor:expo
+```
+
+If Expo reports specific package versions, align them with:
+
+```bash
+npx expo install <package names>
+```
+
+### `npm run android` fails with `adb ENOENT` or Android SDK path errors
+
+Why it happens:
+
+- Android SDK is not installed, or
+- `ANDROID_HOME` / `ANDROID_SDK_ROOT` is not set, or
+- `adb` (`platform-tools`) is not on `PATH`
+
+Fix:
+
+```bash
+npm run doctor:local
+```
+
+The `npm run android` wrapper now auto-detects common SDK paths (including `~/Android/Sdk`) and injects them for the Expo process, but it still requires a real SDK + platform-tools installation.
+
+If you are running on a physical phone with Expo Go, use LAN mode instead:
+
+```bash
+npm run phone
+```
+
+### `npm run tunnel` fails (`remote gone away`, ngrok install error, tunnel not starting)
+
+Why it happens:
+
+- temporary ngrok outage or network issue
+- `@expo/ngrok` is not installed (or could not be installed globally)
+- `npm` global prefix is not writable (common when prefix is `/usr`)
+
+Fix:
+
+```bash
+npm run doctor:local
+```
+
+Then:
+
+- retry with cache clear: `npm run tunnel -- --clear`
+- prefer LAN mode on the same Wi-Fi: `npm run phone`
+- check ngrok status: `https://status.ngrok.com/`
 
 ## License & Contact
 

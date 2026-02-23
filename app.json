@@ -1,20 +1,30 @@
 {
   "expo": {
     "name": "PMNative",
-    "slug": "pm-native",
+    "slug": "pmnative-test",
     "scheme": "pmnative",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true
     },
     "assetBundlePatterns": [
       "**/*"
-    ]
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "3d77d346-0399-4039-a29a-5d51abc8db1e"
+      }
+    },
+    "owner": "pmnative"
   }
 }
