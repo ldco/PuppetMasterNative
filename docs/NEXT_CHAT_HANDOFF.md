@@ -47,6 +47,13 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - `react-native-mmkv` fallback now prevents web / Expo Go startup crashes, but Expo Go still uses in-memory storage (expected); persistence semantics differ from MMKV until a product-approved fallback strategy is finalized.
 - `doctor:local` currently validates local machine/runtime setup but does not yet test network reachability to Metro from phone devices (Wi-Fi isolation / firewall checks remain manual).
 
+## Next Phase Started (2026-02-23)
+
+### PMN-070 (Supabase profile provider path)
+- Began Phase 3 follow-up work on the default backend (`supabase`) profile provider.
+- `src/services/profile.provider.ts` now implements a real Supabase remote profile fetch path using `supabase.auth.getUser(token)` when `backend.provider = 'supabase'`.
+- Supabase profile update remains intentionally `NOT_SUPPORTED` for now (next step requires a product-approved/session-management approach for `updateUser()`).
+
 ## Latest Review Pass (2026-02-22)
 
 ### Scope of analysis

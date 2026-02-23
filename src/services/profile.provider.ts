@@ -1,14 +1,18 @@
+import type { User } from '@supabase/supabase-js'
 import { z } from 'zod'
 
 import { pmNativeConfig } from '@/pm-native.config'
 import { apiRequest } from '@/services/api'
 import { genericRestUserSchema } from '@/services/genericRest.schemas'
+import { getSupabaseClient } from '@/services/supabase.client'
 import {
   ProfileProviderError,
   type ProfileProvider,
   type ProfileProviderGetInput,
   type ProfileProviderUpdateInput
 } from '@/services/profile.provider.types'
+import type { AuthUser } from '@/types/auth'
+import type { Role } from '@/types/config'
 
 const genericRestProfilePayloadSchema = z.union([
   genericRestUserSchema,
@@ -39,6 +43,53 @@ const normalizeGenericRestProfilePayload = (
 
 const genericRestProfileGetEndpoint = pmNativeConfig.backend.genericRest?.profile?.endpoints.get
 const genericRestProfileUpdateEndpoint = pmNativeConfig.backend.genericRest?.profile?.endpoints.update
+
+const roleValues: Role[] = ['master', 'admin', 'editor', 'user']
+
+const resolveSupabaseRole = (user: User): Role => {
+  const appRole = user.app_metadata?.role
+  const userRole = user.user_metadata?.role
+
+  if (typeof appRole === 'string' && roleValues.includes(appRole as Role)) {
+    return appRole as Role
+  }
+
+  if (typeof userRole === 'string' && roleValues.includes(userRole as Role)) {
+    return userRole as Role
+  }
+
+  return 'user'
+}
+
+const resolveSupabaseName = (user: User): string | null => {
+  const candidates = [user.user_metadata?.name, user.user_metadata?.full_name, user.user_metadata?.display_name]
+  const value = candidates.find((candidate) => {
+    return typeof candidate === 'string' && candidate.trim().length > 0
+  })
+
+  return typeof value === 'string' ? value.trim() : null
+}
+
+const mapSupabaseUser = (user: User): AuthUser => {
+  if (!user.email) {
+    throw new ProfileProviderError('Supabase user is missing email', 'PROVIDER')
+  }
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: resolveSupabaseName(user),
+    role: resolveSupabaseRole(user)
+  }
+}
+
+const requireAccessToken = (accessToken?: string | null): string => {
+  if (!accessToken) {
+    throw new ProfileProviderError('No access token available for profile request', 'UNAUTHORIZED')
+  }
+
+  return accessToken
+}
 
 const genericRestProfileProvider: ProfileProvider = {
   getCapabilities() {
@@ -114,6 +165,36 @@ const genericRestProfileProvider: ProfileProvider = {
   }
 }
 
+const supabaseProfileProvider: ProfileProvider = {
+  getCapabilities() {
+    return {
+      canFetchRemote: true,
+      canUpdateRemote: false,
+      detail: 'GET supabase.auth.getUser(token) | UPDATE not implemented yet'
+    }
+  },
+
+  async getProfile(input: ProfileProviderGetInput) {
+    const token = requireAccessToken(input.accessToken)
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase.auth.getUser(token)
+
+    if (error) {
+      throw new ProfileProviderError(error.message, error.status === 401 ? 'UNAUTHORIZED' : 'PROVIDER')
+    }
+
+    if (!data.user) {
+      throw new ProfileProviderError('Supabase did not return a user for the provided session token', 'PROVIDER')
+    }
+
+    return mapSupabaseUser(data.user)
+  },
+
+  async updateProfile(_input: ProfileProviderUpdateInput) {
+    throw new ProfileProviderError('supabase profile update is not implemented yet', 'NOT_SUPPORTED')
+  }
+}
+
 const notSupportedProvider = (provider: string): ProfileProvider => ({
   getCapabilities() {
     return {
@@ -137,7 +218,7 @@ export const profileProvider: ProfileProvider = (() => {
     case 'generic-rest':
       return genericRestProfileProvider
     case 'supabase':
-      return notSupportedProvider('supabase')
+      return supabaseProfileProvider
     default:
       return notSupportedProvider('unknown')
   }
