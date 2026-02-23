@@ -52,7 +52,71 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 ### PMN-070 (Supabase profile provider path)
 - Began Phase 3 follow-up work on the default backend (`supabase`) profile provider.
 - `src/services/profile.provider.ts` now implements a real Supabase remote profile fetch path using `supabase.auth.getUser(token)` when `backend.provider = 'supabase'`.
-- Supabase profile update remains intentionally `NOT_SUPPORTED` for now (next step requires a product-approved/session-management approach for `updateUser()`).
+- Supabase profile remote update path is now implemented for display-name updates using `supabase.auth.setSession(...)` + `supabase.auth.updateUser({ data: { name } })`.
+- `useProfile()` now loads the stored refresh token from secure storage for save operations and passes it through `profileService` -> `profileProvider`.
+
+## Test Harness Start (2026-02-23)
+
+### Scope of work
+- Started the framework-phase non-UI test harness and first unit-style service/provider tests.
+- Added `vitest` and initial test scripts:
+  - `npm test`
+  - `npm run test:watch`
+- Added initial tests for:
+  - `settingsSyncService`
+  - `settingsSyncProvider`
+  - `profileService`
+
+### What is covered right now
+- `settingsSyncService`
+  - warning vs ok preview states
+  - request draft payload shape (`pmnative.settings.sync/1`)
+- `settingsSyncProvider`
+  - `supabase` `NOT_SUPPORTED`
+  - `generic-rest` missing-endpoint `CONFIG`
+  - `generic-rest` success mapping (`{ syncedAt }` -> `{ kind: 'synced' }`)
+  - provider error mapping/preservation (`SettingsSyncProviderError` passthrough, unknown error -> `PROVIDER`)
+- `profileService`
+  - fallback behavior for mapped provider errors (`CONFIG`, `NOT_SUPPORTED`, `UNAUTHORIZED`)
+  - rethrow behavior for `PROVIDER`
+  - refresh-token passthrough on `updateProfile()`
+
+### Remaining risks / TODO
+- No tests yet for `profileProvider` normalization/error mapping (generic-rest + supabase)
+- No tests yet for auth provider hydration/refresh/social callback edge cases
+- No UI/e2e harness (intentional; current phase focus is service/provider contract coverage)
+
+## Service / Provider Test Review Pass (2026-02-23)
+
+### Scope of analysis
+- Reviewed newly added non-UI test harness and provider/service follow-up changes:
+  - `vitest` setup (`package.json`, `vitest.config.ts`)
+  - `tests/services/*`
+  - `src/services/profile.provider.ts` Supabase profile update path
+  - `src/hooks/useProfile.ts` refresh-token passthrough for profile save
+- Re-ran validation:
+  - `npm test`
+  - `npm run typecheck`
+
+### Issues discovered
+1. Supabase profile provider error mapping treated only HTTP `401` as unauthorized; `403` would be incorrectly surfaced as generic provider failure.
+2. Supabase profile update path may rotate/refresh tokens during `auth.setSession(...)`, but the current profile provider contract returns only `AuthUser`, so refreshed tokens are not propagated back to auth storage/state.
+
+### Fixes implemented
+- Added shared Supabase profile error-code mapper in `src/services/profile.provider.ts` and now map both `401` and `403` to `UNAUTHORIZED` across:
+  - `getProfile()`
+  - `updateProfile()` `setSession` path
+  - `updateProfile()` `updateUser` path
+- Verified all added tests and typecheck pass after the fix.
+
+### Remaining risks / TODO
+- Token rotation side effect during Supabase `setSession()` in profile update remains a contract gap:
+  - profile provider returns only `AuthUser`
+  - refreshed access/refresh tokens (if rotated) are not persisted back to auth state/storage
+  - consider a follow-up contract extension or explicit non-goal decision
+- `profileProvider` tests are still missing (next step), especially:
+  - generic-rest payload normalization variants
+  - Supabase error mapping (`401`/`403` -> `UNAUTHORIZED`)
 
 ## Latest Review Pass (2026-02-22)
 
@@ -236,6 +300,7 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - `npm run typecheck` passes after DX/runtime review fixes (`storageService` web/Expo Go fallback + script cross-platform `npm` spawning).
 - `node --check` passes for new DX scripts (`scripts/expo-start.mjs`, `scripts/doctor-local.mjs`, `scripts/setup-local.mjs`).
 - `npm run doctor:local` runs successfully after DX/runtime review fixes.
+- `npm test` passes with the new `vitest` harness (initial service/provider tests).
 - `npm run typecheck` passes after Supabase Google social auth redirect/callback implementation and review fixes.
 - Admin Settings now includes backend provider/environment diagnostics UI.
 - Supabase registration flow now supports email confirmation projects (no immediate session).
@@ -280,6 +345,12 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
     - new `useSettingsSync()` hook now composes config/auth/settings + preview/draft/provider capability
     - Admin Settings sync sheet now runs against the provider contract (`Validate sync`) and reports explicit `NOT_SUPPORTED` status instead of relying on screen-local assumptions
     - `generic-rest` settings sync provider path can now execute a real `POST` request when `backend.genericRest.settings.endpoints.sync` is configured (response schema requires `syncedAt`)
+  - default-provider (`supabase`) profile provider follow-up started:
+    - remote profile fetch implemented via `supabase.auth.getUser(token)`
+    - remote display-name update implemented via `setSession` + `auth.updateUser(...)`
+    - `useProfile()` save path now passes refresh token from secure storage to the provider
+  - non-UI test harness started (`vitest`):
+    - initial tests added for `settingsSyncService`, `settingsSyncProvider`, `profileService`
 
 ## Known Remaining Risks / TODO
 
@@ -301,7 +372,8 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 
 ### Next implementation priorities
 1. Tests
-   - provider tests (`supabase`, `generic-rest`)
+   - expand provider tests (`supabase`, `generic-rest`) beyond initial `settingsSyncProvider` / `profileService` coverage
+   - add `profileProvider` tests (generic-rest payload normalization + supabase error mapping)
    - auth hydration/refresh edge cases
 2. Out-of-the-box social auth support
    - `Google` in `supabase` provider runtime support is now implemented (capability-gated)
@@ -326,13 +398,16 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
   - provider-facing profile contract is now scaffolded (`profileProvider`)
   - `generic-rest` remote profile fetch path is implemented and config-gated via `backend.genericRest.profile.endpoints.get`
   - `generic-rest` remote profile update path is implemented and config-gated via `backend.genericRest.profile.endpoints.update`
-  - next: document/test generic-rest profile update contract and expand beyond display-name-only editing
+  - `supabase` remote profile fetch path is implemented via `supabase.auth.getUser(token)`
+  - `supabase` remote display-name update path is implemented via `setSession` + `auth.updateUser(...)`
+  - next: add `profileProvider` tests (generic-rest normalization + supabase error mapping), then expand beyond display-name-only editing
   - `PMN-071` Settings module kickoff is started (`useSettings()` + persisted local preferences)
   - settings local-state architecture is now store-backed (`useSettingsStore`) and sync contract preview logic is split into `settingsSyncService`
   - provider-facing execution contract is now scaffolded (`settingsSyncProvider`)
   - `generic-rest` execution path is implemented and config-gated via `backend.genericRest.settings.endpoints.sync`
   - generic-rest settings-sync endpoint contract is now documented in `docs/GENERIC_REST_AUTH_PROVIDER_CONTRACT.md`
-  - next: add tests for `settingsSyncProvider` (`CONFIG` vs success/error mapping) and implement a `supabase` adapter or explicit non-goal
+  - `settingsSyncProvider` tests are now added (`NOT_SUPPORTED`, `CONFIG`, success mapping, provider error mapping)
+  - next: implement a `supabase` adapter or explicit non-goal and add provider tests for that decision
   - `PMN-074` Admin module kickoff is started (`useAdmin()` + existing admin screen integration)
   - service contract boundary is defined (`adminService`) and hidden global-state reads were removed
   - provider-facing admin contract is now scaffolded (`adminProvider`)

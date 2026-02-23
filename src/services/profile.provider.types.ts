@@ -29,6 +29,7 @@ export interface ProfileProviderGetInput {
 
 export interface ProfileProviderUpdateInput {
   accessToken?: string | null
+  refreshToken?: string | null
   profile: {
     name: string
   }

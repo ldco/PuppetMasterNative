@@ -91,6 +91,18 @@ const requireAccessToken = (accessToken?: string | null): string => {
   return accessToken
 }
 
+const requireRefreshToken = (refreshToken?: string | null): string => {
+  if (!refreshToken) {
+    throw new ProfileProviderError('No refresh token available for profile update request', 'UNAUTHORIZED')
+  }
+
+  return refreshToken
+}
+
+const toSupabaseProfileErrorCode = (status?: number): 'UNAUTHORIZED' | 'PROVIDER' => {
+  return status === 401 || status === 403 ? 'UNAUTHORIZED' : 'PROVIDER'
+}
+
 const genericRestProfileProvider: ProfileProvider = {
   getCapabilities() {
     const supportsFetch = Boolean(genericRestProfileGetEndpoint)
@@ -169,8 +181,8 @@ const supabaseProfileProvider: ProfileProvider = {
   getCapabilities() {
     return {
       canFetchRemote: true,
-      canUpdateRemote: false,
-      detail: 'GET supabase.auth.getUser(token) | UPDATE not implemented yet'
+      canUpdateRemote: true,
+      detail: 'GET supabase.auth.getUser(token) | UPDATE supabase.auth.updateUser(user_metadata.name)'
     }
   },
 
@@ -180,7 +192,7 @@ const supabaseProfileProvider: ProfileProvider = {
     const { data, error } = await supabase.auth.getUser(token)
 
     if (error) {
-      throw new ProfileProviderError(error.message, error.status === 401 ? 'UNAUTHORIZED' : 'PROVIDER')
+      throw new ProfileProviderError(error.message, toSupabaseProfileErrorCode(error.status))
     }
 
     if (!data.user) {
@@ -191,7 +203,37 @@ const supabaseProfileProvider: ProfileProvider = {
   },
 
   async updateProfile(_input: ProfileProviderUpdateInput) {
-    throw new ProfileProviderError('supabase profile update is not implemented yet', 'NOT_SUPPORTED')
+    const accessToken = requireAccessToken(_input.accessToken)
+    const refreshToken = requireRefreshToken(_input.refreshToken)
+    const supabase = getSupabaseClient()
+
+    const { error: setSessionError } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken
+    })
+
+    if (setSessionError) {
+      throw new ProfileProviderError(
+        setSessionError.message,
+        toSupabaseProfileErrorCode(setSessionError.status)
+      )
+    }
+
+    const { data, error } = await supabase.auth.updateUser({
+      data: {
+        name: _input.profile.name
+      }
+    })
+
+    if (error) {
+      throw new ProfileProviderError(error.message, toSupabaseProfileErrorCode(error.status))
+    }
+
+    if (!data.user) {
+      throw new ProfileProviderError('Supabase profile update did not return a user', 'PROVIDER')
+    }
+
+    return mapSupabaseUser(data.user)
   }
 }
 

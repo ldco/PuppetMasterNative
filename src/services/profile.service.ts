@@ -5,6 +5,7 @@ import { ProfileProviderError } from '@/services/profile.provider.types'
 export interface ProfileServiceInput {
   sessionUser: AuthUser | null
   accessToken?: string | null
+  refreshToken?: string | null
 }
 
 export interface UpdateProfileInput extends ProfileServiceInput {
@@ -78,6 +79,7 @@ export const profileService = {
 
     return profileProvider.updateProfile({
       accessToken: input.accessToken,
+      refreshToken: input.refreshToken,
       profile: {
         name: input.profile.name
       }

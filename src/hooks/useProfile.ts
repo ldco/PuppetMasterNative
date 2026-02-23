@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { SESSION_REFRESH_TOKEN_KEY } from '@/services/auth.constants'
 import { profileService } from '@/services/profile.service'
+import { storageService } from '@/services/storage.service'
 import { useAuthStore } from '@/stores/auth.store'
 import type { AuthUser } from '@/types/auth'
 
@@ -137,9 +139,11 @@ export const useProfile = (): UseProfileResult => {
     const saveRequestId = ++saveRequestIdRef.current
 
     try {
+      const refreshToken = await storageService.getSecureItem(SESSION_REFRESH_TOKEN_KEY)
       const updatedProfile = await profileService.updateProfile({
         sessionUser,
         accessToken,
+        refreshToken,
         profile: {
           name: normalizedName
         }

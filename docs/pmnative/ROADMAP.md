@@ -11,7 +11,7 @@ Related planning docs:
 - `docs/pmnative/PMN-021_AUTH_TEST_MATRIX.md`
 - `docs/NEXT_CHAT_HANDOFF.md` (current status + immediate priorities)
 
-## Current State (2026-02-22)
+## Current State (2026-02-23)
 
 PMNative is in a Phase 2 -> Phase 3 transition.
 
@@ -29,8 +29,10 @@ What is already done (high level):
   - `PMN-074` Admin
 - `PMN-070` profile provider-backed fetch path has started:
   - `generic-rest` profile endpoint support (`backend.genericRest.profile.endpoints.get`) is implemented and config-gated
+  - `supabase` profile remote fetch path is implemented via `supabase.auth.getUser(token)`
 - `PMN-070` profile update path has started:
   - `generic-rest` profile update endpoint support (`backend.genericRest.profile.endpoints.update`) is implemented and config-gated
+  - `supabase` profile remote update path is implemented via `setSession` + `auth.updateUser({ data: { name } })`
 - `PMN-074` admin users provider-backed list path has started:
   - `generic-rest` admin users endpoint support (`backend.genericRest.admin.endpoints.listUsers`) is implemented and config-gated
   - admin user-detail route/provider path is implemented (`backend.genericRest.admin.endpoints.getUser`, config-gated)
@@ -41,6 +43,9 @@ What is already done (high level):
 - Settings sync contract scaffolding started:
   - typed preview + draft payload (`pmnative.settings.sync/1`)
   - provider-facing `settingsSyncProvider` contract (`generic-rest` execution path implemented, config-gated)
+- Test harness has started (non-UI, service/provider level):
+  - `vitest` setup added (`npm test`, `npm run test:watch`)
+  - initial tests added for `settingsSyncService`, `settingsSyncProvider`, and `profileService`
 
 What is not finished:
 
@@ -102,5 +107,5 @@ Use this rule:
 1. `PMN-071` Settings: document/test the `generic-rest` settings sync contract and decide whether `supabase` gets an adapter or remains unsupported
 2. `PMN-070` Profile: document/test generic-rest profile update contract and expand beyond display-name-only editing
 3. `PMN-074` Admin: document/test generic-rest admin user-detail contract, then add roles/settings endpoints and replace remaining placeholder admin flows
-4. Add a test harness and mocked provider tests (auth/profile/settings/admin provider paths)
+4. Expand mocked provider tests (auth/profile/settings/admin provider paths) on top of the new `vitest` harness
 5. Defer live Supabase/social smoke tests to final integration validation phase
