@@ -52,6 +52,11 @@ export default function AdminSettingsScreen() {
     }
   }
 
+  const canSyncSettings = capability.canExecute
+  const syncActionSubtitle = canSyncSettings
+    ? 'Stub for future server-side sync endpoint'
+    : `Sync unavailable for current backend (${capability.detail})`
+
   return (
     <View style={styles.screen}>
       <SectionHeader
@@ -88,10 +93,16 @@ export default function AdminSettingsScreen() {
 
       <Card title="Admin Actions">
         <ListItem
-          onPress={() => setShowSyncSheet(true)}
-          subtitle="Stub for future server-side sync endpoint"
+          disabled={!canSyncSettings}
+          onPress={canSyncSettings ? () => setShowSyncSheet(true) : undefined}
+          subtitle={syncActionSubtitle}
           title="Sync settings with backend"
-          trailing={<Badge label="todo" tone="warning" />}
+          trailing={
+            <Badge
+              label={canSyncSettings ? 'todo' : 'unsupported'}
+              tone={canSyncSettings ? 'warning' : 'neutral'}
+            />
+          }
         />
       </Card>
 
@@ -102,6 +113,7 @@ export default function AdminSettingsScreen() {
           <View style={styles.sheetFooterButtons}>
             <Button
               label="Validate sync"
+              disabled={!canSyncSettings}
               onPress={() => {
                 void executeSync()
                   .then(() => {

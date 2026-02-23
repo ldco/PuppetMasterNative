@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useConfig } from '@/hooks/useConfig'
+import type { AdminProviderCapabilities } from '@/services/admin.provider.types'
 import { adminService, type AdminDirectoryUser } from '@/services/admin.service'
 import { useAuthStore } from '@/stores/auth.store'
 import type { AdminSection } from '@/types/config'
@@ -10,6 +11,7 @@ export type AdminUserRow = AdminDirectoryUser
 interface UseAdminResult {
   activeUser: ReturnType<typeof useAuthStore.getState>['user']
   sections: AdminSection[]
+  capability: AdminProviderCapabilities
   users: AdminUserRow[]
   isLoadingUsers: boolean
   isRefreshingUsers: boolean
@@ -31,14 +33,21 @@ export const useAdmin = (): UseAdminResult => {
   const [usersSourceDetail, setUsersSourceDetail] = useState('Not loaded yet')
   const requestIdRef = useRef(0)
   const mountedRef = useRef(true)
+  const capability = useMemo(() => adminService.getCapabilities(), [])
 
   const sections = useMemo(() => {
     if (!activeUser) {
       return []
     }
 
-    return config.getAdminSectionsForRole(activeUser.role)
-  }, [activeUser, config])
+    return config.getAdminSectionsForRole(activeUser.role).filter((section) => {
+      if (section.id === 'users') {
+        return capability.canListUsersRemote
+      }
+
+      return true
+    })
+  }, [activeUser, capability.canListUsersRemote, config])
 
   useEffect(() => {
     mountedRef.current = true
@@ -126,6 +135,7 @@ export const useAdmin = (): UseAdminResult => {
   return {
     activeUser,
     sections,
+    capability,
     users,
     isLoadingUsers,
     isRefreshingUsers,

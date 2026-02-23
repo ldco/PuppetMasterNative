@@ -3,6 +3,48 @@
 Last updated: 2026-02-23
 Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 
+Planning note:
+- Canonical current roadmap + immediate next-step list now lives in `docs/pmnative/ROADMAP.md`.
+- This handoff file is for session history, implementation notes, and review findings.
+
+## Session Update (2026-02-23, review comments pass)
+
+### Scope of work
+- Implemented review comments focused on unsupported-provider behavior, docs consistency, and route tooling safety.
+- Updated admin/settings flows to respect provider capabilities instead of exposing unsupported actions by default.
+- Restored Expo Router Babel plugin after a follow-up review comment.
+
+### Changes completed
+- Admin module capability gating (`PMN-074` scaffolding hardening)
+  - Added a `supabase` admin provider stub in `src/services/admin.provider.ts` (safe placeholder, no `NOT_SUPPORTED` throws on direct provider calls).
+  - `useAdmin()` now exposes admin provider capabilities and filters out the `users` admin section when remote user listing is unsupported.
+  - Admin users screens now gate unsupported routes/actions:
+    - `src/app/(admin)/users.tsx` shows unsupported state when remote listing is unavailable.
+    - `src/app/(admin)/users/[id].tsx` shows unsupported state when remote detail is unavailable.
+    - refresh/navigation actions are hidden/disabled when unsupported.
+- Settings sync capability gating (`PMN-071` scaffolding hardening)
+  - `useSettingsSync()` now short-circuits execution when provider capability says sync is not executable.
+  - `src/app/(admin)/settings.tsx` disables/hides sync actions and labels the feature as unsupported when `canExecute = false`.
+  - `supabase` settings sync remains intentionally unsupported (documented and surfaced via provider detail text).
+- Documentation cleanup
+  - `README.md` now documents `npm test` and `npm run test:watch`.
+  - Removed outdated README note claiming no automated test script exists.
+  - `docs/pmnative/ROADMAP.md` is now the canonical current-status + immediate-next-steps doc.
+  - `docs/NEXT_CHAT_HANDOFF.md` is explicitly treated as session history / review notes.
+- Test coverage progression
+  - Added `tests/services/profile.provider.test.ts` (generic-rest normalization + Supabase error mapping coverage).
+- Expo Router tooling
+  - Restored `expo-router/babel` in `babel.config.js` after review feedback (route discovery/runtime safety).
+
+### Validation status
+- `npm run typecheck` passed after capability-gating/doc updates.
+- `npm test -- --run` passed (`14` tests).
+
+### Remaining risks / TODO
+- Admin `supabase` provider is still a stub (capability-off); real Supabase admin endpoints/flows remain out of scope until explicitly designed.
+- Settings sync for `supabase` remains intentionally unsupported; keep feature capability-gated unless a concrete adapter contract is approved.
+- Profile provider token-rotation contract gap (Supabase `setSession()` during profile update) remains unresolved; tracked in roadmap/handoff notes.
+
 ## Session Snapshot (2026-02-22)
 
 - `docs/NEXT_CHAT_HANDOFF.md` remains the canonical handoff doc in this repo (root `NEXT_CHAT_HANDOFF.md` now points here).
@@ -48,6 +90,8 @@ Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 - `doctor:local` currently validates local machine/runtime setup but does not yet test network reachability to Metro from phone devices (Wi-Fi isolation / firewall checks remain manual).
 
 ## Next Phase Started (2026-02-23)
+
+Active next-step prioritization is maintained in `docs/pmnative/ROADMAP.md` (to avoid split roadmap sources).
 
 ### PMN-070 (Supabase profile provider path)
 - Began Phase 3 follow-up work on the default backend (`supabase`) profile provider.

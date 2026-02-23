@@ -1,6 +1,8 @@
-# PMNative Roadmap (Index + Current State)
+# PMNative Roadmap (Canonical Current State + Next Steps)
 
-This repo does have a roadmap, but the canonical file is:
+This file is the canonical source for current roadmap status and immediate next implementation steps.
+
+Long-form phase planning lives in:
 
 - `docs/pmnative/PMNative_Implementation_Epic_—_Phases,_Milestones_&_MVP.md`
 
@@ -9,7 +11,7 @@ Related planning docs:
 - `docs/pmnative/PMNative_Architecture_Proposal_—_React_Native_Framework_Design.md`
 - `docs/pmnative/PMN-021_SOCIAL_AUTH.md`
 - `docs/pmnative/PMN-021_AUTH_TEST_MATRIX.md`
-- `docs/NEXT_CHAT_HANDOFF.md` (current status + immediate priorities)
+- `docs/NEXT_CHAT_HANDOFF.md` (session history / implementation notes, not the canonical next-step list)
 
 ## Current State (2026-02-23)
 
@@ -43,6 +45,7 @@ What is already done (high level):
 - Settings sync contract scaffolding started:
   - typed preview + draft payload (`pmnative.settings.sync/1`)
   - provider-facing `settingsSyncProvider` contract (`generic-rest` execution path implemented, config-gated)
+  - `supabase` settings sync remains unsupported (now capability-gated in admin settings UI)
 - Test harness has started (non-UI, service/provider level):
   - `vitest` setup added (`npm test`, `npm run test:watch`)
   - initial tests added for `settingsSyncService`, `settingsSyncProvider`, and `profileService`
@@ -89,23 +92,18 @@ Auth is not "done-done" yet; it is in validation + extension mode:
 - Real redirect/deep-link behavior verification
 - Final provider diagnostics verification against live config
 
-## Why It Feels Unclear
-
-The roadmap is currently split across:
-
-- the implementation epic (long-term plan)
-- `docs/NEXT_CHAT_HANDOFF.md` (what is next right now)
-- ticket-specific docs like `PMN-021_SOCIAL_AUTH.md`
+## Planning Doc Roles
 
 Use this rule:
 
-- "What is the big roadmap?" -> `docs/pmnative/PMNative_Implementation_Epic_—_Phases,_Milestones_&_MVP.md`
-- "What do we do next in this branch/session?" -> `docs/NEXT_CHAT_HANDOFF.md`
+- "What is the big phase/milestone plan?" -> `docs/pmnative/PMNative_Implementation_Epic_—_Phases,_Milestones_&_MVP.md`
+- "What is current status and what do we do next?" -> `docs/pmnative/ROADMAP.md` (this file)
+- "What happened in recent sessions and what changed?" -> `docs/NEXT_CHAT_HANDOFF.md`
 
 ## Immediate Next Implementation Targets (Practical)
 
-1. `PMN-071` Settings: document/test the `generic-rest` settings sync contract and decide whether `supabase` gets an adapter or remains unsupported
-2. `PMN-070` Profile: document/test generic-rest profile update contract and expand beyond display-name-only editing
-3. `PMN-074` Admin: document/test generic-rest admin user-detail contract, then add roles/settings endpoints and replace remaining placeholder admin flows
-4. Expand mocked provider tests (auth/profile/settings/admin provider paths) on top of the new `vitest` harness
-5. Defer live Supabase/social smoke tests to final integration validation phase
+1. `PMN-070` Profile: add `profileProvider` tests (generic-rest payload normalization + Supabase error mapping) and resolve/document the token-rotation contract gap from Supabase `setSession(...)` during profile update.
+2. `PMN-071` Settings: keep Supabase settings sync unsupported for now (capability-gated), and continue `generic-rest` contract tests/docs until a Supabase adapter is explicitly approved/in-scope.
+3. `PMN-074` Admin: extend provider tests/contracts and decide next admin endpoints (`roles`/`settings`) before wiring more admin actions in UI.
+4. Expand mocked provider tests (auth/profile/settings/admin provider paths) on top of the `vitest` harness before live provider smoke tests.
+5. Defer live Supabase/social smoke tests (Google callback/deeplink validation) to the final integration validation phase.

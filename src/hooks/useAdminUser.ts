@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import type { AdminProviderCapabilities } from '@/services/admin.provider.types'
 import { adminService, type AdminDirectoryUser } from '@/services/admin.service'
 import { useAuthStore } from '@/stores/auth.store'
 
@@ -10,6 +11,7 @@ interface UseAdminUserResult {
   error: string | null
   source: 'remote' | 'session-fallback'
   sourceDetail: string
+  capability: AdminProviderCapabilities
   refresh: () => Promise<void>
 }
 
@@ -24,6 +26,7 @@ export const useAdminUser = (userId: string | null): UseAdminUserResult => {
   const [sourceDetail, setSourceDetail] = useState('Not loaded yet')
   const requestIdRef = useRef(0)
   const mountedRef = useRef(true)
+  const capability = adminService.getCapabilities()
 
   useEffect(() => {
     mountedRef.current = true
@@ -112,6 +115,7 @@ export const useAdminUser = (userId: string | null): UseAdminUserResult => {
     error,
     source,
     sourceDetail,
+    capability,
     refresh
   }
 }

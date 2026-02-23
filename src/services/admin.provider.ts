@@ -149,6 +149,31 @@ const genericRestAdminProvider: AdminProvider = {
   }
 }
 
+const supabaseAdminProvider: AdminProvider = {
+  getCapabilities() {
+    return {
+      canListUsersRemote: false,
+      canGetUserRemote: false,
+      listUsersDetail: 'supabase admin directory endpoints are not implemented yet (provider stub active)',
+      getUserDetail: 'supabase admin user detail endpoint is not implemented yet (provider stub active)'
+    }
+  },
+
+  async listUsers(): Promise<AdminProviderDirectoryUser[]> {
+    return []
+  },
+
+  async getUser(input: AdminProviderGetUserInput): Promise<AdminProviderDirectoryUser> {
+    // Defensive placeholder. UI/services should gate on capabilities and avoid calling this path.
+    return {
+      id: input.userId,
+      email: 'unavailable@pmnative.local',
+      name: null,
+      role: 'user'
+    }
+  }
+}
+
 const notSupportedProvider = (provider: string): AdminProvider => ({
   getCapabilities() {
     return {
@@ -173,7 +198,7 @@ export const adminProvider: AdminProvider = (() => {
     case 'generic-rest':
       return genericRestAdminProvider
     case 'supabase':
-      return notSupportedProvider('supabase')
+      return supabaseAdminProvider
     default:
       return notSupportedProvider('unknown')
   }

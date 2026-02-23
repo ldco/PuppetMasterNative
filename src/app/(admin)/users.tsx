@@ -23,6 +23,7 @@ export default function AdminUsersScreen() {
   const { toast } = useToast()
   const {
     activeUser,
+    capability,
     isLoadingUsers: loadingUsers,
     isRefreshingUsers,
     refreshUsers,
@@ -69,6 +70,11 @@ export default function AdminUsersScreen() {
   })
 
   const simulateRefresh = (): void => {
+    if (!capability.canListUsersRemote) {
+      toast(capability.listUsersDetail, 'warning')
+      return
+    }
+
     void refreshUsers()
     toast('Refreshing user directory', 'info')
   }
@@ -87,11 +93,23 @@ export default function AdminUsersScreen() {
     )
   }
 
+  if (!capability.canListUsersRemote) {
+    return (
+      <View style={styles.screen}>
+        <SectionHeader title="Admin Users" />
+        <ErrorState
+          description={capability.listUsersDetail}
+          title="User directory unsupported"
+        />
+      </View>
+    )
+  }
+
   return (
     <View style={styles.screen}>
       <SectionHeader
-        actionLabel="Refresh"
-        onActionPress={simulateRefresh}
+        actionLabel={capability.canListUsersRemote ? 'Refresh' : undefined}
+        onActionPress={capability.canListUsersRemote ? simulateRefresh : undefined}
         subtitle={
           usersSource === 'remote'
             ? `Remote directory (${usersSourceDetail})`
@@ -126,10 +144,15 @@ export default function AdminUsersScreen() {
             {filteredUsers.map((entry, index) => (
               <ListItem
                 key={entry.id}
+                disabled={!capability.canGetUserRemote}
                 leading={<Avatar name={entry.name} size="sm" />}
-                onPress={() => {
-                  router.push(`/(admin)/users/${encodeURIComponent(entry.id)}`)
-                }}
+                onPress={
+                  capability.canGetUserRemote
+                    ? () => {
+                        router.push(`/(admin)/users/${encodeURIComponent(entry.id)}`)
+                      }
+                    : undefined
+                }
                 showDivider={index < filteredUsers.length - 1}
                 subtitle={entry.email}
                 title={entry.name}
@@ -139,7 +162,9 @@ export default function AdminUsersScreen() {
                       label={entry.role}
                       tone={entry.role === 'master' || entry.role === 'admin' ? 'brand' : 'neutral'}
                     />
-                    <Icon name="chevron-forward" size={16} tone="secondary" />
+                    {capability.canGetUserRemote ? (
+                      <Icon name="chevron-forward" size={16} tone="secondary" />
+                    ) : null}
                   </View>
                 }
               />

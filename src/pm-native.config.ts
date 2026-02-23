@@ -56,6 +56,7 @@ export const pmNativeConfig: PMNativeConfig = {
     ]
   },
   admin: {
+    // Admin shell remains enabled by default; unsupported backend actions are capability-gated in UI/services.
     enabled: true,
     modules: defaultAdminModules
   },

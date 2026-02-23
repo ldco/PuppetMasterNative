@@ -81,7 +81,7 @@ export const settingsSyncProvider: SettingsSyncProvider = (() => {
     case 'generic-rest':
       return genericRestSettingsSyncProvider
     case 'supabase':
-      return notSupportedProvider('supabase')
+      return notSupportedProvider('supabase (intentionally unsupported for settings sync in current roadmap scope)')
     default:
       return notSupportedProvider('unknown')
   }

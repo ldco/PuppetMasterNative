@@ -193,6 +193,18 @@ Expected result:
 
 - TypeScript exits with no errors
 
+### Run Tests (Vitest)
+
+```bash
+npm test
+```
+
+Watch mode:
+
+```bash
+npm run test:watch
+```
+
 ### Switch Auth Provider (Advanced)
 
 PMNative is backend-agnostic at the auth layer. The active provider is configured in `src/pm-native.config.ts`.
@@ -291,8 +303,9 @@ npm run typecheck
 
 Tests:
 
-- A dedicated automated test script is not defined in `package.json` yet.
+- Run `npm test` for non-UI service/provider coverage (Vitest).
 - Use `npm run typecheck` and manual app verification (`npm run web` or `npm run start`) before opening a PR.
+- Use `npm run test:watch` during local TDD/iteration.
 
 ### Commit / PR Expectations
 

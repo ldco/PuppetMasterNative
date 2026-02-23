@@ -3,7 +3,10 @@ import { useCallback } from 'react'
 import { useConfig } from '@/hooks/useConfig'
 import { useSettings } from '@/hooks/useSettings'
 import { settingsSyncProvider } from '@/services/settingsSync.provider'
-import { type ExecuteSettingsSyncResult } from '@/services/settingsSync.provider.types'
+import {
+  SettingsSyncProviderError,
+  type ExecuteSettingsSyncResult
+} from '@/services/settingsSync.provider.types'
 import { settingsSyncService } from '@/services/settingsSync.service'
 import { useAuthStore } from '@/stores/auth.store'
 
@@ -42,8 +45,12 @@ export const useSettingsSync = (): UseSettingsSyncResult => {
   const draft = settingsSyncService.buildRequestDraft(input)
 
   const executeSync = useCallback(async (): Promise<ExecuteSettingsSyncResult> => {
+    if (!capability.canExecute) {
+      throw new SettingsSyncProviderError(capability.detail, 'NOT_SUPPORTED')
+    }
+
     return settingsSyncProvider.executeSync({ draft })
-  }, [draft])
+  }, [capability.canExecute, capability.detail, draft])
 
   return {
     preview,

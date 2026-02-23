@@ -32,7 +32,8 @@ export default function AdminUserDetailScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>()
   const userId = useMemo(() => resolveParamString(params.id), [params.id])
   const { colors, tokens } = useTheme()
-  const { error, isLoading, isRefreshing, refresh, source, sourceDetail, user } = useAdminUser(userId)
+  const { capability, error, isLoading, isRefreshing, refresh, source, sourceDetail, user } =
+    useAdminUser(userId)
 
   const styles = StyleSheet.create({
     screen: {
@@ -54,6 +55,23 @@ export default function AdminUserDetailScreen() {
       gap: tokens.spacing.sm
     }
   })
+
+  if (!capability.canGetUserRemote) {
+    return (
+      <View style={styles.screen}>
+        <SectionHeader
+          actionLabel="Back"
+          onActionPress={() => router.back()}
+          subtitle={`Fallback detail (${sourceDetail})`}
+          title="Admin User Detail"
+        />
+        <ErrorState
+          description={capability.getUserDetail}
+          title="User detail unsupported"
+        />
+      </View>
+    )
+  }
 
   return (
     <View style={styles.screen}>
@@ -78,10 +96,14 @@ export default function AdminUserDetailScreen() {
               ? `User "${userId}" is not available from the active data source.`
               : 'Missing or invalid user id.')
           }
-          onRetry={() => {
-            void refresh()
-          }}
-          retryLabel="Retry"
+          onRetry={
+            capability.canGetUserRemote
+              ? () => {
+                  void refresh()
+                }
+              : undefined
+          }
+          retryLabel={capability.canGetUserRemote ? 'Retry' : undefined}
           title="User unavailable"
         />
       ) : (
@@ -98,16 +120,18 @@ export default function AdminUserDetailScreen() {
             <Text tone="secondary">ID: {user.id}</Text>
             <Text tone="secondary">Name: {user.name}</Text>
             <Text tone="secondary">Email: {user.email}</Text>
-            <View style={styles.actions}>
-              <Button
-                label="Refresh"
-                onPress={() => {
-                  void refresh()
-                }}
-                size="sm"
-                variant="outline"
-              />
-            </View>
+            {capability.canGetUserRemote ? (
+              <View style={styles.actions}>
+                <Button
+                  label="Refresh"
+                  onPress={() => {
+                    void refresh()
+                  }}
+                  size="sm"
+                  variant="outline"
+                />
+              </View>
+            ) : null}
           </View>
         </Card>
       )}
