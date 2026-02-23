@@ -9,15 +9,19 @@ import { profileService } from '@/services/profile.service'
 import { storageService } from '@/services/storage.service'
 import { useAuthStore } from '@/stores/auth.store'
 import type { AuthUser } from '@/types/auth'
+import type { ProfileAvatarUploadFile, ProfileProviderRotatedSession } from '@/services/profile.provider.types'
 
 interface UseProfileResult {
   profile: AuthUser | null
   isLoading: boolean
   isRefreshing: boolean
   isSaving: boolean
+  isUploadingAvatar: boolean
   error: string | null
   saveError: string | null
+  avatarUploadError: string | null
   canSaveRemote: boolean
+  canUploadAvatar: boolean
   profileProviderDetail: string
   nameDraft: string
   avatarUrlDraft: string
@@ -25,6 +29,7 @@ interface UseProfileResult {
   setAvatarUrlDraft: (value: string) => void
   refreshProfile: () => Promise<void>
   saveProfile: () => Promise<void>
+  uploadAvatar: (file: ProfileAvatarUploadFile) => Promise<void>
 }
 
 export const useProfile = (): UseProfileResult => {
@@ -39,8 +44,10 @@ export const useProfile = (): UseProfileResult => {
   const [isLoading, setIsLoading] = useState(Boolean(sessionUser))
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [avatarUploadError, setAvatarUploadError] = useState<string | null>(null)
   const mountedRef = useRef(true)
   const requestIdRef = useRef(0)
   const saveRequestIdRef = useRef(0)
@@ -63,15 +70,18 @@ export const useProfile = (): UseProfileResult => {
       setAvatarUrlDraft('')
       setError(null)
       setSaveError(null)
+      setAvatarUploadError(null)
       setIsLoading(false)
       setIsRefreshing(false)
       setIsSaving(false)
+      setIsUploadingAvatar(false)
       return () => {
         mountedRef.current = false
       }
     }
 
     setError(null)
+    setAvatarUploadError(null)
     setIsLoading(true)
     const requestId = ++requestIdRef.current
 
@@ -134,8 +144,66 @@ export const useProfile = (): UseProfileResult => {
     }
   }, [accessToken, isRefreshing, sessionUser, setUser])
 
+  const persistRotatedSession = useCallback(
+    async (rotatedSession: ProfileProviderRotatedSession | undefined, activeUser: AuthUser): Promise<void> => {
+      if (!rotatedSession) {
+        return
+      }
+
+      await storageService.setSecureItem(SESSION_TOKEN_KEY, rotatedSession.token)
+
+      if (rotatedSession.refreshToken) {
+        await storageService.setSecureItem(SESSION_REFRESH_TOKEN_KEY, rotatedSession.refreshToken)
+      } else {
+        await storageService.removeSecureItem(SESSION_REFRESH_TOKEN_KEY)
+      }
+
+      setSession(activeUser, rotatedSession.token)
+    },
+    [setSession]
+  )
+
+  const uploadAvatar = useCallback(async (file: ProfileAvatarUploadFile): Promise<void> => {
+    if (isUploadingAvatar || isSaving || !sessionUser) {
+      return
+    }
+
+    setAvatarUploadError(null)
+    setSaveError(null)
+    setIsUploadingAvatar(true)
+    const uploadRequestId = ++saveRequestIdRef.current
+
+    try {
+      const refreshToken = await storageService.getSecureItem(SESSION_REFRESH_TOKEN_KEY)
+      const uploadResult = await profileService.uploadAvatar({
+        sessionUser,
+        accessToken,
+        refreshToken,
+        file
+      })
+
+      if (!mountedRef.current || uploadRequestId !== saveRequestIdRef.current) {
+        return
+      }
+
+      await persistRotatedSession(uploadResult.rotatedSession, profile ?? sessionUser)
+      setAvatarUrlDraft(uploadResult.avatarUrl)
+    } catch {
+      if (!mountedRef.current || uploadRequestId !== saveRequestIdRef.current) {
+        throw new Error('Avatar upload request was interrupted')
+      }
+
+      setAvatarUploadError('Failed to upload avatar image.')
+      throw new Error('Failed to upload avatar image')
+    } finally {
+      if (mountedRef.current && uploadRequestId === saveRequestIdRef.current) {
+        setIsUploadingAvatar(false)
+      }
+    }
+  }, [accessToken, isSaving, isUploadingAvatar, persistRotatedSession, profile, sessionUser])
+
   const saveProfile = useCallback(async (): Promise<void> => {
-    if (isSaving || !sessionUser) {
+    if (isSaving || isUploadingAvatar || !sessionUser) {
       return
     }
 
@@ -172,15 +240,7 @@ export const useProfile = (): UseProfileResult => {
       storageService.setItem(SESSION_USER_KEY, JSON.stringify(updatedProfile))
 
       if (rotatedSession) {
-        await storageService.setSecureItem(SESSION_TOKEN_KEY, rotatedSession.token)
-
-        if (rotatedSession.refreshToken) {
-          await storageService.setSecureItem(SESSION_REFRESH_TOKEN_KEY, rotatedSession.refreshToken)
-        } else {
-          await storageService.removeSecureItem(SESSION_REFRESH_TOKEN_KEY)
-        }
-
-        setSession(updatedProfile, rotatedSession.token)
+        await persistRotatedSession(rotatedSession, updatedProfile)
       } else {
         setUser(updatedProfile)
       }
@@ -200,22 +260,35 @@ export const useProfile = (): UseProfileResult => {
         setIsSaving(false)
       }
     }
-  }, [accessToken, avatarUrlDraft, isSaving, nameDraft, sessionUser, setSession, setUser])
+  }, [
+    accessToken,
+    avatarUrlDraft,
+    isSaving,
+    isUploadingAvatar,
+    nameDraft,
+    persistRotatedSession,
+    sessionUser,
+    setUser
+  ])
 
   return {
     profile,
     isLoading,
     isRefreshing,
     isSaving,
+    isUploadingAvatar,
     error,
     saveError,
+    avatarUploadError,
     canSaveRemote: profileCapabilities.canUpdateRemote,
+    canUploadAvatar: profileCapabilities.canUploadAvatar,
     profileProviderDetail: profileCapabilities.detail,
     nameDraft,
     avatarUrlDraft,
     setNameDraft,
     setAvatarUrlDraft,
     refreshProfile,
-    saveProfile
+    saveProfile,
+    uploadAvatar
   }
 }

@@ -54,7 +54,7 @@ export default function AdminSettingsScreen() {
 
   const canSyncSettings = capability.canExecute
   const syncActionSubtitle = canSyncSettings
-    ? 'Stub for future server-side sync endpoint'
+    ? `Provider sync ready (${capability.detail})`
     : `Sync unavailable for current backend (${capability.detail})`
 
   return (
@@ -65,7 +65,7 @@ export default function AdminSettingsScreen() {
       />
 
       <Card
-        footer={<Text tone="muted" variant="caption">Settings API wiring is pending in Phase 3.</Text>}
+        footer={<Text tone="muted" variant="caption">Settings sync is provider-backed when capability is available.</Text>}
         headerTrailing={<Badge label={config.hasAdmin ? 'enabled' : 'disabled'} tone={config.hasAdmin ? 'success' : 'neutral'} />}
         subtitle="Runtime flags"
         title="Framework Features"
@@ -99,8 +99,8 @@ export default function AdminSettingsScreen() {
           title="Sync settings with backend"
           trailing={
             <Badge
-              label={canSyncSettings ? 'todo' : 'unsupported'}
-              tone={canSyncSettings ? 'warning' : 'neutral'}
+              label={canSyncSettings ? 'ready' : 'unsupported'}
+              tone={canSyncSettings ? 'success' : 'neutral'}
             />
           }
         />

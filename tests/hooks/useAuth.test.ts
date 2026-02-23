@@ -95,7 +95,8 @@ describe('useAuth.changePassword', () => {
         google: false,
         telegram: false,
         vk: false
-      }
+      },
+      canUpdatePassword: true
     })
 
     mockStorageService.getSecureItem.mockResolvedValue('refresh-token')

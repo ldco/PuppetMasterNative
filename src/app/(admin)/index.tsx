@@ -47,13 +47,19 @@ export default function AdminIndexScreen() {
     })
   }, [normalizedQuery, sections])
 
-  const resolveRoute = (sectionId: string): '/(admin)' | '/(admin)/users' | '/(admin)/settings' => {
+  const resolveRoute = (
+    sectionId: string
+  ): '/(admin)' | './users' | './roles' | './settings' => {
     if (sectionId === 'users') {
-      return '/(admin)/users'
+      return './users'
+    }
+
+    if (sectionId === 'roles') {
+      return './roles'
     }
 
     if (sectionId === 'settings') {
-      return '/(admin)/settings'
+      return './settings'
     }
 
     return '/(admin)'

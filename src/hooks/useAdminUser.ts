@@ -3,16 +3,20 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AdminProviderCapabilities } from '@/services/admin.provider.types'
 import { adminService, type AdminDirectoryUser } from '@/services/admin.service'
 import { useAuthStore } from '@/stores/auth.store'
+import type { Role } from '@/types/config'
 
 interface UseAdminUserResult {
   user: AdminDirectoryUser | null
   isLoading: boolean
   isRefreshing: boolean
+  isUpdatingRole: boolean
   error: string | null
+  roleUpdateError: string | null
   source: 'remote' | 'session-fallback'
   sourceDetail: string
   capability: AdminProviderCapabilities
   refresh: () => Promise<void>
+  updateRole: (role: Role) => Promise<void>
 }
 
 export const useAdminUser = (userId: string | null): UseAdminUserResult => {
@@ -21,7 +25,9 @@ export const useAdminUser = (userId: string | null): UseAdminUserResult => {
   const [user, setUser] = useState<AdminDirectoryUser | null>(null)
   const [isLoading, setIsLoading] = useState(Boolean(userId))
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isUpdatingRole, setIsUpdatingRole] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [roleUpdateError, setRoleUpdateError] = useState<string | null>(null)
   const [source, setSource] = useState<'remote' | 'session-fallback'>('session-fallback')
   const [sourceDetail, setSourceDetail] = useState('Not loaded yet')
   const requestIdRef = useRef(0)
@@ -35,6 +41,7 @@ export const useAdminUser = (userId: string | null): UseAdminUserResult => {
       requestIdRef.current += 1
       setUser(null)
       setError('Missing user id.')
+      setRoleUpdateError(null)
       setSource('session-fallback')
       setSourceDetail('Invalid route parameter')
       setIsLoading(false)
@@ -45,6 +52,7 @@ export const useAdminUser = (userId: string | null): UseAdminUserResult => {
     }
 
     setError(null)
+    setRoleUpdateError(null)
     setIsLoading(true)
     const requestId = ++requestIdRef.current
 
@@ -78,7 +86,7 @@ export const useAdminUser = (userId: string | null): UseAdminUserResult => {
   }, [accessToken, activeUser, userId])
 
   const refresh = useCallback(async (): Promise<void> => {
-    if (!userId || isRefreshing) {
+    if (!userId || isRefreshing || isUpdatingRole) {
       return
     }
 
@@ -108,14 +116,55 @@ export const useAdminUser = (userId: string | null): UseAdminUserResult => {
     }
   }, [accessToken, activeUser, isRefreshing, userId])
 
+  const updateRole = useCallback(async (role: Role): Promise<void> => {
+    if (!userId || isUpdatingRole || isRefreshing) {
+      return
+    }
+
+    setRoleUpdateError(null)
+    setIsUpdatingRole(true)
+    const requestId = ++requestIdRef.current
+
+    try {
+      const result = await adminService.updateUserRole({
+        activeUser,
+        accessToken,
+        userId,
+        role
+      })
+
+      if (!mountedRef.current || requestId !== requestIdRef.current) {
+        return
+      }
+
+      setUser(result.user)
+      setSource(result.source)
+      setSourceDetail(result.sourceDetail)
+    } catch {
+      if (!mountedRef.current || requestId !== requestIdRef.current) {
+        return
+      }
+
+      setRoleUpdateError('Failed to update user role.')
+      throw new Error('Failed to update user role')
+    } finally {
+      if (mountedRef.current && requestId === requestIdRef.current) {
+        setIsUpdatingRole(false)
+      }
+    }
+  }, [accessToken, activeUser, isRefreshing, isUpdatingRole, userId])
+
   return {
     user,
     isLoading,
     isRefreshing,
+    isUpdatingRole,
     error,
+    roleUpdateError,
     source,
     sourceDetail,
     capability,
-    refresh
+    refresh,
+    updateRole
   }
 }

@@ -3,6 +3,7 @@ import type { AuthUser } from '@/types/auth'
 export interface ProfileProviderCapabilities {
   canFetchRemote: boolean
   canUpdateRemote: boolean
+  canUploadAvatar: boolean
   detail: string
 }
 
@@ -41,8 +42,27 @@ export interface ProfileProviderRotatedSession {
   refreshToken: string | null
 }
 
+export interface ProfileAvatarUploadFile {
+  uri: string
+  fileName?: string | null
+  mimeType?: string | null
+  webFile?: Blob | null
+}
+
 export interface ProfileProviderUpdateResult {
   user: AuthUser
+  rotatedSession?: ProfileProviderRotatedSession
+}
+
+export interface ProfileProviderUploadAvatarInput {
+  userId: string
+  accessToken?: string | null
+  refreshToken?: string | null
+  file: ProfileAvatarUploadFile
+}
+
+export interface ProfileProviderUploadAvatarResult {
+  avatarUrl: string
   rotatedSession?: ProfileProviderRotatedSession
 }
 
@@ -50,4 +70,5 @@ export interface ProfileProvider {
   getCapabilities: () => ProfileProviderCapabilities
   getProfile: (input: ProfileProviderGetInput) => Promise<AuthUser>
   updateProfile: (input: ProfileProviderUpdateInput) => Promise<ProfileProviderUpdateResult>
+  uploadAvatar: (input: ProfileProviderUploadAvatarInput) => Promise<ProfileProviderUploadAvatarResult>
 }

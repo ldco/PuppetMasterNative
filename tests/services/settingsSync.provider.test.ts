@@ -24,12 +24,24 @@ interface LoadProviderOptions {
   provider: 'supabase' | 'generic-rest'
   syncEndpoint?: string
   apiRequestImpl?: ReturnType<typeof vi.fn>
+  supabaseClientImpl?: {
+    auth: {
+      setSession: ReturnType<typeof vi.fn>
+      updateUser: ReturnType<typeof vi.fn>
+    }
+  }
 }
 
 const loadProviderModule = async (options: LoadProviderOptions) => {
   vi.resetModules()
 
   const apiRequestMock = options.apiRequestImpl ?? vi.fn()
+  const supabaseClient = options.supabaseClientImpl ?? {
+    auth: {
+      setSession: vi.fn(),
+      updateUser: vi.fn()
+    }
+  }
 
   vi.doMock('@/pm-native.config', () => ({
     pmNativeConfig: {
@@ -43,13 +55,24 @@ const loadProviderModule = async (options: LoadProviderOptions) => {
                 }
               }
             }
-          : {}
+          : {},
+        supabase:
+          options.provider === 'supabase'
+            ? {
+                urlEnvVar: 'EXPO_PUBLIC_SUPABASE_URL',
+                anonKeyEnvVar: 'EXPO_PUBLIC_SUPABASE_ANON_KEY'
+              }
+            : undefined
       }
     }
   }))
 
   vi.doMock('@/services/api', () => ({
     apiRequest: apiRequestMock
+  }))
+
+  vi.doMock('@/services/supabase.client', () => ({
+    getSupabaseClient: () => supabaseClient
   }))
 
   const module = await import('@/services/settingsSync.provider')
@@ -66,28 +89,95 @@ describe('settingsSyncProvider', () => {
   beforeEach(() => {
     vi.resetModules()
     vi.clearAllMocks()
+    vi.restoreAllMocks()
+    vi.useRealTimers()
     vi.unmock('@/pm-native.config')
     vi.unmock('@/services/api')
+    vi.unmock('@/services/supabase.client')
   })
 
-  it('returns NOT_SUPPORTED for supabase provider', async () => {
+  it('executes supabase settings sync and returns rotated session', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-02-23T12:34:56.000Z'))
+
+    const supabaseClient = {
+      auth: {
+        setSession: vi.fn().mockResolvedValue({
+          data: {
+            session: {
+              access_token: 'rotated-access',
+              refresh_token: 'rotated-refresh'
+            }
+          },
+          error: null
+        }),
+        updateUser: vi.fn().mockResolvedValue({
+          data: { user: { id: 'u1' } },
+          error: null
+        })
+      }
+    }
+
     const { settingsSyncProvider } = await loadProviderModule({
-      provider: 'supabase'
+      provider: 'supabase',
+      supabaseClientImpl: supabaseClient
     })
 
     expect(settingsSyncProvider.getCapabilities()).toEqual({
-      canExecute: false,
-      detail:
-        'supabase (intentionally unsupported for settings sync in current roadmap scope) settings sync endpoint is not implemented yet'
+      canExecute: true,
+      detail: 'UPDATE supabase.auth.updateUser(user_metadata.pmnative_settings_sync)'
     })
 
     await expect(
       settingsSyncProvider.executeSync({
-        draft: sampleDraft
+        draft: sampleDraft,
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token'
+      })
+    ).resolves.toEqual({
+      kind: 'synced',
+      syncedAt: '2026-02-23T12:34:56.000Z',
+      rotatedSession: {
+        token: 'rotated-access',
+        refreshToken: 'rotated-refresh'
+      }
+    })
+
+    expect(supabaseClient.auth.setSession).toHaveBeenCalledWith({
+      access_token: 'access-token',
+      refresh_token: 'refresh-token'
+    })
+    expect(supabaseClient.auth.updateUser).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        pmnative_settings_sync: expect.objectContaining({
+          schema: 'pmnative.settings.sync/1',
+          backendProvider: 'generic-rest',
+          actor: sampleDraft.actor,
+          preferences: sampleDraft.preferences,
+          context: expect.objectContaining({
+            source: 'admin-settings',
+            mode: 'execute'
+          })
+        }),
+        pmnative_settings_synced_at: '2026-02-23T12:34:56.000Z'
+      })
+    })
+  })
+
+  it('returns UNAUTHORIZED for supabase provider when auth tokens are missing', async () => {
+    const { settingsSyncProvider } = await loadProviderModule({
+      provider: 'supabase'
+    })
+
+    await expect(
+      settingsSyncProvider.executeSync({
+        draft: sampleDraft,
+        accessToken: null,
+        refreshToken: null
       })
     ).rejects.toMatchObject({
       name: 'SettingsSyncProviderError',
-      code: 'NOT_SUPPORTED'
+      code: 'UNAUTHORIZED'
     })
   })
 

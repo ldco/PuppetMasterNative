@@ -17,7 +17,7 @@ export default function ChangePasswordScreen() {
   const router = useRouter()
   const config = useConfig()
   const { colors, tokens } = useTheme()
-  const { changePassword, requestPasswordReset, user } = useAuth()
+  const { canUpdatePasswordDirectly, changePassword, requestPasswordReset, user } = useAuth()
   const { toast } = useToast()
   const [resetSubmitting, setResetSubmitting] = useState(false)
   const [updateSubmitting, setUpdateSubmitting] = useState(false)
@@ -51,11 +51,10 @@ export default function ChangePasswordScreen() {
   })
 
   const email = user?.email?.trim() ?? ''
-  const isSupabaseProvider = config.backend.provider === 'supabase'
   const isBusy = resetSubmitting || updateSubmitting
   const passwordsMatch = password === confirmPassword
-  const canUpdatePassword = Boolean(
-    isSupabaseProvider &&
+  const canSubmitPasswordUpdate = Boolean(
+    canUpdatePasswordDirectly &&
     !isBusy &&
     password.length >= 8 &&
     confirmPassword.length >= 8 &&
@@ -64,7 +63,7 @@ export default function ChangePasswordScreen() {
   const canRequestReset = Boolean(config.features.forgotPassword && email && !isBusy)
 
   const updatePasswordDirectly = async (): Promise<void> => {
-    if (!isSupabaseProvider) {
+    if (!canUpdatePasswordDirectly) {
       toast('Direct password update is not supported by the active provider yet.', 'error')
       return
     }
@@ -134,8 +133,8 @@ export default function ChangePasswordScreen() {
       <View style={styles.cardStack}>
         <Card
           subtitle={
-            isSupabaseProvider
-              ? 'Authenticated password update for the current session (Supabase-first flow).'
+            canUpdatePasswordDirectly
+              ? 'Authenticated password update for the current session (provider-backed flow).'
               : 'Direct password update is not available for this provider yet.'
           }
           title="Update Password"
@@ -144,7 +143,7 @@ export default function ChangePasswordScreen() {
             <FormField
               errorText={updateError ?? undefined}
               helperText={
-                isSupabaseProvider
+                canUpdatePasswordDirectly
                   ? 'Use at least 8 characters. Some setups may require recent re-authentication.'
                   : 'Use the reset-link flow below until a direct provider adapter is implemented.'
               }
@@ -175,7 +174,7 @@ export default function ChangePasswordScreen() {
               </Text>
             ) : null}
             <Button
-              disabled={!canUpdatePassword}
+              disabled={!canSubmitPasswordUpdate}
               label={updateSubmitting ? 'Updating...' : 'Update password'}
               onPress={() => {
                 void updatePasswordDirectly()

@@ -2,6 +2,8 @@ import { profileProvider } from '@/services/profile.provider'
 import type { AuthUser } from '@/types/auth'
 import {
   ProfileProviderError,
+  type ProfileAvatarUploadFile,
+  type ProfileProviderUploadAvatarResult,
   type ProfileProviderUpdateResult
 } from '@/services/profile.provider.types'
 
@@ -19,6 +21,11 @@ export interface UpdateProfileInput extends ProfileServiceInput {
 }
 
 export type UpdateProfileResult = ProfileProviderUpdateResult
+export type UploadProfileAvatarResult = ProfileProviderUploadAvatarResult
+
+export interface UploadProfileAvatarInput extends ProfileServiceInput {
+  file: ProfileAvatarUploadFile
+}
 
 export const profileService = {
   getCapabilities() {
@@ -90,6 +97,24 @@ export const profileService = {
         name: input.profile.name,
         avatarUrl: input.profile.avatarUrl
       }
+    })
+  },
+
+  async uploadAvatar(input: UploadProfileAvatarInput): Promise<UploadProfileAvatarResult> {
+    if (!input.sessionUser) {
+      throw new Error('Cannot upload avatar without an authenticated user')
+    }
+
+    const capability = profileProvider.getCapabilities()
+    if (!capability.canUploadAvatar) {
+      throw new ProfileProviderError('Avatar upload is not supported by the active provider', 'NOT_SUPPORTED')
+    }
+
+    return profileProvider.uploadAvatar({
+      userId: input.sessionUser.id,
+      accessToken: input.accessToken,
+      refreshToken: input.refreshToken,
+      file: input.file
     })
   }
 }

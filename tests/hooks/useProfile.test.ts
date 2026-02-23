@@ -20,7 +20,8 @@ const mockProfileService = {
   getCapabilities: vi.fn(),
   getProfile: vi.fn(),
   refreshProfile: vi.fn(),
-  updateProfile: vi.fn()
+  updateProfile: vi.fn(),
+  uploadAvatar: vi.fn()
 }
 
 const mockStorageService = {
@@ -115,6 +116,7 @@ describe('useProfile', () => {
     mockProfileService.getCapabilities.mockReturnValue({
       canFetchRemote: true,
       canUpdateRemote: true,
+      canUploadAvatar: true,
       detail: 'test-provider'
     })
     mockProfileService.getProfile.mockResolvedValue(mockAuthStoreState.user)

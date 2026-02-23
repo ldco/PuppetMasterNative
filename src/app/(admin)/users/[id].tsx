@@ -14,6 +14,9 @@ import { SkeletonCard } from '@/components/molecules/SkeletonCard'
 import { LoadingOverlay } from '@/components/organisms/LoadingOverlay'
 import { useAdminUser } from '@/hooks/useAdminUser'
 import { useTheme } from '@/hooks/useTheme'
+import { useToast } from '@/hooks/useToast'
+import { useAuthStore } from '@/stores/auth.store'
+import type { Role } from '@/types/config'
 
 const resolveParamString = (value: string | string[] | undefined): string | null => {
   if (typeof value === 'string' && value.length > 0) {
@@ -32,8 +35,23 @@ export default function AdminUserDetailScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>()
   const userId = useMemo(() => resolveParamString(params.id), [params.id])
   const { colors, tokens } = useTheme()
-  const { capability, error, isLoading, isRefreshing, refresh, source, sourceDetail, user } =
-    useAdminUser(userId)
+  const { toast } = useToast()
+  const actor = useAuthStore((state) => state.user)
+  const {
+    capability,
+    error,
+    isLoading,
+    isRefreshing,
+    isUpdatingRole,
+    refresh,
+    roleUpdateError,
+    source,
+    sourceDetail,
+    updateRole,
+    user
+  } = useAdminUser(userId)
+
+  const roleOptions: Role[] = ['master', 'admin', 'editor', 'user']
 
   const styles = StyleSheet.create({
     screen: {
@@ -53,6 +71,9 @@ export default function AdminUserDetailScreen() {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: tokens.spacing.sm
+    },
+    roleSection: {
+      gap: tokens.spacing.xs
     }
   })
 
@@ -120,9 +141,53 @@ export default function AdminUserDetailScreen() {
             <Text tone="secondary">ID: {user.id}</Text>
             <Text tone="secondary">Name: {user.name}</Text>
             <Text tone="secondary">Email: {user.email}</Text>
+            <View style={styles.roleSection}>
+              <Text variant="label">Role Actions</Text>
+              {!capability.canUpdateUserRoleRemote ? (
+                <Text tone="secondary" variant="caption">
+                  {capability.updateUserRoleDetail}
+                </Text>
+              ) : roleUpdateError ? (
+                <Text tone="error" variant="caption">
+                  {roleUpdateError}
+                </Text>
+              ) : (
+                <Text tone="muted" variant="caption">
+                  Assign a role using the provider-backed admin endpoint.
+                </Text>
+              )}
+              <View style={styles.actions}>
+                {roleOptions.map((role) => (
+                  <Button
+                    key={role}
+                    disabled={
+                      !capability.canUpdateUserRoleRemote ||
+                      isRefreshing ||
+                      isUpdatingRole ||
+                      user.role === role ||
+                      user.id === actor?.id ||
+                      (role === 'master' && actor?.role !== 'master')
+                    }
+                    label={`Set ${role}`}
+                    onPress={() => {
+                      void updateRole(role)
+                        .then(() => {
+                          toast(`Role updated to ${role}`, 'success')
+                        })
+                        .catch(() => {
+                          // Hook state already reflects the error message.
+                        })
+                    }}
+                    size="sm"
+                    variant={user.role === role ? 'primary' : 'outline'}
+                  />
+                ))}
+              </View>
+            </View>
             {capability.canGetUserRemote ? (
               <View style={styles.actions}>
                 <Button
+                  disabled={isUpdatingRole}
                   label="Refresh"
                   onPress={() => {
                     void refresh()
@@ -136,7 +201,10 @@ export default function AdminUserDetailScreen() {
         </Card>
       )}
 
-      <LoadingOverlay label="Refreshing user..." visible={isRefreshing} />
+      <LoadingOverlay
+        label={isUpdatingRole ? 'Updating role...' : 'Refreshing user...'}
+        visible={isRefreshing || isUpdatingRole}
+      />
     </View>
   )
 }

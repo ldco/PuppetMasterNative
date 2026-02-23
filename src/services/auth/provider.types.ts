@@ -22,6 +22,7 @@ export type SocialAuthMode = 'login' | 'register'
 
 export interface AuthProviderCapabilities {
   socialAuth: Record<SocialAuthProvider, boolean>
+  canUpdatePassword: boolean
 }
 
 export const defaultAuthProviderCapabilities: AuthProviderCapabilities = {
@@ -29,7 +30,8 @@ export const defaultAuthProviderCapabilities: AuthProviderCapabilities = {
     google: false,
     telegram: false,
     vk: false
-  }
+  },
+  canUpdatePassword: false
 }
 
 export type AuthProviderErrorCode =

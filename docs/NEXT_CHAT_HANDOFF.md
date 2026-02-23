@@ -7,6 +7,280 @@ Planning note:
 - Canonical current roadmap + immediate next-step list now lives in `docs/pmnative/ROADMAP.md`.
 - This handoff file is for session history, implementation notes, and review findings.
 
+## Session Update (2026-02-23, next phase start: auth provider password tests)
+
+### Current status
+- Started the next planned phase immediately after pushing `PMN-070` direct password update work: expanding mocked auth-provider tests.
+- Added provider-level password-update tests for `generic-rest` (`NOT_SUPPORTED` + configured endpoint success path) and `supabaseAuthProvider.updatePassword()` (success + unauthorized mapping).
+- Vitest `react-native` parser blocker for direct `supabaseAuthProvider` unit imports is resolved via a test shim alias in `vitest.config.ts`.
+- Portable password update support has started:
+  - `AuthProviderCapabilities.canUpdatePassword` added
+  - `Change Password` screen now uses capability-gating instead of provider-name checks
+  - `generic-rest` auth endpoint contract now supports optional `changePassword`
+- `generic-rest updatePassword()` is now hardened to normalize optional rotated-token responses and map API/config errors to `AuthProviderError` codes for UI-safe handling.
+
+### Completed work
+- Added `tests/services/auth.providers.password.test.ts`:
+  - `generic-rest` `updatePassword()` returns `NOT_SUPPORTED` when endpoint is absent
+  - `generic-rest` `updatePassword()` success path posts to configured `changePassword` endpoint
+  - `generic-rest` `updatePassword()` supports optional rotated-token response payloads
+  - `generic-rest` `updatePassword()` maps unauthorized/server/config errors to provider error codes
+  - `supabase` `updatePassword()` success path returns rotated session
+  - `supabase` `updatePassword()` maps `setSession` `403` to `UNAUTHORIZED`
+- Added portable password-update capability plumbing and UI gating:
+  - `AuthProviderCapabilities.canUpdatePassword`
+  - `generic-rest` optional `auth.endpoints.changePassword`
+  - `Change Password` screen direct update availability now follows provider capabilities
+- Added a Vitest `react-native` shim alias (`tests/shims/react-native.ts`) so Node-runtime tests can import provider modules that reference `react-native`.
+- Validation after adding the new test file:
+- Validation after provider contract hardening:
+  - `npm run typecheck` passed
+  - `npm test -- --run` passed (`29` tests)
+
+### Open tasks
+- Continue `PMN-070` avatar upload flow (replace manual `avatarUrl`) and decide whether to expand generic-rest password-update contract beyond the current optional rotated-token payload normalization (e.g. explicit response schema docs if backend teams adopt rotation).
+
+### Recommended next step
+- Start the `PMN-070` avatar upload contract/UI path (provider/service/hook scaffolding + tests), then return for live Supabase validation of password-update token rotation behavior.
+
+### Remaining risks / TODO
+- `generic-rest updatePassword()` now normalizes optional rotated-token payloads but the response contract is not yet documented as a formal backend spec; add docs/examples if this becomes a committed cross-backend behavior.
+- Supabase password-update and profile-save token rotation behavior still needs live runtime smoke verification (deferred final integration phase).
+
+## Session Update (2026-02-23, PMN-070 avatar upload implementation pass)
+
+### Current status
+- `PMN-070` avatar upload is now provider-backed and capability-gated instead of manual-URL-only.
+- Profile screen supports selecting an image from the media library and uploading it via the active profile provider, then fills `avatarUrl` draft for normal profile save persistence.
+- Upload path propagates rotated Supabase session tokens (when `setSession(...)` rotates during upload auth bootstrap) back to secure storage/auth store.
+
+### Completed work
+- Added `expo-image-picker` dependency and profile UI upload action (`Upload avatar`) in `src/app/(tabs)/profile.tsx`.
+- Extended profile provider/service contracts with avatar-upload methods and capability flag:
+  - `ProfileProviderCapabilities.canUploadAvatar`
+  - `profileProvider.uploadAvatar(...)`
+  - `profileService.uploadAvatar(...)`
+- Implemented provider uploads:
+  - `generic-rest`: multipart `POST` to optional `backend.genericRest.profile.endpoints.uploadAvatar`, response normalization (`avatarUrl` / `url` payload variants), timeout/error mapping
+  - `supabase`: capability-gated on optional `backend.supabase.profileAvatarsBucket`, authenticated storage upload + public URL resolution, rotated-session propagation from `setSession(...)`
+- Updated `useProfile()` with avatar upload state/error handling and rotated-token persistence.
+- Expanded tests:
+  - `tests/services/profile.provider.test.ts` (generic-rest + supabase upload paths)
+  - `tests/services/profile.service.test.ts` (avatar upload pass-through)
+- Validation:
+  - `npm run typecheck` passed
+  - `npm test -- --run` passed (`33` tests)
+
+### Open tasks
+- Run live Supabase smoke validation for avatar upload + token rotation behavior (actual bucket/policies/device runtime).
+- Decide whether to auto-save profile metadata after successful avatar upload, or keep current explicit "Upload then Save profile" UX.
+- Add contract docs/examples for `generic-rest profile.endpoints.uploadAvatar` payload/response if this becomes shared backend spec.
+
+### Recommended next step
+- Execute a live Supabase `PMN-070` smoke pass (profile save + password change + avatar upload with a configured public bucket), then move to `PMN-071` / `PMN-074` contract expansion.
+
+### Remaining risks / TODO
+- Supabase avatar upload depends on a configured public bucket (`backend.supabase.profileAvatarsBucket`) and permissive storage policies; without that, UI remains capability-disabled.
+- `generic-rest` avatar upload uses multipart `fetch` outside `apiRequest`, so retry/auth-refresh behavior is not shared yet (intentional for now to avoid broad transport changes).
+
+## Session Update (2026-02-23, PMN-071 Supabase settings sync adapter pass)
+
+### Current status
+- `PMN-071` settings sync is no longer Supabase-unsupported: a Supabase adapter now executes sync by updating `user_metadata` (`pmnative_settings_sync` + `pmnative_settings_synced_at`).
+- `useSettingsSync()` now passes auth tokens to the provider and persists rotated tokens returned from Supabase `setSession(...)`.
+- Admin settings UI copy/badges now reflect provider-backed sync readiness instead of “stub” messaging.
+
+### Completed work
+- Implemented `supabase` settings sync provider in `src/services/settingsSync.provider.ts`:
+  - `setSession(access, refresh)` bootstrap
+  - `auth.updateUser({ data: { pmnative_settings_sync, pmnative_settings_synced_at } })`
+  - `UNAUTHORIZED` error mapping for missing tokens / 401 / 403
+  - optional rotated-session result propagation
+- Extended settings sync provider contracts:
+  - `ExecuteSettingsSyncInput` now accepts `accessToken` + `refreshToken`
+  - `ExecuteSettingsSyncResult` now supports optional `rotatedSession`
+  - added `UNAUTHORIZED` provider error code
+- Updated `useSettingsSync()` to:
+  - read refresh token from secure storage
+  - pass auth context into provider
+  - persist rotated access/refresh tokens and update auth store session
+- Updated `tests/services/settingsSync.provider.test.ts`:
+  - Supabase success path (rotated session + metadata payload)
+  - Supabase missing-token unauthorized path
+  - existing generic-rest tests preserved
+- Updated `src/app/(admin)/settings.tsx` copy:
+  - provider-backed sync messaging and `ready` badge when capability is executable
+- Validation:
+  - `npm run typecheck` passed
+  - `npm test -- --run` passed (`34` tests)
+
+### Open tasks
+- Live-validate Supabase settings sync against a real project (metadata write permissions/behavior and token rotation in runtime).
+- Document the Supabase `user_metadata` payload shape (`pmnative_settings_sync`) as an intentional contract (or mark explicitly internal/temporary).
+- Continue `PMN-074` admin provider contract expansion (next endpoints beyond users list/detail).
+
+### Recommended next step
+- Run a combined live Supabase smoke pass for `PMN-070` + `PMN-071` (profile save, password change, avatar upload, settings sync), then move to `PMN-074` roles/settings endpoints.
+
+### Remaining risks / TODO
+- Supabase settings sync currently writes to `user_metadata`; if product requirements later need shared org/global settings, a server-backed table/API will still be required.
+- Rotated-token persistence is wired in `useSettingsSync()`, but live Supabase behavior should still be confirmed on-device/web.
+
+## Session Update (2026-02-23, PMN-074 admin roles endpoint slice)
+
+### Current status
+- `PMN-074` now includes a provider-backed admin roles list slice in addition to users list/detail.
+- `generic-rest` admin roles endpoint support (`backend.genericRest.admin.endpoints.listRoles`) is implemented and config-gated.
+- Admin UI now has a real `Roles` screen/route (`/(admin)/roles`) that reuses shared admin state and follows the users screen pattern.
+
+### Completed work
+- Extended admin provider contracts/capabilities:
+  - `canListRolesRemote`
+  - `listRolesDetail`
+  - `listRoles(...)`
+  - `AdminProviderRoleSummary`
+- Implemented `generic-rest` admin roles provider path in `src/services/admin.provider.ts`:
+  - payload normalization for array / `{ roles }` / `{ success: true, data.roles }`
+  - normalized `description` + default `assignable: true`
+- Added admin service roles path in `src/services/admin.service.ts`:
+  - `listRoles()` / `refreshRoles()`
+  - fallback role summaries (`master/admin/editor/user`) when unsupported/config/auth-gated
+- Expanded `useAdmin()` to load/refresh roles alongside users and expose roles source/error/loading state.
+- Added admin roles screen and routing:
+  - `src/app/(admin)/roles.tsx`
+  - `src/app/(admin)/index.tsx` now routes `roles` section to `./roles`
+- Added tests:
+  - `tests/services/admin.provider.test.ts`
+  - `tests/services/admin.service.test.ts`
+- Fixed a concurrency bug introduced during the hook expansion:
+  - users and roles now use separate request ids in `useAdmin()` (refreshing one no longer invalidates the other)
+- Validation:
+  - `npm run typecheck` passed
+  - `npm test -- --run` passed (`40` tests)
+
+### Open tasks
+- Continue `PMN-074` with next admin endpoints/actions (role assignment/update and/or admin settings endpoints) using provider tests/contracts first.
+- Decide whether admin roles should remain hidden when provider roles endpoint is unavailable, or show a capability-gated fallback screen for discoverability.
+- Add admin hook/screen tests if admin UI state complexity grows.
+
+### Recommended next step
+- Implement the next `PMN-074` contract slice: generic-rest admin settings endpoint(s) or role-assignment mutation endpoint(s), then wire capability-gated UI actions.
+
+### Remaining risks / TODO
+- `supabase` admin provider remains a stub (no users/roles remote APIs), which is acceptable for current scaffolding but limits parity with `generic-rest`.
+- Admin roles currently support read-only listing; no mutation/assignment flows exist yet.
+
+## Session Update (2026-02-23, PMN-074 admin role assignment/update slice)
+
+### Current status
+- `PMN-074` admin user role assignment/update is now started for `generic-rest` via a provider-backed mutation endpoint.
+- Admin User Detail screen (`/(admin)/users/[id]`) now exposes capability-gated role action buttons that invoke the new mutation path.
+- Mutation updates the local detail view state immediately on success and preserves existing remote/fallback source metadata.
+
+### Completed work
+- Extended admin endpoint/config contracts:
+  - `backend.genericRest.admin.endpoints.updateUserRole` (expected `:id` placeholder)
+- Extended admin provider contracts/capabilities:
+  - `canUpdateUserRoleRemote`
+  - `updateUserRoleDetail`
+  - `updateUserRole(...)`
+- Implemented `generic-rest` role update provider path in `src/services/admin.provider.ts`:
+  - `PATCH` to templated endpoint
+  - body `{ role }`
+  - user payload normalization reuse
+- Added admin service mutation wrapper in `src/services/admin.service.ts`:
+  - capability gating (`NOT_SUPPORTED`)
+  - normalized `Unknown user` name fallback
+- Extended `useAdminUser()` with role mutation state:
+  - `isUpdatingRole`
+  - `roleUpdateError`
+  - `updateRole(...)`
+- Updated `src/app/(admin)/users/[id].tsx`:
+  - role action buttons (`Set master/admin/editor/user`)
+  - capability/error messaging for unsupported/update failures
+  - loading overlay reflects role-update in-flight state
+- Added/expanded tests:
+  - `tests/services/admin.provider.test.ts` (role update success + config placeholder validation)
+  - `tests/services/admin.service.test.ts` (role update success + unsupported capability handling)
+- Validation:
+  - `npm run typecheck` passed
+  - `npm test -- --run` passed (`44` tests)
+
+### Open tasks
+- Add role-action safety/policy UX (e.g., disable `master` assignment for non-master admins in UI) and backend-specific error messaging.
+- Continue `PMN-074` with next provider-backed admin endpoints (settings/health/logs or user status/lock flows).
+- Add admin UI hook/screen tests if mutation flows expand further.
+
+### Recommended next step
+- Implement the next admin mutation/endpoint contract (`user status/disable` or admin settings endpoint) using the same provider/service-first pattern, then wire capability-gated UI controls.
+
+### Remaining risks / TODO
+- `supabase` admin provider remains a stub; admin mutations currently only progress on `generic-rest`.
+- Role update path relies on backend enforcement for authorization/rule checks (UI currently exposes all role buttons when capability is enabled).
+
+## Session Update (2026-02-23, review pass: PMN-070/071/074 recent roadmap additions)
+
+### Current status
+- Reviewed the current uncommitted roadmap batch spanning:
+  - `PMN-070` avatar upload + password/profile token-rotation hardening
+  - `PMN-071` Supabase settings sync adapter
+  - `PMN-074` admin roles list + role assignment/update paths
+- Validation remains green after review fixes (`npm run typecheck`, `npm test -- --run` -> `45` tests).
+- One provider error-mapping bug and one admin-role UI safety issue were fixed.
+
+### Scope of analysis
+- Admin role endpoints/mutations and UI:
+  - `src/services/admin.provider.ts`
+  - `src/services/admin.service.ts`
+  - `src/hooks/useAdmin.ts`
+  - `src/hooks/useAdminUser.ts`
+  - `src/app/(admin)/roles.tsx`
+  - `src/app/(admin)/users/[id].tsx`
+  - `tests/services/admin.provider.test.ts`
+  - `tests/services/admin.service.test.ts`
+- Spot-checked adjacent recent roadmap slices (`PMN-070` / `PMN-071`) for regressions via full test/typecheck pass.
+
+### Issues discovered
+- `src/services/admin.provider.ts`
+  - `generic-rest` admin API methods (`listUsers`, `getUser`, `listRoles`, `updateUserRole`) wrapped all transport failures as `PROVIDER`, losing `401/403` unauthorized semantics from API responses.
+  - This breaks admin service fallback behavior for read endpoints and weakens UI handling for expired sessions.
+- `src/app/(admin)/users/[id].tsx`
+  - New role assignment UI exposed unsafe local actions by default:
+    - self role-change was allowed (easy self-demotion/lockout foot-gun)
+    - non-`master` admins could locally attempt `master` assignment despite likely backend policy restrictions
+
+### Fixes implemented
+- Added centralized admin provider request error mapping in `src/services/admin.provider.ts`:
+  - preserves `UNAUTHORIZED` for API `401/403`
+  - keeps other transport/backend failures as `PROVIDER`
+  - applied across all `generic-rest` admin endpoints (users list/detail, roles list, role update)
+- Added test coverage for unauthorized mapping:
+  - `tests/services/admin.provider.test.ts` now covers `listRoles()` mapping `ApiError 401 -> AdminProviderError(UNAUTHORIZED)`
+- Hardened admin role assignment UI in `src/app/(admin)/users/[id].tsx`:
+  - disables role actions for the current signed-in actor (prevents self-role-change foot-gun)
+  - disables `Set master` unless current actor role is `master`
+  - backend remains the source of truth for authorization
+
+### Completed work (this review pass)
+- Reviewed and validated the current roadmap implementation batch.
+- Fixed admin provider unauthorized error mapping regression.
+- Added admin user-detail role action safety guards.
+- Re-ran validation:
+  - `npm run typecheck` passed
+  - `npm test -- --run` passed (`45` tests)
+
+### Open tasks
+- Commit and push the current roadmap batch (PMN-070/071/074 additions + review fixes).
+- Continue `PMN-074` with next provider-backed admin endpoints/mutations (user status/disable, admin settings endpoints, health/logs).
+- Run live Supabase smoke validation for `PMN-070`/`PMN-071` after current mocked-contract phase.
+
+### Recommended next step
+- After commit/push, continue `PMN-074` with a user status/disable mutation endpoint (provider/service-first + capability-gated UI), then proceed to live Supabase smoke validation for profile/settings flows.
+
+### Remaining risks / TODO
+- `supabase` admin provider is still a stub (generic-rest-only progress on admin module).
+- Admin role update UX now has basic guardrails, but backend-enforced policy errors should still be surfaced more specifically than the current generic role-update error string if the flow expands.
+
 ## Session Update (2026-02-23, review pass: PMN-070 direct password update flow)
 
 ### Current status

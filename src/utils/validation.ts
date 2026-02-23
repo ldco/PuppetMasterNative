@@ -22,6 +22,7 @@ const genericRestAuthEndpointsSchema = z.object({
   login: z.string().min(1),
   register: z.string().min(1),
   forgotPassword: z.string().min(1).optional(),
+  changePassword: z.string().min(1).optional(),
   logout: z.string().min(1),
   session: z.string().min(1),
   refresh: z.string().min(1)
@@ -33,12 +34,15 @@ const genericRestSettingsEndpointsSchema = z.object({
 
 const genericRestProfileEndpointsSchema = z.object({
   get: z.string().min(1),
-  update: z.string().min(1).optional()
+  update: z.string().min(1).optional(),
+  uploadAvatar: z.string().min(1).optional()
 })
 
 const genericRestAdminEndpointsSchema = z.object({
   listUsers: z.string().min(1),
-  getUser: z.string().min(1).optional()
+  getUser: z.string().min(1).optional(),
+  listRoles: z.string().min(1).optional(),
+  updateUserRole: z.string().min(1).optional()
 })
 
 export const pmNativeConfigSchema = z.object({
@@ -112,7 +116,8 @@ export const pmNativeConfigSchema = z.object({
     }).optional(),
     supabase: z.object({
       urlEnvVar: z.string().min(1),
-      anonKeyEnvVar: z.string().min(1)
+      anonKeyEnvVar: z.string().min(1),
+      profileAvatarsBucket: z.string().min(1).optional()
     }).optional()
   }).superRefine((value, ctx) => {
     if (value.provider === 'generic-rest' && !value.genericRest) {

@@ -5,7 +5,12 @@ export interface SettingsSyncProviderCapabilities {
   detail: string
 }
 
-export type SettingsSyncProviderErrorCode = 'NOT_SUPPORTED' | 'CONFIG' | 'PROVIDER' | 'UNKNOWN'
+export type SettingsSyncProviderErrorCode =
+  | 'NOT_SUPPORTED'
+  | 'CONFIG'
+  | 'UNAUTHORIZED'
+  | 'PROVIDER'
+  | 'UNKNOWN'
 
 export class SettingsSyncProviderError extends Error {
   readonly code: SettingsSyncProviderErrorCode
@@ -19,11 +24,19 @@ export class SettingsSyncProviderError extends Error {
 
 export interface ExecuteSettingsSyncInput {
   draft: SettingsSyncRequestDraft
+  accessToken?: string | null
+  refreshToken?: string | null
+}
+
+export interface SettingsSyncProviderRotatedSession {
+  token: string
+  refreshToken?: string | null
 }
 
 export interface ExecuteSettingsSyncResult {
   kind: 'synced'
   syncedAt: string
+  rotatedSession?: SettingsSyncProviderRotatedSession
 }
 
 export interface SettingsSyncProvider {

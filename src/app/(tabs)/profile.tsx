@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
+import * as ImagePicker from 'expo-image-picker'
 
 import { Avatar } from '@/components/atoms/Avatar'
 import { Badge } from '@/components/atoms/Badge'
@@ -23,17 +24,21 @@ export default function ProfileTabScreen() {
   const { toast } = useToast()
   const {
     canSaveRemote,
+    canUploadAvatar,
     error,
     avatarUrlDraft,
+    avatarUploadError,
     isLoading,
     isRefreshing,
     isSaving,
+    isUploadingAvatar,
     nameDraft,
     profile,
     profileProviderDetail,
     refreshProfile,
     saveError,
     saveProfile,
+    uploadAvatar,
     setAvatarUrlDraft,
     setNameDraft
   } = useProfile()
@@ -44,6 +49,40 @@ export default function ProfileTabScreen() {
   const normalizedProfileAvatarUrl = (profile?.avatarUrl ?? '').trim()
   const hasPendingProfileChanges =
     normalizedNameDraft !== normalizedProfileName || normalizedAvatarUrlDraft !== normalizedProfileAvatarUrl
+  const isAvatarActionBusy = isUploadingAvatar || isSaving || isRefreshing
+
+  const pickAndUploadAvatar = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+
+    if (!permission.granted) {
+      toast('Media library permission is required to upload an avatar', 'error')
+      return
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.85
+    })
+
+    if (result.canceled || result.assets.length === 0) {
+      return
+    }
+
+    const asset = result.assets[0]
+
+    await uploadAvatar({
+      uri: asset.uri,
+      mimeType: asset.mimeType ?? null,
+      fileName: asset.fileName ?? null,
+      webFile:
+        typeof Blob !== 'undefined' && 'file' in asset && asset.file instanceof Blob
+          ? asset.file
+          : null
+    })
+
+    toast('Avatar uploaded. Save profile to persist it.', 'success')
+  }
 
   const styles = StyleSheet.create({
     screen: {
@@ -121,7 +160,12 @@ export default function ProfileTabScreen() {
             />
             <FormField
               autoCapitalize="none"
-              helperText="Optional. Paste a public image URL until avatar upload is wired."
+              errorText={avatarUploadError ?? undefined}
+              helperText={
+                canUploadAvatar
+                  ? 'Upload a photo to fill this field automatically, or paste a public image URL manually.'
+                  : 'Avatar upload is unavailable for the active provider. You can still paste a public image URL.'
+              }
               label="Avatar URL"
               onChangeText={setAvatarUrlDraft}
               placeholder="https://example.com/avatar.jpg"
@@ -150,7 +194,18 @@ export default function ProfileTabScreen() {
               />
             ) : null}
             <Button
-              disabled={!canSaveRemote || isSaving || !hasPendingProfileChanges}
+              disabled={!canUploadAvatar || isAvatarActionBusy}
+              label={isUploadingAvatar ? 'Uploading avatar...' : 'Upload avatar'}
+              onPress={() => {
+                void pickAndUploadAvatar().catch(() => {
+                  // Errors are reflected in hook state; toast is omitted to avoid duplicate UX.
+                })
+              }}
+              size="sm"
+              variant="outline"
+            />
+            <Button
+              disabled={!canSaveRemote || isSaving || isUploadingAvatar || !hasPendingProfileChanges}
               label={isSaving ? 'Saving...' : 'Save profile'}
               onPress={() => {
                 void saveProfile().then(() => {
@@ -165,7 +220,16 @@ export default function ProfileTabScreen() {
         </View>
       )}
 
-      <LoadingOverlay label={isSaving ? 'Saving profile...' : 'Refreshing profile...'} visible={isRefreshing || isSaving} />
+      <LoadingOverlay
+        label={
+          isUploadingAvatar
+            ? 'Uploading avatar...'
+            : isSaving
+              ? 'Saving profile...'
+              : 'Refreshing profile...'
+        }
+        visible={isRefreshing || isSaving || isUploadingAvatar}
+      />
     </View>
   )
 }

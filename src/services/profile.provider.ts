@@ -8,6 +8,8 @@ import { getSupabaseClient } from '@/services/supabase.client'
 import {
   ProfileProviderError,
   type ProfileProvider,
+  type ProfileProviderUploadAvatarInput,
+  type ProfileProviderUploadAvatarResult,
   type ProfileProviderGetInput,
   type ProfileProviderUpdateInput,
   type ProfileProviderUpdateResult
@@ -24,6 +26,32 @@ const genericRestProfilePayloadSchema = z.union([
     success: z.literal(true),
     data: z.object({
       user: genericRestUserSchema
+    })
+  })
+])
+
+const genericRestAvatarUploadPayloadSchema = z.union([
+  z.object({
+    avatarUrl: z.string().min(1)
+  }),
+  z.object({
+    url: z.string().min(1)
+  }),
+  z.object({
+    data: z.object({
+      avatarUrl: z.string().min(1).optional(),
+      url: z.string().min(1).optional()
+    }).refine((value) => Boolean(value.avatarUrl || value.url), {
+      message: 'Avatar upload response requires avatarUrl or url'
+    })
+  }),
+  z.object({
+    success: z.literal(true),
+    data: z.object({
+      avatarUrl: z.string().min(1).optional(),
+      url: z.string().min(1).optional()
+    }).refine((value) => Boolean(value.avatarUrl || value.url), {
+      message: 'Avatar upload response requires avatarUrl or url'
     })
   })
 ])
@@ -54,6 +82,9 @@ const normalizeGenericRestProfilePayload = (
 
 const genericRestProfileGetEndpoint = pmNativeConfig.backend.genericRest?.profile?.endpoints.get
 const genericRestProfileUpdateEndpoint = pmNativeConfig.backend.genericRest?.profile?.endpoints.update
+const genericRestProfileUploadAvatarEndpoint =
+  pmNativeConfig.backend.genericRest?.profile?.endpoints.uploadAvatar
+const supabaseProfileAvatarsBucket = pmNativeConfig.backend.supabase?.profileAvatarsBucket
 
 const roleValues: Role[] = ['master', 'admin', 'editor', 'user']
 
@@ -141,25 +172,206 @@ const toRotatedSession = (
   }
 }
 
+const toProfileProviderUploadRotatedSession = (
+  session: Session | null | undefined
+): ProfileProviderUploadAvatarResult['rotatedSession'] => {
+  return toRotatedSession(session)
+}
+
+const normalizeGenericRestAvatarUploadPayload = (
+  payload: z.infer<typeof genericRestAvatarUploadPayloadSchema>
+): string => {
+  if ('success' in payload || 'data' in payload) {
+    const data = payload.data
+    return data.avatarUrl ?? data.url ?? ''
+  }
+
+  if ('avatarUrl' in payload) {
+    return payload.avatarUrl
+  }
+
+  return payload.url
+}
+
+const resolveFileExtension = (
+  fileName?: string | null,
+  mimeType?: string | null
+): string => {
+  const normalizedName = fileName?.trim()
+  if (normalizedName && normalizedName.includes('.')) {
+    const extension = normalizedName.split('.').pop()?.trim().toLowerCase()
+    if (extension) {
+      return extension
+    }
+  }
+
+  const normalizedMimeType = mimeType?.trim().toLowerCase()
+  if (normalizedMimeType === 'image/png') {
+    return 'png'
+  }
+
+  if (normalizedMimeType === 'image/webp') {
+    return 'webp'
+  }
+
+  return 'jpg'
+}
+
+const readLocalUploadBody = async (input: ProfileProviderUploadAvatarInput['file']): Promise<ArrayBuffer | Blob> => {
+  if (typeof Blob !== 'undefined' && input.webFile instanceof Blob) {
+    return input.webFile
+  }
+
+  const response = await fetch(input.uri)
+
+  if (!response.ok) {
+    throw new ProfileProviderError('Failed to read selected avatar image', 'PROVIDER')
+  }
+
+  if (typeof response.arrayBuffer === 'function') {
+    return response.arrayBuffer()
+  }
+
+  if (typeof response.blob === 'function') {
+    return response.blob()
+  }
+
+  throw new ProfileProviderError('Selected avatar image could not be read', 'PROVIDER')
+}
+
+const buildApiUrl = (path: string): string => {
+  return new URL(path, pmNativeConfig.api.baseUrl).toString()
+}
+
+const parseAvatarUploadFetchError = async (response: Response): Promise<string> => {
+  try {
+    const contentType = response.headers.get('content-type') ?? ''
+    if (contentType.toLowerCase().includes('json')) {
+      const payload = (await response.json()) as { message?: unknown }
+      if (typeof payload?.message === 'string' && payload.message.trim().length > 0) {
+        return payload.message
+      }
+    }
+  } catch {
+    // Ignore body parsing failures and fall back to status text below.
+  }
+
+  return response.statusText || 'Avatar upload failed'
+}
+
+const toFetchProfileProviderErrorCode = (status: number): 'UNAUTHORIZED' | 'PROVIDER' => {
+  return status === 401 || status === 403 ? 'UNAUTHORIZED' : 'PROVIDER'
+}
+
+const uploadAvatarToGenericRest = async (
+  endpoint: string,
+  token: string,
+  file: ProfileProviderUploadAvatarInput['file']
+): Promise<string> => {
+  const formData = new FormData()
+  const normalizedName = file.fileName?.trim() || `avatar.${resolveFileExtension(undefined, file.mimeType)}`
+  const normalizedMimeType = file.mimeType?.trim() || 'image/jpeg'
+
+  if (typeof Blob !== 'undefined' && file.webFile instanceof Blob) {
+    formData.append('file', file.webFile, normalizedName)
+  } else {
+    formData.append(
+      'file',
+      {
+        uri: file.uri,
+        name: normalizedName,
+        type: normalizedMimeType
+      } as unknown as Blob
+    )
+  }
+
+  const controller = new AbortController()
+  const timeoutHandle = setTimeout(() => {
+    controller.abort()
+  }, pmNativeConfig.api.timeoutMs)
+
+  try {
+    const response = await fetch(buildApiUrl(endpoint), {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: formData,
+      signal: controller.signal
+    })
+
+    if (!response.ok) {
+      throw new ProfileProviderError(
+        await parseAvatarUploadFetchError(response),
+        toFetchProfileProviderErrorCode(response.status)
+      )
+    }
+
+    const payload = await response.json().catch(() => null)
+
+    if (payload === null) {
+      throw new ProfileProviderError('Avatar upload response did not include avatarUrl', 'PROVIDER')
+    }
+
+    const parsed = genericRestAvatarUploadPayloadSchema.safeParse(payload)
+    if (!parsed.success) {
+      throw new ProfileProviderError('Avatar upload response did not include avatarUrl', 'PROVIDER')
+    }
+
+    const avatarUrl = normalizeGenericRestAvatarUploadPayload(parsed.data).trim()
+    if (!avatarUrl) {
+      throw new ProfileProviderError('Avatar upload response returned an empty avatar URL', 'PROVIDER')
+    }
+
+    return avatarUrl
+  } catch (error) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'name' in error &&
+      error.name === 'AbortError'
+    ) {
+      throw new ProfileProviderError('Avatar upload timed out', 'PROVIDER')
+    }
+
+    if (error instanceof ProfileProviderError) {
+      throw error
+    }
+
+    throw new ProfileProviderError(
+      error instanceof Error ? error.message : 'Avatar upload request failed',
+      'PROVIDER'
+    )
+  } finally {
+    clearTimeout(timeoutHandle)
+  }
+}
+
 const genericRestProfileProvider: ProfileProvider = {
   getCapabilities() {
     const supportsFetch = Boolean(genericRestProfileGetEndpoint)
     const supportsUpdate = Boolean(genericRestProfileUpdateEndpoint)
+    const supportsAvatarUpload = Boolean(genericRestProfileUploadAvatarEndpoint)
 
-    if (!supportsFetch && !supportsUpdate) {
+    if (!supportsFetch && !supportsUpdate && !supportsAvatarUpload) {
       return {
         canFetchRemote: false,
         canUpdateRemote: false,
-        detail: 'generic-rest profile endpoints are not configured (backend.genericRest.profile.endpoints.get/update)'
+        canUploadAvatar: false,
+        detail:
+          'generic-rest profile endpoints are not configured (backend.genericRest.profile.endpoints.get/update/uploadAvatar)'
       }
     }
 
     return {
       canFetchRemote: supportsFetch,
       canUpdateRemote: supportsUpdate,
+      canUploadAvatar: supportsAvatarUpload,
       detail: [
         supportsFetch ? `GET ${genericRestProfileGetEndpoint}` : 'GET not configured',
-        supportsUpdate ? `PATCH ${genericRestProfileUpdateEndpoint}` : 'PATCH not configured'
+        supportsUpdate ? `PATCH ${genericRestProfileUpdateEndpoint}` : 'PATCH not configured',
+        supportsAvatarUpload ? `POST ${genericRestProfileUploadAvatarEndpoint}` : 'AVATAR upload not configured'
       ].join(' | ')
     }
   },
@@ -215,6 +427,19 @@ const genericRestProfileProvider: ProfileProvider = {
     return {
       user: normalizeGenericRestProfilePayload(payload)
     }
+  },
+
+  async uploadAvatar(input: ProfileProviderUploadAvatarInput) {
+    if (!genericRestProfileUploadAvatarEndpoint) {
+      throw new ProfileProviderError('generic-rest avatar upload endpoint is not configured', 'CONFIG')
+    }
+
+    const accessToken = requireAccessToken(input.accessToken)
+    const avatarUrl = await uploadAvatarToGenericRest(genericRestProfileUploadAvatarEndpoint, accessToken, input.file)
+
+    return {
+      avatarUrl
+    }
   }
 }
 
@@ -223,7 +448,14 @@ const supabaseProfileProvider: ProfileProvider = {
     return {
       canFetchRemote: true,
       canUpdateRemote: true,
-      detail: 'GET supabase.auth.getUser(token) | UPDATE supabase.auth.updateUser(user_metadata.name/avatar_url)'
+      canUploadAvatar: Boolean(supabaseProfileAvatarsBucket),
+      detail: [
+        'GET supabase.auth.getUser(token)',
+        'UPDATE supabase.auth.updateUser(user_metadata.name/avatar_url)',
+        supabaseProfileAvatarsBucket
+          ? `UPLOAD supabase.storage.from(${supabaseProfileAvatarsBucket})`
+          : 'UPLOAD not configured (backend.supabase.profileAvatarsBucket)'
+      ].join(' | ')
     }
   },
 
@@ -279,6 +511,56 @@ const supabaseProfileProvider: ProfileProvider = {
       user: mapSupabaseUser(data.user),
       rotatedSession: toRotatedSession(setSessionData.session)
     }
+  },
+
+  async uploadAvatar(input: ProfileProviderUploadAvatarInput) {
+    if (!supabaseProfileAvatarsBucket) {
+      throw new ProfileProviderError('Supabase avatar upload bucket is not configured', 'CONFIG')
+    }
+
+    const accessToken = requireAccessToken(input.accessToken)
+    const refreshToken = requireRefreshToken(input.refreshToken)
+    const supabase = getSupabaseClient()
+
+    const { data: setSessionData, error: setSessionError } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken
+    })
+
+    if (setSessionError) {
+      throw new ProfileProviderError(
+        setSessionError.message,
+        toSupabaseProfileErrorCode(setSessionError.status)
+      )
+    }
+
+    const extension = resolveFileExtension(input.file.fileName, input.file.mimeType)
+    const uploadPath = `profiles/${input.userId}/avatar-${Date.now()}.${extension}`
+    const uploadBody = await readLocalUploadBody(input.file)
+    const contentType = input.file.mimeType?.trim() || 'image/jpeg'
+
+    const { error: uploadError } = await supabase.storage
+      .from(supabaseProfileAvatarsBucket)
+      .upload(uploadPath, uploadBody, {
+        contentType,
+        upsert: true
+      })
+
+    if (uploadError) {
+      throw new ProfileProviderError(uploadError.message, 'PROVIDER')
+    }
+
+    const { data } = supabase.storage.from(supabaseProfileAvatarsBucket).getPublicUrl(uploadPath)
+    const avatarUrl = data.publicUrl?.trim()
+
+    if (!avatarUrl) {
+      throw new ProfileProviderError('Supabase avatar upload did not return a public URL', 'PROVIDER')
+    }
+
+    return {
+      avatarUrl,
+      rotatedSession: toProfileProviderUploadRotatedSession(setSessionData.session)
+    }
   }
 }
 
@@ -287,6 +569,7 @@ const notSupportedProvider = (provider: string): ProfileProvider => ({
     return {
       canFetchRemote: false,
       canUpdateRemote: false,
+      canUploadAvatar: false,
       detail: `${provider} profile provider is not implemented yet`
     }
   },
@@ -296,6 +579,10 @@ const notSupportedProvider = (provider: string): ProfileProvider => ({
   },
 
   async updateProfile() {
+    throw new ProfileProviderError(`${provider} profile provider is not implemented yet`, 'NOT_SUPPORTED')
+  },
+
+  async uploadAvatar() {
     throw new ProfileProviderError(`${provider} profile provider is not implemented yet`, 'NOT_SUPPORTED')
   }
 })

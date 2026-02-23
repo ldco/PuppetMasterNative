@@ -496,6 +496,7 @@ export const useAuth = () => {
     requestPasswordReset,
     changePassword,
     signOut,
-    socialAuthCapabilities: providerCapabilities.socialAuth
+    socialAuthCapabilities: providerCapabilities.socialAuth,
+    canUpdatePasswordDirectly: providerCapabilities.canUpdatePassword
   }
 }

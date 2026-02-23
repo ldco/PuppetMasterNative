@@ -46,6 +46,7 @@ export interface GenericRestAuthEndpoints {
   login: string
   register: string
   forgotPassword?: string
+  changePassword?: string
   logout: string
   session: string
   refresh: string
@@ -58,11 +59,14 @@ export interface GenericRestSettingsEndpoints {
 export interface GenericRestProfileEndpoints {
   get: string
   update?: string
+  uploadAvatar?: string
 }
 
 export interface GenericRestAdminEndpoints {
   listUsers: string
   getUser?: string
+  listRoles?: string
+  updateUserRole?: string
 }
 
 export interface GenericRestBackendConfig {
@@ -83,6 +87,7 @@ export interface GenericRestBackendConfig {
 export interface SupabaseBackendConfig {
   urlEnvVar: string
   anonKeyEnvVar: string
+  profileAvatarsBucket?: string
 }
 
 export type TabKey = 'home' | 'profile' | 'settings'

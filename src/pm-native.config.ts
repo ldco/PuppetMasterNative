@@ -83,6 +83,8 @@ export const pmNativeConfig: PMNativeConfig = {
           login: '/auth/login',
           register: '/auth/register',
           forgotPassword: '/auth/forgot-password',
+          // Optional PMN-070 direct password update endpoint (provider capability follows this):
+          // changePassword: '/auth/change-password',
           logout: '/auth/logout',
           session: '/auth/session',
           refresh: '/auth/refresh'
@@ -97,19 +99,24 @@ export const pmNativeConfig: PMNativeConfig = {
       // profile: {
       //   endpoints: {
       //     get: '/profile/me',
-      //     update: '/profile/me'
+      //     update: '/profile/me',
+      //     uploadAvatar: '/profile/avatar'
       //   }
       // }
       // admin: {
       //   endpoints: {
       //     listUsers: '/admin/users',
-      //     getUser: '/admin/users/:id'
+      //     getUser: '/admin/users/:id',
+      //     listRoles: '/admin/roles',
+      //     updateUserRole: '/admin/users/:id/role'
       //   }
       // }
     },
     supabase: {
       urlEnvVar: 'EXPO_PUBLIC_SUPABASE_URL',
       anonKeyEnvVar: 'EXPO_PUBLIC_SUPABASE_ANON_KEY'
+      // Optional PMN-070 avatar upload bucket (public bucket recommended for direct avatar URLs):
+      // profileAvatarsBucket: 'profile-avatars'
     }
   },
   i18n: {

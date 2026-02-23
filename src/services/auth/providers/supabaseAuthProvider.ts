@@ -252,7 +252,8 @@ const getCallbackError = (url: URL): AuthProviderError | null => {
 export const supabaseAuthProvider: AuthProvider = {
   getCapabilities() {
     return {
-      socialAuth: getSocialCapabilities()
+      socialAuth: getSocialCapabilities(),
+      canUpdatePassword: true
     }
   },
 
