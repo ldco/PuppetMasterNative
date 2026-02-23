@@ -10,7 +10,7 @@ import { SearchBar } from '@/components/molecules/SearchBar'
 import { SectionHeader } from '@/components/molecules/SectionHeader'
 import { SkeletonList } from '@/components/molecules/SkeletonList'
 import { LoadingOverlay } from '@/components/organisms/LoadingOverlay'
-import { useAdmin } from '@/hooks/useAdmin'
+import { useAdminRoles } from '@/hooks/useAdmin'
 import { useTheme } from '@/hooks/useTheme'
 import { useToast } from '@/hooks/useToast'
 
@@ -27,7 +27,7 @@ export default function AdminRolesScreen() {
     isLoadingRoles,
     isRefreshingRoles,
     refreshRoles
-  } = useAdmin()
+  } = useAdminRoles()
   const [query, setQuery] = useState('')
 
   const normalizedQuery = query.trim().toLowerCase()

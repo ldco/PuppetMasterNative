@@ -7,6 +7,382 @@ Planning note:
 - Canonical current roadmap + immediate next-step list now lives in `docs/pmnative/ROADMAP.md`.
 - This handoff file is for session history, implementation notes, and review findings.
 
+## Session Update (2026-02-23, admin hooks architecture refactor + PMN-074 continuation cleanup)
+
+### Current architecture decisions
+- Backward-compatibility was intentionally not prioritized for admin hooks in this refactor pass:
+  - the monolithic `useAdmin()` hook was replaced by focused hooks:
+    - `useAdminSections()`
+    - `useAdminUsers()`
+    - `useAdminRoles()`
+- Rationale:
+  - previous `useAdmin()` mixed section resolution, users list fetch, roles list fetch, and row-level mutations in one hook, creating unnecessary coupling and making admin screens re-render around unrelated state.
+  - focused hooks align screen ownership with data ownership and reduce future mutation complexity.
+- `useAdminUsers()` now owns inline users-list mutation state (`status` / `lock`) and list patching, while `useAdminUser()` remains the detail-screen orchestration hook.
+
+### Completed work
+- Refactored `src/hooks/useAdmin.ts` into focused hooks (`useAdminSections`, `useAdminUsers`, `useAdminRoles`) with clearer single responsibilities.
+- Updated admin screens to use focused hooks directly:
+  - `src/app/(admin)/index.tsx`
+  - `src/app/(admin)/users.tsx`
+  - `src/app/(admin)/roles.tsx`
+- Improved mutation lifecycle handling in `useAdminUsers()`:
+  - row-level mutation state stored in one place
+  - mounted guards for async status/lock mutations to avoid state updates after unmount
+- Preserved current provider/service contracts and UI behavior while simplifying hook architecture (no compatibility wrapper layer added).
+- Validation:
+  - `npm run typecheck` passed
+  - `npm test -- --run` passed (`70` tests)
+
+### Remaining tasks
+- Add confirmation guardrails for destructive/high-impact admin actions:
+  - disable/lock user (list + detail)
+  - clear logs
+- Continue `PMN-074` deeper admin actions (per-log audit mutations) once backend contract is available.
+
+### Next phase goals
+- Add confirmation UX for destructive admin mutations (no adapter layer; direct screen-level integration or shared confirm primitive if introduced cleanly).
+- Then continue provider/service-first `PMN-074` audit/log mutation contract work.
+
+## Session Update (2026-02-23, PMN-074 users-list inline status/lock controls)
+
+### Current status
+- Continued `PMN-074` with admin users-list ops UX polish: inline status/lock controls are now available directly in `/(admin)/users` without navigating into user detail.
+- The new list-level actions reuse existing provider/service mutations (`updateUserStatus`, `updateUserLock`) and are orchestrated through expanded `useAdmin()` per-row mutation state.
+- Working tree remains uncommitted (continuation after pushed `378856c`), and local validation is green.
+
+### Completed work
+- Extended `useAdmin()` with per-row user mutation orchestration:
+  - `userMutations[userId]` (`isUpdatingStatus`, `isUpdatingLock`, `error`)
+  - `updateUserStatus(userId, disabled)`
+  - `updateUserLock(userId, locked)`
+  - `clearUserMutationError(userId)`
+  - local users-list row patching after successful mutations
+  - users source/sourceDetail updated from mutation results
+- Updated `src/app/(admin)/users.tsx`:
+  - inline `Enable` / `Disable` / `Unlock` / `Lock` buttons per user row
+  - row badges now surface status (`active`/`disabled`) and lock state
+  - row-level mutation error caption
+  - self-target restrictions remain enforced in list actions
+  - shared loading overlay now reflects inline mutation activity (`Updating users...`)
+- Preserved detail-screen admin flows (`/(admin)/users/[id]`) while making common ops faster from the list.
+- Validation:
+  - `npm run typecheck` passed
+  - `npm test -- --run` passed (`70` tests)
+
+### Open tasks
+- Add confirmation UX for destructive/high-impact list actions (especially `Disable`, `Lock`) to reduce misclick risk.
+- Continue `PMN-074` with per-log audit mutations (acknowledge/resolve/retry) if backend contract is ready.
+- Consider admin hook tests for `useAdmin()` if inline ops logic keeps expanding.
+
+### Recommended next step
+- Implement per-log audit mutation contract (provider/service-first) and add confirmation/guardrails in admin logs/users screens.
+
+### Remaining risks / TODO
+- Inline list actions currently optimize speed over confirmation safety; backend policy enforcement still protects unauthorized actions, but client-side confirmations would reduce operator mistakes.
+- `useAdmin()` now owns more mutation orchestration state; if more list-level actions are added, extract shared row-mutation helpers to keep the hook maintainable.
+
+## Session Update (2026-02-23, PMN-074 admin clear-logs mutation slice)
+
+### Current status
+- Continued `PMN-074` by adding the first provider-backed logs mutation (`clear logs`) on top of the previously added admin logs list screen.
+- `generic-rest` clear-logs support is now config-gated via `backend.genericRest.admin.endpoints.clearLogs`, with provider/service support, `useAdminLogs` mutation state, and a capability-gated clear action in `/(admin)/logs`.
+- Working tree remains uncommitted (continuation after pushed `378856c`), and current validation is green.
+
+### Completed work
+- Extended config contract + validation for `generic-rest` admin clear-logs endpoint:
+  - `backend.genericRest.admin.endpoints.clearLogs`
+- Extended admin provider capabilities/contracts:
+  - `canClearLogsRemote`
+  - `clearLogsDetail`
+  - `clearLogs(...)`
+  - `AdminProviderClearLogsResult`
+- Implemented `generic-rest` clear-logs provider path in `src/services/admin.provider.ts`:
+  - `POST` to `clearLogs` endpoint
+  - response normalization for `{ count }` / `{ clearedCount }` / nested `{ success: true, data }`
+  - unauthorized/provider error mapping via existing admin request mapper
+- Added admin service mutation wrapper:
+  - `adminService.clearLogs(...)`
+  - capability-gated `NOT_SUPPORTED` handling
+- Extended `useAdminLogs()`:
+  - `clear()`
+  - `isClearing`
+  - `clearError`
+  - busy gating against simultaneous refresh/clear
+  - local list reset after successful clear
+- Updated `src/app/(admin)/logs.tsx`:
+  - capability-gated `Clear remote logs` action row
+  - clear error display + retry path
+  - loading overlay now covers clear mutation state
+- Expanded tests:
+  - `tests/services/admin.provider.test.ts` (`clearLogs` success + unauthorized mapping)
+  - `tests/services/admin.service.test.ts` (`clearLogs` success + `NOT_SUPPORTED`)
+- Validation:
+  - `npm run typecheck` passed
+  - `npm test -- --run` passed (`70` tests)
+
+### Open tasks
+- Continue `PMN-074` with richer log/audit mutations (per-log acknowledge/retry/resolve) if backend contract is available.
+- Or implement list-level status/lock controls in `/(admin)/users` as ops UX polish using the existing provider/service mutations.
+- Consider adding a confirmation step for destructive log clearing if this becomes part of regular admin workflows.
+
+### Recommended next step
+- Choose one next `PMN-074` chunk:
+  1. per-log audit mutation contract (acknowledge/resolve), or
+  2. list-level status/lock controls with per-row mutation state + confirmations.
+
+### Remaining risks / TODO
+- `clearLogs` is intentionally broad/destructive; backend contracts may require filters or scope limits (e.g. age/level/source) before production use.
+- Current logs mutation path is generic-rest-first; `supabase` admin provider remains a stub.
+
+## Session Update (2026-02-23, PMN-074 user lock/unlock mutation slice)
+
+### Current status
+- Continued `PMN-074` with a provider-backed user lock/unlock mutation slice after landing admin logs and admin settings snapshot slices.
+- `generic-rest` user lock support is now config-gated via `backend.genericRest.admin.endpoints.updateUserLock`, with provider/service support, `useAdminUser` mutation state handling, and capability-gated lock/unlock actions in admin user detail.
+- Working tree remains uncommitted (continuation after pushed `378856c`), and current validation is green.
+
+### Completed work
+- Extended config contract + validation for `generic-rest` admin lock mutation endpoint:
+  - `backend.genericRest.admin.endpoints.updateUserLock`
+- Extended admin provider capabilities/contracts:
+  - `canUpdateUserLockRemote`
+  - `updateUserLockDetail`
+  - `updateUserLock({ userId, locked })`
+  - admin user model supports optional lock fields (`locked`, `lockedUntil`)
+- Hardened admin user normalization in `src/services/admin.provider.ts`:
+  - explicit `normalizeAdminUser(...)` used for user/list payloads
+  - alias support for `isLocked` / `locked_until`
+  - keeps backward-compatible optional-field shape (no extra undefined fields emitted)
+- Implemented `generic-rest` provider path:
+  - `PATCH` to `updateUserLock` endpoint template with `:id`
+  - request body `{ locked }`
+  - existing admin request error mapping (`401/403 -> UNAUTHORIZED`)
+- Added admin service mutation wrapper:
+  - `adminService.updateUserLock(...)`
+  - capability-gated `NOT_SUPPORTED` handling
+- Extended `useAdminUser()`:
+  - `updateLock(...)`
+  - `isUpdatingLock`
+  - `lockUpdateError`
+  - cross-mutation busy gating (role/status/lock)
+- Updated `src/app/(admin)/users/[id].tsx`:
+  - lock badge (`locked` / `unlocked` / `lock unknown`)
+  - optional `Locked until` display
+  - capability-gated `Lock user` / `Unlock user` actions
+  - loading overlay now covers lock mutations
+- Expanded tests:
+  - `tests/services/admin.provider.test.ts` (`updateUserLock` success + unauthorized mapping)
+  - `tests/services/admin.service.test.ts` (`updateUserLock` success + `NOT_SUPPORTED`)
+- Validation:
+  - `npm run typecheck` passed
+  - `npm test -- --run` passed (`66` tests)
+
+### Open tasks
+- Continue `PMN-074` with audit/log mutations or richer admin ops UX (inline list-level status/lock controls) depending backend priorities.
+- Decide whether lock contract should support lock reason / expiry in mutation input (current normalized request is `{ locked: boolean }` only).
+- Consider admin hook tests if `useAdminUser` mutation orchestration grows further.
+
+### Recommended next step
+- Implement the next `PMN-074` mutation slice for audit/log actions (e.g. acknowledge/retry/clear) or, if backend scope is not ready, add list-level status/lock controls with per-row mutation state and confirmations.
+
+### Remaining risks / TODO
+- Current lock mutation request shape is intentionally minimal (`{ locked: boolean }`); if backend requires `lockedUntil`/reason payloads, document and map explicitly before wider adoption.
+- `supabase` admin provider remains a stub, so advanced admin mutations continue to be generic-rest-first.
+
+## Session Update (2026-02-23, PMN-074 admin settings endpoint slice)
+
+### Current status
+- Continued `PMN-074` with a provider-backed admin settings snapshot slice integrated into the existing `/(admin)/settings` screen (which already hosts PMN-071 settings-sync controls).
+- `generic-rest` admin settings support is now config-gated via `backend.genericRest.admin.endpoints.settings`, with provider normalization, service config fallback, a dedicated hook, and service/provider tests.
+- Working tree remains uncommitted (continuation after pushed `378856c`), but current validation is green.
+
+### Completed work
+- Extended config contract + validation for `generic-rest` admin settings endpoint:
+  - `backend.genericRest.admin.endpoints.settings`
+- Extended admin provider capabilities/contracts:
+  - `canGetSettingsRemote`
+  - `getSettingsDetail`
+  - `getSettings(...)`
+  - `AdminProviderSettingsSnapshot` / setting item/value types
+- Implemented `generic-rest` admin settings provider path in `src/services/admin.provider.ts`:
+  - payload normalization for array / `{ settings }` / `{ success: true, data }`
+  - alias normalization (`updated_at`, `section -> group`)
+  - unauthorized/provider error mapping through existing admin request mapper
+- Added admin service settings snapshot path in `src/services/admin.service.ts`:
+  - `getSettings()` / `refreshSettings()`
+  - config fallback snapshot (features + backend provider/api base URL) when unsupported/config/auth-gated
+- Added `src/hooks/useAdminSettingsSnapshot.ts`
+- Integrated backend admin settings snapshot UI into `src/app/(admin)/settings.tsx`:
+  - remote/fallback badge + source detail
+  - refresh action
+  - snapshot list rendering with group badges
+  - loading/error/refresh states while preserving existing settings-sync bottom-sheet flow
+- Expanded tests:
+  - `tests/services/admin.provider.test.ts` (`getSettings` normalization + unauthorized mapping)
+  - `tests/services/admin.service.test.ts` (`getSettings` remote + config fallback behavior)
+- Validation:
+  - `npm run typecheck` passed
+  - `npm test -- --run` passed (`62` tests)
+
+### Open tasks
+- Continue `PMN-074` with user lock / account lockout action endpoints (provider/service-first pattern) and capability-gated admin UI actions.
+- Decide whether admin settings snapshot should gain mutation support (`PATCH`/`PUT`) in a later slice or remain read-only diagnostics for now.
+- Consider provider-side pagination/filter contract for logs and stricter response docs for settings/logs as backend implementations converge.
+
+### Recommended next step
+- Implement `PMN-074` user lock/lockout mutation slice (provider/service-first + admin user-detail UI + tests), then revisit inline list-level status/lock controls as ops UX polish.
+
+### Remaining risks / TODO
+- Admin settings snapshot fallback currently exposes local `api.baseUrl` and feature flags for diagnostics; if this screen is used outside trusted admin contexts, consider redaction policy.
+- `supabase` admin provider remains a stub, so advanced admin endpoints (settings/logs/health/status) stay generic-rest-first for now.
+
+## Session Update (2026-02-23, PMN-074 admin logs endpoint slice)
+
+### Current status
+- Continued `PMN-074` with a full provider/service-first `logs` endpoint slice after landing the admin `health` slice.
+- `generic-rest` admin logs support is now config-gated via `backend.genericRest.admin.endpoints.listLogs`, with provider normalization, service fallback behavior, a new admin hook/screen, and tests.
+- Working tree remains uncommitted (continuation after pushed `378856c`), but local validation is green.
+
+### Completed work
+- Extended config contract + validation for `generic-rest` admin logs endpoint:
+  - `backend.genericRest.admin.endpoints.listLogs`
+- Extended admin provider capabilities/contracts:
+  - `canListLogsRemote`
+  - `listLogsDetail`
+  - `listLogs({ accessToken, limit? })`
+  - `AdminProviderLogEntry` / `AdminProviderLogLevel`
+- Implemented `generic-rest` logs provider path in `src/services/admin.provider.ts`:
+  - payload normalization for array / `{ logs }` / `{ success: true, data }`
+  - alias normalization (`created_at` / `createdAt` -> `timestamp`, `service|category` -> `source`)
+  - level normalization (`warn -> warning`, `fatal -> error`, `trace -> debug`)
+  - optional `limit` query support (`?limit=...`)
+  - unauthorized/provider error mapping via existing admin request error mapper
+- Added admin service logs path in `src/services/admin.service.ts`:
+  - `getLogs()` / `refreshLogs()`
+  - local fallback (empty logs) for unsupported/config/auth-gated cases
+- Added UI for logs:
+  - `src/hooks/useAdminLogs.ts`
+  - `src/app/(admin)/logs.tsx`
+  - `src/app/(admin)/index.tsx` route mapping to `./logs`
+  - local search/filter and refresh flow
+- Expanded tests:
+  - `tests/services/admin.provider.test.ts` (`listLogs` normalization + query + unauthorized mapping)
+  - `tests/services/admin.service.test.ts` (`getLogs` remote + fallback behavior)
+- Validation:
+  - `npm run typecheck` passed
+  - `npm test -- --run tests/services/admin.provider.test.ts tests/services/admin.service.test.ts` passed (`24` tests)
+  - `npm test -- --run` passed (`58` tests)
+
+### Open tasks
+- Continue `PMN-074` with next provider-backed endpoint slice (`settings` or user lock actions recommended next).
+- Decide whether to add provider-level filtering params beyond `limit` for logs (e.g. level/search cursor) and document contract if adopted.
+- Consider admin hook/UI tests as admin screens continue to grow (current coverage remains provider/service-focused).
+
+### Recommended next step
+- Implement `PMN-074` admin settings endpoint slice (provider/service-first + capability/detail + screen wiring/tests), then continue with user lock actions.
+
+### Remaining risks / TODO
+- `logs` payload normalization is intentionally permissive for early backend alignment; formalize a stricter backend contract if multiple backend teams start implementing it.
+- `supabase` admin provider remains a stub, so admin logs/health/status/roles advanced endpoints stay generic-rest-first for now.
+
+## Session Update (2026-02-23, PMN-074 admin health endpoint slice + status-slice validation closeout)
+
+### Current status
+- `PMN-074` admin user status/disable slice is now fully wired through provider/service/hook/UI with hardening coverage (`47` -> `49` tests previously during the slice), and the next admin endpoint slice (`health`) is now implemented provider-first and exposed via a new admin route/screen.
+- `generic-rest` admin health endpoint support (`backend.genericRest.admin.endpoints.health`) is config-gated and returns a normalized health snapshot with local fallback behavior in the admin service.
+- Working tree is still uncommitted (continuation after pushed commit `378856c`), but current local validation is green.
+
+### Completed work
+- Closed test/typing gaps in the in-progress admin status + health work:
+  - synced `tests/services/admin.service.test.ts` mocks/capability shape to new admin provider capabilities (`canUpdateUserStatusRemote`, `canGetHealthRemote`, detail strings)
+  - added service coverage for `adminService.getHealth()` remote path and local-fallback paths
+  - removed stale unused import in `src/services/admin.provider.ts` after admin-specific user schema split
+- Implemented/validated `PMN-074` admin health endpoint slice (provider/service-first pattern):
+  - config/validation support for `backend.genericRest.admin.endpoints.health`
+  - provider capability/detail fields:
+    - `canGetHealthRemote`
+    - `getHealthDetail`
+  - provider method `getHealth(...)` with payload normalization for:
+    - raw object
+    - `{ health }`
+    - `{ success: true, data: ... }`
+  - health status normalization (`degraded -> warning`, `down -> error`)
+  - admin service `getHealth()` / `refreshHealth()` with local fallback on `UNAUTHORIZED` / `CONFIG` / `NOT_SUPPORTED`
+  - new hook `useAdminHealth()`
+  - new screen/route `/(admin)/health` + admin index routing to `./health`
+- Added/expanded tests:
+  - `tests/services/admin.provider.test.ts` (`getHealth` normalization + unauthorized mapping; `updateUserStatus` unauthorized coverage)
+  - `tests/services/admin.service.test.ts` (`getHealth` remote + fallback coverage)
+- Validation (latest local):
+  - `npm run typecheck` passed
+  - `npm test -- --run` passed (`54` tests)
+
+### Open tasks
+- Continue `PMN-074` with the next provider-backed endpoint slice (`logs` recommended next, then admin settings/locks).
+- Decide whether admin users-list should get inline enable/disable controls (currently supported in user detail only).
+- Add admin hook/UI tests if admin state complexity continues to grow (current coverage is provider/service-heavy).
+
+### Recommended next step
+- Implement `PMN-074` admin logs endpoint slice using the same provider/service-first pattern (`generic-rest` config endpoint + provider normalization + service fallback + hook/screen + tests), then revisit inline status controls as UX polish.
+
+### Remaining risks / TODO
+- Admin `health` and `status` flows are generic-rest-first; `supabase` admin provider remains a stub and will continue to show fallback/unsupported behavior.
+- Provider error messages are surfaced in admin mutations, but backend policy messages may still be too raw for end-user/admin UX without a mapping layer.
+
+## Session Update (2026-02-23, next phase start: PMN-074 user status update contract slice)
+
+### Current status
+- Started the next roadmap phase immediately after pushing the large `PMN-070`/`PMN-071`/`PMN-074` batch (`378856c`): `PMN-074` user status/disable mutation contract (provider/service-first).
+- Added generic-rest endpoint/config scaffolding and provider/service mutation methods for user status updates (disabled/enabled toggle semantics).
+- Admin User Detail now has capability-gated `Enable user` / `Disable user` actions wired through `useAdminUser.updateStatus(...)`.
+- Admin status mutation hardening pass is also complete in the working tree:
+  - admin provider unauthorized mapping coverage for `updateUserStatus()`
+  - admin service `NOT_SUPPORTED` coverage for status mutation
+  - `useAdminUser` now preserves provider error messages for role/status mutations instead of always showing generic failure text
+
+### Completed work (next phase start)
+- Added optional config endpoint:
+  - `backend.genericRest.admin.endpoints.updateUserStatus`
+- Extended admin provider capabilities/contracts:
+  - `canUpdateUserStatusRemote`
+  - `updateUserStatusDetail`
+  - `updateUserStatus({ userId, disabled })`
+- Implemented generic-rest provider path in `src/services/admin.provider.ts`:
+  - `PATCH` to `updateUserStatus` endpoint template with `:id`
+  - request body `{ disabled }`
+  - reuses existing admin user payload normalization
+- Added admin service wrapper:
+  - `adminService.updateUserStatus(...)`
+  - capability-gated `NOT_SUPPORTED` handling
+  - normalized user result shape
+- Extended admin user-detail state/UI for status updates:
+  - `useAdminUser.updateStatus(...)` + `isUpdatingStatus` / `statusUpdateError`
+  - `/(admin)/users/[id]` status badge + enable/disable action buttons
+  - local optimistic fallback when backend response omits `disabled` field (uses requested boolean)
+- Added tests:
+  - `tests/services/admin.provider.test.ts` (`updateUserStatus` request/normalization)
+  - `tests/services/admin.service.test.ts` (`updateUserStatus` service wrapper)
+- Added hardening test coverage:
+  - `tests/services/admin.provider.test.ts` (`updateUserStatus` maps `403 -> UNAUTHORIZED`)
+  - `tests/services/admin.service.test.ts` (`updateUserStatus` `NOT_SUPPORTED` capability path)
+- Validation after starting this slice:
+- Validation after status UI + hardening pass:
+  - `npm run typecheck` passed
+  - `npm test -- --run` passed (`49` tests)
+
+### Open tasks
+- Decide status model UX (single `Disable/Enable` action vs richer status enum in future).
+- Add backend-policy-aware UI messaging for forbidden/self-targeted status actions.
+- (Done) provider/service error-mapping coverage for `updateUserStatus()` unauthorized/unsupported paths.
+- Consider adding admin hook tests for mutation error-message propagation if admin detail flow complexity grows.
+
+### Recommended next step
+- Decide whether to expose status controls in the admin users list for quicker bulk operations, or continue with another admin mutation endpoint (`health`/`logs`/user locks) first.
+
+### Remaining risks / TODO
+- Current status mutation contract uses `{ disabled: boolean }` as a normalized request shape; if backend teams require a different payload (e.g., `{ status: 'disabled' }`), document/map it explicitly before wider adoption.
+
 ## Session Update (2026-02-23, next phase start: auth provider password tests)
 
 ### Current status

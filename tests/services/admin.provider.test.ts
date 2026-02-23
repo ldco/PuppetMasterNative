@@ -8,7 +8,13 @@ interface LoadAdminProviderOptions {
     listUsers: string
     getUser?: string
     listRoles?: string
+    listLogs?: string
+    clearLogs?: string
+    settings?: string
     updateUserRole?: string
+    updateUserStatus?: string
+    updateUserLock?: string
+    health?: string
   }
   apiRequestImpl?: ReturnType<typeof vi.fn>
 }
@@ -61,7 +67,13 @@ describe('adminProvider', () => {
         listUsers: '/admin/users',
         getUser: '/admin/users/:id',
         listRoles: '/admin/roles',
-        updateUserRole: '/admin/users/:id/role'
+        listLogs: '/admin/logs',
+        clearLogs: '/admin/logs/clear',
+        settings: '/admin/settings',
+        updateUserRole: '/admin/users/:id/role',
+        updateUserStatus: '/admin/users/:id/status',
+        updateUserLock: '/admin/users/:id/lock',
+        health: '/admin/health'
       }
     })
 
@@ -69,11 +81,23 @@ describe('adminProvider', () => {
       canListUsersRemote: true,
       canGetUserRemote: true,
       canListRolesRemote: true,
+      canListLogsRemote: true,
+      canClearLogsRemote: true,
+      canGetSettingsRemote: true,
       canUpdateUserRoleRemote: true,
+      canUpdateUserStatusRemote: true,
+      canUpdateUserLockRemote: true,
+      canGetHealthRemote: true,
       listUsersDetail: 'GET /admin/users',
       getUserDetail: 'GET /admin/users/:id',
       listRolesDetail: 'GET /admin/roles',
-      updateUserRoleDetail: 'PATCH /admin/users/:id/role'
+      listLogsDetail: 'GET /admin/logs',
+      clearLogsDetail: 'POST /admin/logs/clear',
+      getSettingsDetail: 'GET /admin/settings',
+      updateUserRoleDetail: 'PATCH /admin/users/:id/role',
+      updateUserStatusDetail: 'PATCH /admin/users/:id/status',
+      updateUserLockDetail: 'PATCH /admin/users/:id/lock',
+      getHealthDetail: 'GET /admin/health'
     })
   })
 
@@ -215,6 +239,470 @@ describe('adminProvider', () => {
       name: 'AdminProviderError',
       code: 'UNAUTHORIZED',
       message: 'token expired'
+    })
+  })
+
+  it('generic-rest listLogs normalizes payload variants, aliases, levels, and limit query', async () => {
+    const apiRequestMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          logs: [
+            {
+              id: 7,
+              created_at: '2026-02-23T23:59:00.000Z',
+              level: 'warn',
+              message: 'Queue lag high',
+              service: 'worker'
+            },
+            {
+              timestamp: '2026-02-23T23:58:00.000Z',
+              level: 'fatal',
+              message: 'API crashed',
+              category: 'api'
+            }
+          ]
+        }
+      })
+      .mockResolvedValueOnce([
+        {
+          message: 'audit event',
+          level: 'audit',
+          source: 'rbac'
+        }
+      ])
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        listLogs: '/admin/logs'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(adminProvider.listLogs({ accessToken: 'token', limit: 25 })).resolves.toEqual([
+      {
+        id: '7',
+        timestamp: '2026-02-23T23:59:00.000Z',
+        level: 'warning',
+        message: 'Queue lag high',
+        source: 'worker'
+      },
+      {
+        id: '2026-02-23T23:58:00.000Z:1:API crashed',
+        timestamp: '2026-02-23T23:58:00.000Z',
+        level: 'error',
+        message: 'API crashed',
+        source: 'api'
+      }
+    ])
+
+    await expect(adminProvider.listLogs({ accessToken: 'token' })).resolves.toEqual([
+      {
+        id: 'no-ts:0:audit event',
+        timestamp: null,
+        level: 'audit',
+        message: 'audit event',
+        source: 'rbac'
+      }
+    ])
+
+    expect(apiRequestMock).toHaveBeenNthCalledWith(1, '/admin/logs?limit=25', {
+      token: 'token',
+      schema: expect.any(Object),
+      useAuthToken: false
+    })
+    expect(apiRequestMock).toHaveBeenNthCalledWith(2, '/admin/logs', {
+      token: 'token',
+      schema: expect.any(Object),
+      useAuthToken: false
+    })
+  })
+
+  it('generic-rest listLogs maps ApiError 403 to UNAUTHORIZED', async () => {
+    const apiRequestMock = vi.fn().mockRejectedValue(new ApiError('forbidden', 403, 'FORBIDDEN'))
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        listLogs: '/admin/logs'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(adminProvider.listLogs({ accessToken: 'token' })).rejects.toMatchObject({
+      name: 'AdminProviderError',
+      code: 'UNAUTHORIZED',
+      message: 'forbidden'
+    })
+  })
+
+  it('generic-rest clearLogs sends POST and normalizes cleared count payloads', async () => {
+    const apiRequestMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          count: 12
+        }
+      })
+      .mockResolvedValueOnce({
+        success: true
+      })
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        clearLogs: '/admin/logs/clear'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(adminProvider.clearLogs({ accessToken: 'token' })).resolves.toEqual({
+      clearedCount: 12
+    })
+    await expect(adminProvider.clearLogs({ accessToken: 'token' })).resolves.toEqual({
+      clearedCount: null
+    })
+
+    expect(apiRequestMock).toHaveBeenNthCalledWith(1, '/admin/logs/clear', {
+      method: 'POST',
+      token: 'token',
+      schema: expect.any(Object),
+      useAuthToken: false
+    })
+  })
+
+  it('generic-rest clearLogs maps ApiError 401 to UNAUTHORIZED', async () => {
+    const apiRequestMock = vi.fn().mockRejectedValue(new ApiError('expired', 401, 'AUTH_EXPIRED'))
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        clearLogs: '/admin/logs/clear'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(adminProvider.clearLogs({ accessToken: 'token' })).rejects.toMatchObject({
+      name: 'AdminProviderError',
+      code: 'UNAUTHORIZED',
+      message: 'expired'
+    })
+  })
+
+  it('generic-rest getSettings normalizes nested payload and aliases', async () => {
+    const apiRequestMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          updated_at: '2026-02-23T23:59:59.000Z',
+          settings: [
+            {
+              key: 'maintenanceMode',
+              label: 'Maintenance Mode',
+              value: false,
+              section: 'operations'
+            },
+            {
+              key: 'supportEmail',
+              value: 'ops@example.com'
+            }
+          ]
+        }
+      })
+      .mockResolvedValueOnce([
+        {
+          key: 'maxUsers',
+          value: 1000,
+          group: 'limits'
+        }
+      ])
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        settings: '/admin/settings'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(adminProvider.getSettings({ accessToken: 'token' })).resolves.toEqual({
+      updatedAt: '2026-02-23T23:59:59.000Z',
+      items: [
+        {
+          key: 'maintenanceMode',
+          label: 'Maintenance Mode',
+          value: false,
+          group: 'operations'
+        },
+        {
+          key: 'supportEmail',
+          label: 'supportEmail',
+          value: 'ops@example.com',
+          group: null
+        }
+      ]
+    })
+
+    await expect(adminProvider.getSettings({ accessToken: 'token' })).resolves.toEqual({
+      updatedAt: null,
+      items: [
+        {
+          key: 'maxUsers',
+          label: 'maxUsers',
+          value: 1000,
+          group: 'limits'
+        }
+      ]
+    })
+
+    expect(apiRequestMock).toHaveBeenNthCalledWith(1, '/admin/settings', {
+      token: 'token',
+      schema: expect.any(Object),
+      useAuthToken: false
+    })
+  })
+
+  it('generic-rest getSettings maps ApiError 401 to UNAUTHORIZED', async () => {
+    const apiRequestMock = vi.fn().mockRejectedValue(new ApiError('expired', 401, 'AUTH_EXPIRED'))
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        settings: '/admin/settings'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(adminProvider.getSettings({ accessToken: 'token' })).rejects.toMatchObject({
+      name: 'AdminProviderError',
+      code: 'UNAUTHORIZED',
+      message: 'expired'
+    })
+  })
+
+  it('generic-rest updateUserStatus sends PATCH disabled payload', async () => {
+    const apiRequestMock = vi.fn().mockResolvedValue({
+      user: {
+        id: 'u3',
+        email: 'user3@example.com',
+        name: 'User 3',
+        role: 'user'
+      }
+    })
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        updateUserStatus: '/admin/users/:id/status'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(
+      adminProvider.updateUserStatus({
+        accessToken: 'token',
+        userId: 'u3',
+        disabled: true
+      })
+    ).resolves.toEqual({
+      id: 'u3',
+      email: 'user3@example.com',
+      name: 'User 3',
+      role: 'user'
+    })
+
+    expect(apiRequestMock).toHaveBeenCalledWith('/admin/users/u3/status', {
+      method: 'PATCH',
+      token: 'token',
+      body: {
+        disabled: true
+      },
+      schema: expect.any(Object),
+      useAuthToken: false
+    })
+  })
+
+  it('generic-rest updateUserStatus maps ApiError 403 to UNAUTHORIZED', async () => {
+    const apiRequestMock = vi
+      .fn()
+      .mockRejectedValue(new ApiError('forbidden', 403, 'FORBIDDEN'))
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        updateUserStatus: '/admin/users/:id/status'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(
+      adminProvider.updateUserStatus({
+        accessToken: 'token',
+        userId: 'u3',
+        disabled: true
+      })
+    ).rejects.toMatchObject({
+      name: 'AdminProviderError',
+      code: 'UNAUTHORIZED',
+      message: 'forbidden'
+    })
+  })
+
+  it('generic-rest updateUserLock sends PATCH locked payload and normalizes aliases', async () => {
+    const apiRequestMock = vi.fn().mockResolvedValue({
+      user: {
+        id: 'u4',
+        email: 'user4@example.com',
+        name: 'User 4',
+        role: 'user',
+        isLocked: true,
+        locked_until: '2026-02-24T12:00:00.000Z'
+      }
+    })
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        updateUserLock: '/admin/users/:id/lock'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(
+      adminProvider.updateUserLock({
+        accessToken: 'token',
+        userId: 'u4',
+        locked: true
+      })
+    ).resolves.toEqual({
+      id: 'u4',
+      email: 'user4@example.com',
+      name: 'User 4',
+      role: 'user',
+      locked: true,
+      lockedUntil: '2026-02-24T12:00:00.000Z'
+    })
+
+    expect(apiRequestMock).toHaveBeenCalledWith('/admin/users/u4/lock', {
+      method: 'PATCH',
+      token: 'token',
+      body: {
+        locked: true
+      },
+      schema: expect.any(Object),
+      useAuthToken: false
+    })
+  })
+
+  it('generic-rest updateUserLock maps ApiError 401 to UNAUTHORIZED', async () => {
+    const apiRequestMock = vi.fn().mockRejectedValue(new ApiError('expired', 401, 'AUTH_EXPIRED'))
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        updateUserLock: '/admin/users/:id/lock'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(
+      adminProvider.updateUserLock({
+        accessToken: 'token',
+        userId: 'u4',
+        locked: true
+      })
+    ).rejects.toMatchObject({
+      name: 'AdminProviderError',
+      code: 'UNAUTHORIZED',
+      message: 'expired'
+    })
+  })
+
+  it('generic-rest getHealth normalizes nested payload and degraded/down statuses', async () => {
+    const apiRequestMock = vi.fn().mockResolvedValue({
+      success: true,
+      data: {
+        health: {
+          status: 'degraded',
+          checked_at: '2026-02-23T23:30:00.000Z',
+          message: 'degraded db latency',
+          checks: [
+            {
+              key: 'db',
+              status: 'degraded',
+              message: 'high latency'
+            },
+            {
+              key: 'queue',
+              label: 'Queue',
+              status: 'down',
+              message: 'worker unavailable'
+            }
+          ]
+        }
+      }
+    })
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        health: '/admin/health'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(adminProvider.getHealth({ accessToken: 'token' })).resolves.toEqual({
+      status: 'warning',
+      checkedAt: '2026-02-23T23:30:00.000Z',
+      message: 'degraded db latency',
+      checks: [
+        {
+          key: 'db',
+          label: 'db',
+          status: 'warning',
+          message: 'high latency'
+        },
+        {
+          key: 'queue',
+          label: 'Queue',
+          status: 'error',
+          message: 'worker unavailable'
+        }
+      ]
+    })
+  })
+
+  it('generic-rest getHealth maps ApiError 401 to UNAUTHORIZED', async () => {
+    const apiRequestMock = vi.fn().mockRejectedValue(new ApiError('expired', 401, 'AUTH_EXPIRED'))
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        health: '/admin/health'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(adminProvider.getHealth({ accessToken: 'token' })).rejects.toMatchObject({
+      name: 'AdminProviderError',
+      code: 'UNAUTHORIZED',
+      message: 'expired'
     })
   })
 })

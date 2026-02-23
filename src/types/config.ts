@@ -66,7 +66,13 @@ export interface GenericRestAdminEndpoints {
   listUsers: string
   getUser?: string
   listRoles?: string
+  listLogs?: string
+  clearLogs?: string
+  settings?: string
   updateUserRole?: string
+  updateUserStatus?: string
+  updateUserLock?: string
+  health?: string
 }
 
 export interface GenericRestBackendConfig {

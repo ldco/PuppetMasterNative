@@ -42,7 +42,13 @@ const genericRestAdminEndpointsSchema = z.object({
   listUsers: z.string().min(1),
   getUser: z.string().min(1).optional(),
   listRoles: z.string().min(1).optional(),
-  updateUserRole: z.string().min(1).optional()
+  listLogs: z.string().min(1).optional(),
+  clearLogs: z.string().min(1).optional(),
+  settings: z.string().min(1).optional(),
+  updateUserRole: z.string().min(1).optional(),
+  updateUserStatus: z.string().min(1).optional(),
+  updateUserLock: z.string().min(1).optional(),
+  health: z.string().min(1).optional()
 })
 
 export const pmNativeConfigSchema = z.object({

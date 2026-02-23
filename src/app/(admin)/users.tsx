@@ -4,7 +4,10 @@ import { useRouter } from 'expo-router'
 
 import { Avatar } from '@/components/atoms/Avatar'
 import { Badge } from '@/components/atoms/Badge'
+import { Button } from '@/components/atoms/Button'
+import { Divider } from '@/components/atoms/Divider'
 import { Icon } from '@/components/atoms/Icon'
+import { Text } from '@/components/atoms/Text'
 import { Card } from '@/components/molecules/Card'
 import { EmptyState } from '@/components/molecules/EmptyState'
 import { ErrorState } from '@/components/molecules/ErrorState'
@@ -13,7 +16,7 @@ import { SearchBar } from '@/components/molecules/SearchBar'
 import { SectionHeader } from '@/components/molecules/SectionHeader'
 import { SkeletonList } from '@/components/molecules/SkeletonList'
 import { LoadingOverlay } from '@/components/organisms/LoadingOverlay'
-import { useAdmin } from '@/hooks/useAdmin'
+import { useAdminUsers } from '@/hooks/useAdmin'
 import { useTheme } from '@/hooks/useTheme'
 import { useToast } from '@/hooks/useToast'
 
@@ -29,9 +32,13 @@ export default function AdminUsersScreen() {
     refreshUsers,
     users,
     usersError,
+    userMutations,
     usersSource,
-    usersSourceDetail
-  } = useAdmin()
+    usersSourceDetail,
+    updateUserLock,
+    updateUserStatus,
+    clearUserMutationError
+  } = useAdminUsers()
   const [query, setQuery] = useState('')
 
   const normalizedQuery = query.trim().toLowerCase()
@@ -65,6 +72,17 @@ export default function AdminUsersScreen() {
     trailingRow: {
       alignItems: 'center',
       flexDirection: 'row',
+      gap: tokens.spacing.xs
+    },
+    userRow: {
+      gap: tokens.spacing.xs
+    },
+    rowActions: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: tokens.spacing.sm
+    },
+    rowMeta: {
       gap: tokens.spacing.xs
     }
   })
@@ -142,37 +160,167 @@ export default function AdminUsersScreen() {
         ) : (
           <View style={styles.list}>
             {filteredUsers.map((entry, index) => (
-              <ListItem
-                key={entry.id}
-                disabled={!capability.canGetUserRemote}
-                leading={<Avatar name={entry.name} size="sm" />}
-                onPress={
-                  capability.canGetUserRemote
-                    ? () => {
-                        router.push(`/(admin)/users/${encodeURIComponent(entry.id)}`)
-                      }
-                    : undefined
-                }
-                showDivider={index < filteredUsers.length - 1}
-                subtitle={entry.email}
-                title={entry.name}
-                trailing={
-                  <View style={styles.trailingRow}>
-                    <Badge
-                      label={entry.role}
-                      tone={entry.role === 'master' || entry.role === 'admin' ? 'brand' : 'neutral'}
-                    />
-                    {capability.canGetUserRemote ? (
-                      <Icon name="chevron-forward" size={16} tone="secondary" />
+              <View key={entry.id} style={styles.userRow}>
+                <ListItem
+                  disabled={!capability.canGetUserRemote}
+                  leading={<Avatar name={entry.name} size="sm" />}
+                  onPress={
+                    capability.canGetUserRemote
+                      ? () => {
+                          router.push(`/(admin)/users/${encodeURIComponent(entry.id)}`)
+                        }
+                      : undefined
+                  }
+                  subtitle={`${entry.email}${typeof entry.locked === 'boolean' ? ` • ${entry.locked ? 'locked' : 'unlocked'}` : ''}${typeof entry.disabled === 'boolean' ? ` • ${entry.disabled ? 'disabled' : 'active'}` : ''}`}
+                  title={entry.name}
+                  trailing={
+                    <View style={styles.trailingRow}>
+                      <Badge
+                        label={entry.role}
+                        tone={entry.role === 'master' || entry.role === 'admin' ? 'brand' : 'neutral'}
+                      />
+                      {typeof entry.disabled === 'boolean' ? (
+                        <Badge
+                          label={entry.disabled ? 'disabled' : 'active'}
+                          tone={entry.disabled ? 'warning' : 'success'}
+                        />
+                      ) : null}
+                      {typeof entry.locked === 'boolean' ? (
+                        <Badge
+                          label={entry.locked ? 'locked' : 'open'}
+                          tone={entry.locked ? 'error' : 'neutral'}
+                        />
+                      ) : null}
+                      {capability.canGetUserRemote ? (
+                        <Icon name="chevron-forward" size={16} tone="secondary" />
+                      ) : null}
+                    </View>
+                  }
+                />
+                {(capability.canUpdateUserStatusRemote || capability.canUpdateUserLockRemote) ? (
+                  <View style={styles.rowMeta}>
+                    <View style={styles.rowActions}>
+                      <Button
+                        disabled={
+                          !capability.canUpdateUserStatusRemote ||
+                          isRefreshingUsers ||
+                          loadingUsers ||
+                          entry.id === activeUser?.id ||
+                          userMutations[entry.id]?.isUpdatingStatus ||
+                          userMutations[entry.id]?.isUpdatingLock ||
+                          entry.disabled === false
+                        }
+                        label="Enable"
+                        onPress={() => {
+                          clearUserMutationError(entry.id)
+                          void updateUserStatus(entry.id, false)
+                            .then(() => {
+                              toast('User enabled', 'success')
+                            })
+                            .catch(() => {
+                              // Hook state already stores row error.
+                            })
+                        }}
+                        size="sm"
+                        variant="outline"
+                      />
+                      <Button
+                        disabled={
+                          !capability.canUpdateUserStatusRemote ||
+                          isRefreshingUsers ||
+                          loadingUsers ||
+                          entry.id === activeUser?.id ||
+                          userMutations[entry.id]?.isUpdatingStatus ||
+                          userMutations[entry.id]?.isUpdatingLock ||
+                          entry.disabled === true
+                        }
+                        label="Disable"
+                        onPress={() => {
+                          clearUserMutationError(entry.id)
+                          void updateUserStatus(entry.id, true)
+                            .then(() => {
+                              toast('User disabled', 'warning')
+                            })
+                            .catch(() => {
+                              // Hook state already stores row error.
+                            })
+                        }}
+                        size="sm"
+                        variant="outline"
+                      />
+                      <Button
+                        disabled={
+                          !capability.canUpdateUserLockRemote ||
+                          isRefreshingUsers ||
+                          loadingUsers ||
+                          entry.id === activeUser?.id ||
+                          userMutations[entry.id]?.isUpdatingStatus ||
+                          userMutations[entry.id]?.isUpdatingLock ||
+                          entry.locked === false
+                        }
+                        label="Unlock"
+                        onPress={() => {
+                          clearUserMutationError(entry.id)
+                          void updateUserLock(entry.id, false)
+                            .then(() => {
+                              toast('User unlocked', 'success')
+                            })
+                            .catch(() => {
+                              // Hook state already stores row error.
+                            })
+                        }}
+                        size="sm"
+                        variant="outline"
+                      />
+                      <Button
+                        disabled={
+                          !capability.canUpdateUserLockRemote ||
+                          isRefreshingUsers ||
+                          loadingUsers ||
+                          entry.id === activeUser?.id ||
+                          userMutations[entry.id]?.isUpdatingStatus ||
+                          userMutations[entry.id]?.isUpdatingLock ||
+                          entry.locked === true
+                        }
+                        label="Lock"
+                        onPress={() => {
+                          clearUserMutationError(entry.id)
+                          void updateUserLock(entry.id, true)
+                            .then(() => {
+                              toast('User locked', 'warning')
+                            })
+                            .catch(() => {
+                              // Hook state already stores row error.
+                            })
+                        }}
+                        size="sm"
+                        variant="outline"
+                      />
+                    </View>
+                    {userMutations[entry.id]?.error ? (
+                      <Text tone="error" variant="caption">
+                        {userMutations[entry.id]?.error}
+                      </Text>
                     ) : null}
                   </View>
-                }
-              />
+                ) : null}
+                {index < filteredUsers.length - 1 ? <Divider inset={0} /> : null}
+              </View>
             ))}
           </View>
         )}
       </Card>
-      <LoadingOverlay label="Refreshing users..." visible={isRefreshingUsers} />
+      <LoadingOverlay
+        label={
+          Object.values(userMutations).some((state) => state?.isUpdatingStatus || state?.isUpdatingLock)
+            ? 'Updating users...'
+            : 'Refreshing users...'
+        }
+        visible={
+          isRefreshingUsers ||
+          Object.values(userMutations).some((state) => state?.isUpdatingStatus || state?.isUpdatingLock)
+        }
+      />
     </View>
   )
 }

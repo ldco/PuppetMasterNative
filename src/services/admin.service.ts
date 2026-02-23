@@ -1,3 +1,4 @@
+import { pmNativeConfig } from '@/pm-native.config'
 import { adminProvider } from '@/services/admin.provider'
 import { AdminProviderError } from '@/services/admin.provider.types'
 import type { AuthUser } from '@/types/auth'
@@ -8,6 +9,9 @@ export interface AdminDirectoryUser {
   name: string
   email: string
   role: Role
+  disabled?: boolean
+  locked?: boolean
+  lockedUntil?: string | null
 }
 
 export interface AdminRoleSummary {
@@ -17,9 +21,53 @@ export interface AdminRoleSummary {
   assignable: boolean
 }
 
+export type AdminLogLevel = 'debug' | 'info' | 'warning' | 'error' | 'audit' | 'unknown'
+
+export interface AdminLogEntry {
+  id: string
+  timestamp: string | null
+  level: AdminLogLevel
+  message: string
+  source: string | null
+}
+
+export type AdminSettingValue = string | number | boolean | null
+
+export interface AdminSettingItem {
+  key: string
+  label: string
+  value: AdminSettingValue
+  group: string | null
+}
+
+export interface AdminSettingsSnapshot {
+  updatedAt: string | null
+  items: AdminSettingItem[]
+}
+
+export type AdminHealthStatus = 'ok' | 'warning' | 'error' | 'unknown'
+
+export interface AdminHealthCheck {
+  key: string
+  label: string
+  status: AdminHealthStatus
+  message: string | null
+}
+
+export interface AdminHealthSnapshot {
+  status: AdminHealthStatus
+  checkedAt: string | null
+  message: string | null
+  checks: AdminHealthCheck[]
+}
+
 export interface AdminDirectoryQueryInput {
   activeUser: AuthUser | null
   accessToken?: string | null
+}
+
+export interface AdminLogsQueryInput extends AdminDirectoryQueryInput {
+  limit?: number
 }
 
 export interface AdminUserDetailQueryInput extends AdminDirectoryQueryInput {
@@ -28,6 +76,14 @@ export interface AdminUserDetailQueryInput extends AdminDirectoryQueryInput {
 
 export interface AdminUpdateUserRoleInput extends AdminUserDetailQueryInput {
   role: Role
+}
+
+export interface AdminUpdateUserStatusInput extends AdminUserDetailQueryInput {
+  disabled: boolean
+}
+
+export interface AdminUpdateUserLockInput extends AdminUserDetailQueryInput {
+  locked: boolean
 }
 
 export interface AdminDirectoryResult {
@@ -48,9 +104,45 @@ export interface AdminUpdateUserRoleResult {
   sourceDetail: string
 }
 
+export interface AdminUpdateUserStatusResult {
+  user: AdminDirectoryUser
+  source: 'remote'
+  sourceDetail: string
+}
+
+export interface AdminUpdateUserLockResult {
+  user: AdminDirectoryUser
+  source: 'remote'
+  sourceDetail: string
+}
+
 export interface AdminRolesResult {
   roles: AdminRoleSummary[]
   source: 'remote' | 'config-fallback'
+  sourceDetail: string
+}
+
+export interface AdminLogsResult {
+  logs: AdminLogEntry[]
+  source: 'remote' | 'local-fallback'
+  sourceDetail: string
+}
+
+export interface AdminClearLogsResult {
+  clearedCount: number | null
+  source: 'remote'
+  sourceDetail: string
+}
+
+export interface AdminSettingsResult {
+  settings: AdminSettingsSnapshot
+  source: 'remote' | 'config-fallback'
+  sourceDetail: string
+}
+
+export interface AdminHealthResult {
+  health: AdminHealthSnapshot
+  source: 'remote' | 'local-fallback'
   sourceDetail: string
 }
 
@@ -93,6 +185,68 @@ const toFallbackRoles = (): AdminRoleSummary[] => {
     description: null,
     assignable: role !== 'master',
   }))
+}
+
+const toFallbackHealth = (message: string): AdminHealthSnapshot => {
+  return {
+    status: 'unknown',
+    checkedAt: null,
+    message,
+    checks: []
+  }
+}
+
+const toFallbackLogs = (): AdminLogEntry[] => {
+  return []
+}
+
+const toFallbackSettings = (): AdminSettingsSnapshot => {
+  const featureItems: AdminSettingItem[] = [
+    {
+      key: 'features.auth',
+      label: 'Auth',
+      value: pmNativeConfig.features.auth,
+      group: 'features'
+    },
+    {
+      key: 'features.registration',
+      label: 'Registration',
+      value: pmNativeConfig.features.registration,
+      group: 'features'
+    },
+    {
+      key: 'features.forgotPassword',
+      label: 'Forgot Password',
+      value: pmNativeConfig.features.forgotPassword,
+      group: 'features'
+    },
+    {
+      key: 'features.admin',
+      label: 'Admin',
+      value: pmNativeConfig.features.admin,
+      group: 'features'
+    }
+  ]
+
+  const runtimeItems: AdminSettingItem[] = [
+    {
+      key: 'backend.provider',
+      label: 'Backend Provider',
+      value: pmNativeConfig.backend.provider,
+      group: 'runtime'
+    },
+    {
+      key: 'api.baseUrl',
+      label: 'API Base URL',
+      value: pmNativeConfig.api.baseUrl,
+      group: 'runtime'
+    }
+  ]
+
+  return {
+    updatedAt: null,
+    items: [...featureItems, ...runtimeItems]
+  }
 }
 
 export const adminService = {
@@ -243,6 +397,118 @@ export const adminService = {
     return adminService.listRoles(input)
   },
 
+  async getLogs(input: AdminLogsQueryInput): Promise<AdminLogsResult> {
+    if (!input.activeUser) {
+      return {
+        logs: toFallbackLogs(),
+        source: 'local-fallback',
+        sourceDetail: 'No active user'
+      }
+    }
+
+    const capability = adminProvider.getCapabilities()
+    if (!capability.canListLogsRemote) {
+      return {
+        logs: toFallbackLogs(),
+        source: 'local-fallback',
+        sourceDetail: capability.listLogsDetail
+      }
+    }
+
+    try {
+      const logs = await adminProvider.listLogs({
+        accessToken: input.accessToken,
+        limit: input.limit
+      })
+      return {
+        logs,
+        source: 'remote',
+        sourceDetail: capability.listLogsDetail
+      }
+    } catch (error) {
+      if (
+        error instanceof AdminProviderError &&
+        (error.code === 'CONFIG' || error.code === 'NOT_SUPPORTED' || error.code === 'UNAUTHORIZED')
+      ) {
+        return {
+          logs: toFallbackLogs(),
+          source: 'local-fallback',
+          sourceDetail: error.message
+        }
+      }
+
+      throw error
+    }
+  },
+
+  async refreshLogs(input: AdminLogsQueryInput): Promise<AdminLogsResult> {
+    return adminService.getLogs(input)
+  },
+
+  async clearLogs(input: AdminDirectoryQueryInput): Promise<AdminClearLogsResult> {
+    if (!input.activeUser) {
+      throw new AdminProviderError('No active user', 'UNAUTHORIZED')
+    }
+
+    const capability = adminProvider.getCapabilities()
+    if (!capability.canClearLogsRemote) {
+      throw new AdminProviderError(capability.clearLogsDetail, 'NOT_SUPPORTED')
+    }
+
+    const result = await adminProvider.clearLogs({ accessToken: input.accessToken })
+
+    return {
+      clearedCount: result.clearedCount,
+      source: 'remote',
+      sourceDetail: capability.clearLogsDetail
+    }
+  },
+
+  async getSettings(input: AdminDirectoryQueryInput): Promise<AdminSettingsResult> {
+    if (!input.activeUser) {
+      return {
+        settings: toFallbackSettings(),
+        source: 'config-fallback',
+        sourceDetail: 'No active user'
+      }
+    }
+
+    const capability = adminProvider.getCapabilities()
+    if (!capability.canGetSettingsRemote) {
+      return {
+        settings: toFallbackSettings(),
+        source: 'config-fallback',
+        sourceDetail: capability.getSettingsDetail
+      }
+    }
+
+    try {
+      const settings = await adminProvider.getSettings({ accessToken: input.accessToken })
+      return {
+        settings,
+        source: 'remote',
+        sourceDetail: capability.getSettingsDetail
+      }
+    } catch (error) {
+      if (
+        error instanceof AdminProviderError &&
+        (error.code === 'CONFIG' || error.code === 'NOT_SUPPORTED' || error.code === 'UNAUTHORIZED')
+      ) {
+        return {
+          settings: toFallbackSettings(),
+          source: 'config-fallback',
+          sourceDetail: error.message
+        }
+      }
+
+      throw error
+    }
+  },
+
+  async refreshSettings(input: AdminDirectoryQueryInput): Promise<AdminSettingsResult> {
+    return adminService.getSettings(input)
+  },
+
   async updateUserRole(input: AdminUpdateUserRoleInput): Promise<AdminUpdateUserRoleResult> {
     if (!input.activeUser) {
       throw new AdminProviderError('No active user', 'UNAUTHORIZED')
@@ -267,5 +533,102 @@ export const adminService = {
       source: 'remote',
       sourceDetail: capability.updateUserRoleDetail
     }
+  },
+
+  async updateUserStatus(input: AdminUpdateUserStatusInput): Promise<AdminUpdateUserStatusResult> {
+    if (!input.activeUser) {
+      throw new AdminProviderError('No active user', 'UNAUTHORIZED')
+    }
+
+    const capability = adminProvider.getCapabilities()
+    if (!capability.canUpdateUserStatusRemote) {
+      throw new AdminProviderError(capability.updateUserStatusDetail, 'NOT_SUPPORTED')
+    }
+
+    const user = await adminProvider.updateUserStatus({
+      accessToken: input.accessToken,
+      userId: input.userId,
+      disabled: input.disabled
+    })
+
+    return {
+      user: {
+        ...user,
+        name: user.name ?? 'Unknown user'
+      },
+      source: 'remote',
+      sourceDetail: capability.updateUserStatusDetail
+    }
+  },
+
+  async updateUserLock(input: AdminUpdateUserLockInput): Promise<AdminUpdateUserLockResult> {
+    if (!input.activeUser) {
+      throw new AdminProviderError('No active user', 'UNAUTHORIZED')
+    }
+
+    const capability = adminProvider.getCapabilities()
+    if (!capability.canUpdateUserLockRemote) {
+      throw new AdminProviderError(capability.updateUserLockDetail, 'NOT_SUPPORTED')
+    }
+
+    const user = await adminProvider.updateUserLock({
+      accessToken: input.accessToken,
+      userId: input.userId,
+      locked: input.locked
+    })
+
+    return {
+      user: {
+        ...user,
+        name: user.name ?? 'Unknown user'
+      },
+      source: 'remote',
+      sourceDetail: capability.updateUserLockDetail
+    }
+  },
+
+  async getHealth(input: AdminDirectoryQueryInput): Promise<AdminHealthResult> {
+    if (!input.activeUser) {
+      return {
+        health: toFallbackHealth('No active user'),
+        source: 'local-fallback',
+        sourceDetail: 'No active user'
+      }
+    }
+
+    const capability = adminProvider.getCapabilities()
+    if (!capability.canGetHealthRemote) {
+      return {
+        health: toFallbackHealth(capability.getHealthDetail),
+        source: 'local-fallback',
+        sourceDetail: capability.getHealthDetail
+      }
+    }
+
+    try {
+      const health = await adminProvider.getHealth({ accessToken: input.accessToken })
+      return {
+        health,
+        source: 'remote',
+        sourceDetail: capability.getHealthDetail
+      }
+    } catch (error) {
+      if (
+        error instanceof AdminProviderError &&
+        (error.code === 'CONFIG' || error.code === 'NOT_SUPPORTED' || error.code === 'UNAUTHORIZED')
+      ) {
+        return {
+          health: toFallbackHealth(error.message),
+          source: 'local-fallback',
+          sourceDetail: error.message
+        }
+      }
+
+      throw error
+    }
+  },
+
+  async refreshHealth(input: AdminDirectoryQueryInput): Promise<AdminHealthResult> {
+    return adminService.getHealth(input)
   }
 }

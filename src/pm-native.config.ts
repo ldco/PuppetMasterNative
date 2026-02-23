@@ -108,7 +108,13 @@ export const pmNativeConfig: PMNativeConfig = {
       //     listUsers: '/admin/users',
       //     getUser: '/admin/users/:id',
       //     listRoles: '/admin/roles',
-      //     updateUserRole: '/admin/users/:id/role'
+      //     listLogs: '/admin/logs',
+      //     clearLogs: '/admin/logs/clear',
+      //     settings: '/admin/settings',
+      //     updateUserRole: '/admin/users/:id/role',
+      //     updateUserStatus: '/admin/users/:id/status',
+      //     updateUserLock: '/admin/users/:id/lock',
+      //     health: '/admin/health'
       //   }
       // }
     },

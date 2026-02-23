@@ -9,13 +9,13 @@ import { EmptyState } from '@/components/molecules/EmptyState'
 import { ListItem } from '@/components/molecules/ListItem'
 import { SearchBar } from '@/components/molecules/SearchBar'
 import { SectionHeader } from '@/components/molecules/SectionHeader'
-import { useAdmin } from '@/hooks/useAdmin'
+import { useAdminSections } from '@/hooks/useAdmin'
 import { useTheme } from '@/hooks/useTheme'
 
 export default function AdminIndexScreen() {
   const router = useRouter()
   const { colors, tokens } = useTheme()
-  const { sections } = useAdmin()
+  const { sections } = useAdminSections()
   const [query, setQuery] = useState('')
 
   const styles = StyleSheet.create({
@@ -49,7 +49,7 @@ export default function AdminIndexScreen() {
 
   const resolveRoute = (
     sectionId: string
-  ): '/(admin)' | './users' | './roles' | './settings' => {
+  ): '/(admin)' | './users' | './roles' | './settings' | './health' | './logs' => {
     if (sectionId === 'users') {
       return './users'
     }
@@ -60,6 +60,14 @@ export default function AdminIndexScreen() {
 
     if (sectionId === 'settings') {
       return './settings'
+    }
+
+    if (sectionId === 'health') {
+      return './health'
+    }
+
+    if (sectionId === 'logs') {
+      return './logs'
     }
 
     return '/(admin)'

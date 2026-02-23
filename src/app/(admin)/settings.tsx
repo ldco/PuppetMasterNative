@@ -6,10 +6,14 @@ import { Badge } from '@/components/atoms/Badge'
 import { Button } from '@/components/atoms/Button'
 import { Text } from '@/components/atoms/Text'
 import { Card } from '@/components/molecules/Card'
+import { ErrorState } from '@/components/molecules/ErrorState'
 import { ListItem } from '@/components/molecules/ListItem'
 import { SectionHeader } from '@/components/molecules/SectionHeader'
+import { SkeletonList } from '@/components/molecules/SkeletonList'
 import { BackendDiagnosticsCard } from '@/components/organisms/BackendDiagnosticsCard'
 import { BottomSheet } from '@/components/organisms/BottomSheet'
+import { LoadingOverlay } from '@/components/organisms/LoadingOverlay'
+import { useAdminSettingsSnapshot } from '@/hooks/useAdminSettingsSnapshot'
 import { useSettingsSync } from '@/hooks/useSettingsSync'
 import { useTheme } from '@/hooks/useTheme'
 import { useToast } from '@/hooks/useToast'
@@ -20,7 +24,18 @@ export default function AdminSettingsScreen() {
   const { colors, tokens } = useTheme()
   const { toast } = useToast()
   const config = useConfig()
-  const { capability, draft: syncPayloadDraft, executeSync, preview: syncPreview } = useSettingsSync()
+  const { capability: syncCapability, draft: syncPayloadDraft, executeSync, preview: syncPreview } =
+    useSettingsSync()
+  const {
+    capability: adminCapability,
+    error: adminSettingsError,
+    isLoading: isLoadingAdminSettings,
+    isRefreshing: isRefreshingAdminSettings,
+    refresh: refreshAdminSettings,
+    settings: adminSettingsSnapshot,
+    source: adminSettingsSource,
+    sourceDetail: adminSettingsSourceDetail
+  } = useAdminSettingsSnapshot()
   const [showSyncSheet, setShowSyncSheet] = useState(false)
 
   const styles = StyleSheet.create({
@@ -52,10 +67,18 @@ export default function AdminSettingsScreen() {
     }
   }
 
-  const canSyncSettings = capability.canExecute
+  const canSyncSettings = syncCapability.canExecute
   const syncActionSubtitle = canSyncSettings
-    ? `Provider sync ready (${capability.detail})`
-    : `Sync unavailable for current backend (${capability.detail})`
+    ? `Provider sync ready (${syncCapability.detail})`
+    : `Sync unavailable for current backend (${syncCapability.detail})`
+
+  const formatAdminSettingValue = (value: string | number | boolean | null): string => {
+    if (value === null) {
+      return 'null'
+    }
+
+    return typeof value === 'string' ? value : String(value)
+  }
 
   return (
     <View style={styles.screen}>
@@ -104,6 +127,83 @@ export default function AdminSettingsScreen() {
             />
           }
         />
+      </Card>
+
+      <Card
+        headerTrailing={
+          <Badge
+            label={adminSettingsSource === 'remote' ? 'remote' : 'fallback'}
+            tone={adminSettingsSource === 'remote' ? 'success' : 'neutral'}
+          />
+        }
+        subtitle={
+          adminSettingsSource === 'remote'
+            ? `Remote admin settings (${adminSettingsSourceDetail})`
+            : `Fallback admin settings (${adminSettingsSourceDetail})`
+        }
+        title="Backend Admin Settings"
+      >
+        {isLoadingAdminSettings ? (
+          <SkeletonList bodyLinesPerItem={1} items={4} />
+        ) : adminSettingsError && !adminSettingsSnapshot ? (
+          <ErrorState
+            description={adminSettingsError}
+            onRetry={() => {
+              void refreshAdminSettings()
+            }}
+            retryLabel="Retry"
+            title="Admin settings unavailable"
+          />
+        ) : (
+          <View style={styles.list}>
+            <ListItem
+              disabled={isRefreshingAdminSettings}
+              onPress={() => {
+                void refreshAdminSettings()
+                toast('Refreshing admin settings snapshot', 'info')
+              }}
+              showDivider={Boolean(adminSettingsSnapshot && adminSettingsSnapshot.items.length > 0)}
+              subtitle={adminCapability.getSettingsDetail}
+              title="Refresh backend settings snapshot"
+              trailing={
+                <Badge
+                  label={adminCapability.canGetSettingsRemote ? 'ready' : 'fallback'}
+                  tone={adminCapability.canGetSettingsRemote ? 'success' : 'warning'}
+                />
+              }
+            />
+
+            {!adminSettingsSnapshot || adminSettingsSnapshot.items.length === 0 ? (
+              <Text tone="muted" variant="caption">
+                No backend admin settings were returned by the provider. Local fallback is shown only
+                when available.
+              </Text>
+            ) : (
+              adminSettingsSnapshot.items.map((item, index) => (
+                <ListItem
+                  key={item.key}
+                  showDivider={index < adminSettingsSnapshot.items.length - 1}
+                  subtitle={formatAdminSettingValue(item.value)}
+                  title={item.label}
+                  trailing={
+                    item.group ? (
+                      <Badge
+                        label={item.group}
+                        tone={item.group === 'features' ? 'brand' : 'neutral'}
+                      />
+                    ) : undefined
+                  }
+                />
+              ))
+            )}
+
+            {adminSettingsSnapshot?.updatedAt ? (
+              <Text tone="muted" variant="caption">
+                Snapshot updated at {adminSettingsSnapshot.updatedAt}
+              </Text>
+            ) : null}
+          </View>
+        )}
       </Card>
 
       <BackendDiagnosticsCard />
@@ -177,13 +277,15 @@ export default function AdminSettingsScreen() {
             Next step: {syncPreview.nextStep}
           </Text>
           <Text tone="muted" variant="caption">
-            Provider contract: {capability.canExecute ? 'ready' : 'not executable'} ({capability.detail})
+            Provider contract: {syncCapability.canExecute ? 'ready' : 'not executable'} ({syncCapability.detail})
           </Text>
           <Text tone="muted" variant="caption">
             Payload schema: `pmnative.settings.sync/1`
           </Text>
         </View>
       </BottomSheet>
+
+      <LoadingOverlay label="Refreshing admin settings..." visible={isRefreshingAdminSettings} />
     </View>
   )
 }

@@ -42,12 +42,18 @@ export default function AdminUserDetailScreen() {
     error,
     isLoading,
     isRefreshing,
+    isUpdatingLock,
     isUpdatingRole,
+    isUpdatingStatus,
+    lockUpdateError,
     refresh,
     roleUpdateError,
+    statusUpdateError,
     source,
     sourceDetail,
+    updateLock,
     updateRole,
+    updateStatus,
     user
   } = useAdminUser(userId)
 
@@ -73,6 +79,12 @@ export default function AdminUserDetailScreen() {
       gap: tokens.spacing.sm
     },
     roleSection: {
+      gap: tokens.spacing.xs
+    },
+    lockSection: {
+      gap: tokens.spacing.xs
+    },
+    statusSection: {
       gap: tokens.spacing.xs
     }
   })
@@ -136,11 +148,170 @@ export default function AdminUserDetailScreen() {
                 label={user.role}
                 tone={user.role === 'master' || user.role === 'admin' ? 'brand' : 'neutral'}
               />
+              <Badge
+                label={
+                  typeof user.disabled === 'boolean'
+                    ? user.disabled ? 'disabled' : 'active'
+                    : 'status unknown'
+                }
+                tone={
+                  typeof user.disabled !== 'boolean'
+                    ? 'neutral'
+                    : user.disabled
+                      ? 'warning'
+                      : 'success'
+                }
+              />
+              <Badge
+                label={
+                  typeof user.locked === 'boolean'
+                    ? user.locked ? 'locked' : 'unlocked'
+                    : 'lock unknown'
+                }
+                tone={
+                  typeof user.locked !== 'boolean'
+                    ? 'neutral'
+                    : user.locked
+                      ? 'error'
+                      : 'success'
+                }
+              />
             </View>
             <Divider inset={4} />
             <Text tone="secondary">ID: {user.id}</Text>
             <Text tone="secondary">Name: {user.name}</Text>
             <Text tone="secondary">Email: {user.email}</Text>
+            {user.lockedUntil ? (
+              <Text tone="secondary">Locked until: {user.lockedUntil}</Text>
+            ) : null}
+            <View style={styles.lockSection}>
+              <Text variant="label">Lock Actions</Text>
+              {!capability.canUpdateUserLockRemote ? (
+                <Text tone="secondary" variant="caption">
+                  {capability.updateUserLockDetail}
+                </Text>
+              ) : lockUpdateError ? (
+                <Text tone="error" variant="caption">
+                  {lockUpdateError}
+                </Text>
+              ) : (
+                <Text tone="muted" variant="caption">
+                  Lock or unlock this user via the provider-backed admin endpoint.
+                </Text>
+              )}
+              <View style={styles.actions}>
+                <Button
+                  disabled={
+                    !capability.canUpdateUserLockRemote ||
+                    isRefreshing ||
+                    isUpdatingRole ||
+                    isUpdatingStatus ||
+                    isUpdatingLock ||
+                    user.id === actor?.id ||
+                    user.locked === false
+                  }
+                  label="Unlock user"
+                  onPress={() => {
+                    void updateLock(false)
+                      .then(() => {
+                        toast('User unlocked', 'success')
+                      })
+                      .catch(() => {
+                        // Hook state already reflects the error message.
+                      })
+                  }}
+                  size="sm"
+                  variant="outline"
+                />
+                <Button
+                  disabled={
+                    !capability.canUpdateUserLockRemote ||
+                    isRefreshing ||
+                    isUpdatingRole ||
+                    isUpdatingStatus ||
+                    isUpdatingLock ||
+                    user.id === actor?.id ||
+                    user.locked === true
+                  }
+                  label="Lock user"
+                  onPress={() => {
+                    void updateLock(true)
+                      .then(() => {
+                        toast('User locked', 'warning')
+                      })
+                      .catch(() => {
+                        // Hook state already reflects the error message.
+                      })
+                  }}
+                  size="sm"
+                  variant="outline"
+                />
+              </View>
+            </View>
+            <View style={styles.statusSection}>
+              <Text variant="label">Status Actions</Text>
+              {!capability.canUpdateUserStatusRemote ? (
+                <Text tone="secondary" variant="caption">
+                  {capability.updateUserStatusDetail}
+                </Text>
+              ) : statusUpdateError ? (
+                <Text tone="error" variant="caption">
+                  {statusUpdateError}
+                </Text>
+              ) : (
+                <Text tone="muted" variant="caption">
+                  Enable or disable this user via the provider-backed admin endpoint.
+                </Text>
+              )}
+              <View style={styles.actions}>
+                <Button
+                  disabled={
+                    !capability.canUpdateUserStatusRemote ||
+                    isRefreshing ||
+                    isUpdatingRole ||
+                    isUpdatingStatus ||
+                    isUpdatingLock ||
+                    user.id === actor?.id ||
+                    user.disabled === false
+                  }
+                  label="Enable user"
+                  onPress={() => {
+                    void updateStatus(false)
+                      .then(() => {
+                        toast('User enabled', 'success')
+                      })
+                      .catch(() => {
+                        // Hook state already reflects the error message.
+                      })
+                  }}
+                  size="sm"
+                  variant="outline"
+                />
+                <Button
+                  disabled={
+                    !capability.canUpdateUserStatusRemote ||
+                    isRefreshing ||
+                    isUpdatingRole ||
+                    isUpdatingStatus ||
+                    isUpdatingLock ||
+                    user.id === actor?.id ||
+                    user.disabled === true
+                  }
+                  label="Disable user"
+                  onPress={() => {
+                    void updateStatus(true)
+                      .then(() => {
+                        toast('User disabled', 'warning')
+                      })
+                      .catch(() => {
+                        // Hook state already reflects the error message.
+                      })
+                  }}
+                  size="sm"
+                  variant="outline"
+                />
+              </View>
+            </View>
             <View style={styles.roleSection}>
               <Text variant="label">Role Actions</Text>
               {!capability.canUpdateUserRoleRemote ? (
@@ -164,6 +335,8 @@ export default function AdminUserDetailScreen() {
                       !capability.canUpdateUserRoleRemote ||
                       isRefreshing ||
                       isUpdatingRole ||
+                      isUpdatingStatus ||
+                      isUpdatingLock ||
                       user.role === role ||
                       user.id === actor?.id ||
                       (role === 'master' && actor?.role !== 'master')
@@ -187,7 +360,7 @@ export default function AdminUserDetailScreen() {
             {capability.canGetUserRemote ? (
               <View style={styles.actions}>
                 <Button
-                  disabled={isUpdatingRole}
+                  disabled={isUpdatingRole || isUpdatingStatus || isUpdatingLock}
                   label="Refresh"
                   onPress={() => {
                     void refresh()
@@ -202,8 +375,16 @@ export default function AdminUserDetailScreen() {
       )}
 
       <LoadingOverlay
-        label={isUpdatingRole ? 'Updating role...' : 'Refreshing user...'}
-        visible={isRefreshing || isUpdatingRole}
+        label={
+          isUpdatingLock
+            ? 'Updating lock state...'
+            : isUpdatingStatus
+            ? 'Updating status...'
+            : isUpdatingRole
+              ? 'Updating role...'
+              : 'Refreshing user...'
+        }
+        visible={isRefreshing || isUpdatingRole || isUpdatingStatus || isUpdatingLock}
       />
     </View>
   )
