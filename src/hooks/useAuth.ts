@@ -16,6 +16,7 @@ import {
 import { storageService } from '@/services/storage.service'
 import { useAuthStore } from '@/stores/auth.store'
 import type {
+  ChangePasswordInput,
   AuthRegisterResult,
   AuthSocialResult,
   AuthSession,
@@ -24,7 +25,7 @@ import type {
   LoginInput,
   RegisterInput
 } from '@/types/auth'
-import { forgotPasswordSchema, loginSchema, registerSchema } from '@/utils/validation'
+import { changePasswordSchema, forgotPasswordSchema, loginSchema, registerSchema } from '@/utils/validation'
 
 const isStoredAuthUser = (value: unknown): value is AuthUser => {
   if (typeof value !== 'object' || value === null) {
@@ -428,6 +429,42 @@ export const useAuth = () => {
     await authProvider.requestPasswordReset(input)
   }, [])
 
+  const changePassword = useCallback(
+    async (input: ChangePasswordInput): Promise<void> => {
+      changePasswordSchema.parse(input)
+
+      const currentUser = useAuthStore.getState().user
+      const currentToken = useAuthStore.getState().token
+
+      if (!currentUser || !currentToken) {
+        throw new AuthProviderError('You must be signed in to change your password', 'UNAUTHORIZED')
+      }
+
+      const storedRefreshToken = await storageService.getSecureItem(SESSION_REFRESH_TOKEN_KEY)
+      const result = await authProvider.updatePassword(input, {
+        accessToken: currentToken,
+        refreshToken: storedRefreshToken
+      })
+
+      const rotatedSession = result.rotatedSession
+
+      if (!rotatedSession?.token) {
+        return
+      }
+
+      await storageService.setSecureItem(SESSION_TOKEN_KEY, rotatedSession.token)
+
+      if (typeof rotatedSession.refreshToken === 'string' && rotatedSession.refreshToken.length > 0) {
+        await storageService.setSecureItem(SESSION_REFRESH_TOKEN_KEY, rotatedSession.refreshToken)
+      } else if (rotatedSession.refreshToken === null) {
+        await storageService.removeSecureItem(SESSION_REFRESH_TOKEN_KEY)
+      }
+
+      setSession(currentUser, rotatedSession.token)
+    },
+    [setSession]
+  )
+
   const signOut = useCallback(async (): Promise<void> => {
     try {
       const storedRefreshToken = await storageService.getSecureItem(SESSION_REFRESH_TOKEN_KEY)
@@ -457,6 +494,7 @@ export const useAuth = () => {
     register,
     registerWithSocial,
     requestPasswordReset,
+    changePassword,
     signOut,
     socialAuthCapabilities: providerCapabilities.socialAuth
   }

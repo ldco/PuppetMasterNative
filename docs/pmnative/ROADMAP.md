@@ -54,7 +54,7 @@ What is already done (high level):
 What is not finished:
 
 - Full provider-backed admin module APIs are not implemented yet (only users list remote path has started)
-- Profile module now supports display name + avatar URL (manual URL entry) and a profile-linked change-password reset-link screen; avatar upload and true in-session password update flows are still pending
+- Profile module now supports display name + avatar URL (manual URL entry), plus a profile-linked change-password screen with Supabase-first direct password update and reset-link fallback; avatar upload and generic-rest direct password update remain pending
 - `supabase` settings sync adapter or an explicit non-goal decision
 - Full auth test matrix execution (especially interactive Supabase/social smoke tests)
 - Telegram/VK runtime social auth adapters (currently capability-gated/doc-planned)
@@ -103,7 +103,7 @@ Use this rule:
 
 ## Immediate Next Implementation Targets (Practical)
 
-1. `PMN-070` Profile: continue from name+avatarUrl editing + reset-link change-password screen to real avatar upload and/or true in-session password update flow (token-rotation persistence path already covered by hook tests).
+1. `PMN-070` Profile: continue from name+avatarUrl editing + Supabase-first direct password update to real avatar upload and generic-rest/portable password update contracts (profile + auth password token-rotation persistence paths now covered by hook tests).
 2. `PMN-071` Settings: keep Supabase settings sync unsupported for now (capability-gated), and continue `generic-rest` contract tests/docs until a Supabase adapter is explicitly approved/in-scope.
 3. `PMN-074` Admin: extend provider tests/contracts and decide next admin endpoints (`roles`/`settings`) before wiring more admin actions in UI.
 4. Expand mocked provider tests (auth/profile/settings/admin provider paths) on top of the `vitest` harness before live provider smoke tests.

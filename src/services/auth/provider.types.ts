@@ -1,4 +1,6 @@
 import type {
+  ChangePasswordInput,
+  ChangePasswordResult,
   AuthRegisterResult,
   AuthSocialResult,
   AuthSession,
@@ -55,6 +57,7 @@ export interface AuthProvider {
   signInWithSocial: (provider: SocialAuthProvider, mode: SocialAuthMode) => Promise<AuthSocialResult>
   completeSocialAuthCallback: (callbackUrl: string) => Promise<AuthSession>
   requestPasswordReset: (input: ForgotPasswordInput) => Promise<void>
+  updatePassword: (input: ChangePasswordInput, context: AuthLogoutContext) => Promise<ChangePasswordResult>
   logout: (context: AuthLogoutContext) => Promise<void>
   getSessionUser: (token: string) => Promise<AuthUser>
   refreshAccessToken: (refreshToken: string) => Promise<RefreshSessionResult>

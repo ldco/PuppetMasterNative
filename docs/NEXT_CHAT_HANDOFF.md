@@ -7,6 +7,58 @@ Planning note:
 - Canonical current roadmap + immediate next-step list now lives in `docs/pmnative/ROADMAP.md`.
 - This handoff file is for session history, implementation notes, and review findings.
 
+## Session Update (2026-02-23, review pass: PMN-070 direct password update flow)
+
+### Current status
+- Reviewed the newly added `PMN-070` direct password update slice (`useAuth.changePassword()`, auth provider contract expansion, and `(tabs)/change-password` UI updates).
+- Added hook-level tests for `useAuth.changePassword()` rotated-token persistence behavior.
+- One UI concurrency issue was found and fixed in the new `Change Password` screen.
+
+### Scope of analysis
+- `src/app/(tabs)/change-password.tsx`
+- `src/hooks/useAuth.ts`
+- `src/services/auth/provider.ts`
+- `src/services/auth/provider.types.ts`
+- `src/services/auth/providers/supabaseAuthProvider.ts`
+- `src/services/auth/providers/genericRestAuthProvider.ts`
+- `src/types/auth.ts`
+- `src/utils/validation.ts`
+- `tests/hooks/useAuth.test.ts`
+- `docs/pmnative/ROADMAP.md`
+- `docs/NEXT_CHAT_HANDOFF.md`
+
+### Issues discovered
+- `src/app/(tabs)/change-password.tsx`
+  - Direct password update and reset-link actions could be triggered concurrently because each button only disabled itself, creating overlapping auth requests/toasts and inconsistent UX.
+
+### Fixes implemented
+- Added cross-action busy gating on the `Change Password` screen so direct update and reset-link flows cannot run at the same time (`isBusy` shared gating for both buttons).
+- Added `tests/hooks/useAuth.test.ts` coverage for:
+  - rotated access/refresh token persistence after `changePassword()`
+  - rotated refresh-token removal (`null`)
+  - unauthorized guard when no active session exists
+- Validation after fixes:
+  - `npm run typecheck` passed
+  - `npm test -- --run` passed (`20` tests)
+
+### Completed work
+- Auth provider contract now includes `updatePassword(...)` with Supabase implementation and generic-rest `NOT_SUPPORTED` fallback.
+- `useAuth.changePassword()` persists rotated tokens to secure storage and updates the auth store.
+- `Change Password` screen now supports Supabase-first direct password update plus reset-link fallback.
+- Hook tests now cover both profile-save and auth password-change token-rotation persistence paths.
+
+### Open tasks
+- Add provider-level unit tests for `supabaseAuthProvider.updatePassword()` and `genericRestAuthProvider.updatePassword()` behavior/error mapping.
+- Continue `PMN-070` with avatar upload and portable/generic-rest direct password update contracts.
+- Run live Supabase smoke validation later (password update + token rotation behavior on device/web).
+
+### Recommended next step
+- Expand mocked auth-provider tests next (Supabase password update success/error/unauthorized paths and generic-rest `NOT_SUPPORTED`) before moving into live Supabase smoke validation.
+
+### Remaining risks / TODO
+- Direct password update UI is currently provider-specific (`supabase` check via config); if another provider gains support later, UI should move to capability-based gating instead of provider-name checks.
+- Supabase token rotation behavior during `setSession()` + `updateUser({ password })` still needs live runtime verification.
+
 ## Session Update (2026-02-23, review pass: PMN-070 profile + README/docs)
 
 ### Current status
@@ -65,7 +117,10 @@ Planning note:
 - Supabase profile-save token rotation propagation is implemented in code and validated locally.
 - Hook-level tests now cover rotated-session token persistence side effects in `useProfile()`.
 - Profile editing is no longer display-name-only: `avatarUrl` is now supported across auth/profile normalization, provider/service contracts, `useProfile()`, and the profile tab UI (manual URL entry; upload flow still pending).
-- Profile tab now links to a hidden tabs-route `Change Password` screen that sends a password-reset link to the signed-in account email via `useAuth.requestPasswordReset()` (reset-link flow, not a direct password-update form).
+- Profile tab now links to a hidden tabs-route `Change Password` screen with:
+  - Supabase-first direct authenticated password update (`useAuth.changePassword()` -> `authProvider.updatePassword()`)
+  - reset-link fallback via `useAuth.requestPasswordReset()`
+- Hook-level tests now also cover `useAuth.changePassword()` rotated-token persistence to secure storage + auth store.
 - Changes are currently uncommitted in the working tree.
 
 ### Current uncommitted work (latest)
@@ -75,23 +130,29 @@ Planning note:
 - `src/services/profile.service.ts`
 - `src/services/genericRest.schemas.ts`
 - `src/services/auth/providers/supabaseAuthProvider.ts`
+- `src/services/auth/providers/genericRestAuthProvider.ts`
+- `src/services/auth/provider.types.ts`
+- `src/services/auth/provider.ts`
 - `src/hooks/useProfile.ts`
+- `src/hooks/useAuth.ts`
 - `src/types/auth.ts`
+- `src/utils/validation.ts`
 - `src/app/(tabs)/profile.tsx`
 - `src/app/(tabs)/change-password.tsx`
 - `tests/services/profile.provider.test.ts`
 - `tests/services/profile.service.test.ts`
 - `tests/hooks/useProfile.test.ts`
+- `tests/hooks/useAuth.test.ts`
 - `tests/services/settingsSync.provider.test.ts` (expectation aligned to intentional unsupported text)
 - `docs/pmnative/ROADMAP.md`
 - `docs/NEXT_CHAT_HANDOFF.md`
 
 ### Validation (latest)
 - `npm run typecheck` passed
-- `npm test -- --run` passed (`17` tests)
+- `npm test -- --run` passed (`20` tests)
 
 ### Recommended next step
-- Continue `PMN-070` from name+avatarUrl editing + reset-link change-password screen toward a real avatar-upload flow and/or a true in-session password update form, while keeping live Supabase smoke validation for token rotation behavior in the final integration pass.
+- Continue `PMN-070` from name+avatarUrl editing + Supabase-first direct password update toward a real avatar-upload flow and portable/generic-rest password update contracts, while keeping live Supabase smoke validation for token rotation behavior in the final integration pass.
 
 ## Session Update (2026-02-23, review comments pass)
 

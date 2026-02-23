@@ -23,6 +23,17 @@ export interface ForgotPasswordInput {
   email: string
 }
 
+export interface ChangePasswordInput {
+  password: string
+}
+
+export interface ChangePasswordResult {
+  rotatedSession?: {
+    token: string
+    refreshToken?: string | null
+  }
+}
+
 export interface AuthSession {
   token: string
   refreshToken?: string | null

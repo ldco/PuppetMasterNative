@@ -1,4 +1,4 @@
-import type { AuthError, User } from '@supabase/supabase-js'
+import type { AuthError, Session, User } from '@supabase/supabase-js'
 import * as ExpoLinking from 'expo-linking'
 import * as WebBrowser from 'expo-web-browser'
 import { Platform } from 'react-native'
@@ -12,7 +12,12 @@ import {
   type SocialAuthMode,
   type SocialAuthProvider
 } from '@/services/auth/provider.types'
-import type { AuthRegisterResult, AuthUser, RefreshSessionResult } from '@/types/auth'
+import type {
+  AuthRegisterResult,
+  AuthUser,
+  ChangePasswordResult,
+  RefreshSessionResult
+} from '@/types/auth'
 import type { Role } from '@/types/config'
 
 const roleValues: Role[] = ['master', 'admin', 'editor', 'user']
@@ -95,6 +100,33 @@ const toProviderError = (error: AuthError): AuthProviderError => {
   }
 
   return new AuthProviderError(error.message, 'PROVIDER')
+}
+
+const requireAccessToken = (token?: string | null): string => {
+  if (!token) {
+    throw new AuthProviderError('No access token available for authenticated password update', 'UNAUTHORIZED')
+  }
+
+  return token
+}
+
+const requireRefreshToken = (refreshToken?: string | null): string => {
+  if (!refreshToken) {
+    throw new AuthProviderError('No refresh token available for authenticated password update', 'UNAUTHORIZED')
+  }
+
+  return refreshToken
+}
+
+const toRotatedSession = (session: Session | null | undefined): ChangePasswordResult['rotatedSession'] => {
+  if (!session?.access_token) {
+    return undefined
+  }
+
+  return {
+    token: session.access_token,
+    refreshToken: session.refresh_token
+  }
 }
 
 const getSocialCapabilities = () => {
@@ -367,6 +399,33 @@ export const supabaseAuthProvider: AuthProvider = {
 
     if (error) {
       throw toProviderError(error)
+    }
+  },
+
+  async updatePassword(input, context) {
+    const supabase = getSupabaseClient()
+    const accessToken = requireAccessToken(context.accessToken)
+    const refreshToken = requireRefreshToken(context.refreshToken)
+
+    const { data: setSessionData, error: setSessionError } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken
+    })
+
+    if (setSessionError) {
+      throw toProviderError(setSessionError)
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      password: input.password
+    })
+
+    if (error) {
+      throw toProviderError(error)
+    }
+
+    return {
+      rotatedSession: toRotatedSession(setSessionData.session)
     }
   },
 

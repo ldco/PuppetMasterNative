@@ -26,6 +26,9 @@ const notImplementedProvider = (provider: string): AuthProvider => ({
   async requestPasswordReset() {
     throw new AuthProviderError(`${provider} auth provider is not implemented yet`, 'PROVIDER')
   },
+  async updatePassword() {
+    throw new AuthProviderError(`${provider} password update is not implemented yet`, 'NOT_SUPPORTED')
+  },
   async logout() {
     throw new AuthProviderError(`${provider} auth provider is not implemented yet`, 'PROVIDER')
   },

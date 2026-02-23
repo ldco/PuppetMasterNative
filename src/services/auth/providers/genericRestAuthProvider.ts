@@ -180,6 +180,10 @@ export const genericRestAuthProvider: AuthProvider = {
     })
   },
 
+  async updatePassword() {
+    throw new AuthProviderError('generic-rest direct password update is not implemented yet', 'NOT_SUPPORTED')
+  },
+
   async logout({ accessToken }) {
     if (!accessToken) {
       return
