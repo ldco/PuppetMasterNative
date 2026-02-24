@@ -7,6 +7,55 @@ Planning note:
 - Canonical current roadmap + immediate next-step list now lives in `docs/pmnative/ROADMAP.md`.
 - This handoff file is for session history, implementation notes, and review findings.
 
+## Session Update (2026-02-25, PMN-074 next phase started: revoke audit context contract)
+
+### Current architecture decisions
+- Extended session revoke mutation payloads to support structured audit context:
+  - `context.source`
+  - `context.action`
+- Kept contracts explicit and forward-looking:
+  - reason strings remain human/audit-oriented
+  - context fields encode machine-readable action provenance
+- Consolidated force-logout action metadata in service-level constants:
+  - `ADMIN_SESSION_REVOKE_REASONS`
+  - `ADMIN_SESSION_REVOKE_CONTEXTS`
+
+### Completed work
+- Provider contract updates:
+  - added `AdminProviderSessionRevokeAuditContext`
+  - added optional `auditContext` to revoke input types
+  - provider now sends optional `body.context` with trimmed values
+  - file: `src/services/admin.provider.types.ts`, `src/services/admin.provider.ts`
+- Service contract updates:
+  - added `AdminSessionRevokeAuditContext`
+  - `adminService.revokeUserSessions(...)` and `adminService.revokeUserSession(...)` now normalize + pass `auditContext`
+  - centralized reason/context constants
+  - file: `src/services/admin.service.ts`
+- Hook + UI wiring:
+  - `useAdminUserSessions` now accepts optional `auditContext` in `revokeAll`/`revokeOne`
+  - admin user-detail passes structured context for force-logout actions
+  - file: `src/hooks/useAdminUserSessions.ts`, `src/app/(admin)/users/[id].tsx`
+- Tests:
+  - provider/service tests now assert reason + context trimming and passthrough
+  - files:
+    - `tests/services/admin.provider.test.ts`
+    - `tests/services/admin.service.test.ts`
+- Docs:
+  - PMN-074 force-logout contract now documents optional `context` body shape
+  - file: `docs/GENERIC_REST_AUTH_PROVIDER_CONTRACT.md`
+
+### Validation
+- `npm run typecheck` passed
+- `npm test -- --run tests/services/admin.provider.test.ts tests/services/admin.service.test.ts` passed (`70` tests)
+- `npm test -- --run` passed (`116` tests total)
+
+### Remaining tasks
+- Decide whether PMN-074 should constrain `context.source` / `context.action` to enums at contract level or remain free-form strings.
+- Consider exposing revoke reason/context controls in UI for master/admin policy workflows (currently deterministic constants only).
+
+### Next phase goals
+- Continue PMN-074 governance slice with typed reason/context taxonomy enforcement and provider capability details for audit-required endpoints.
+
 ## Session Update (2026-02-25, clean-architecture refactor pass: PMN-074 session metadata normalization)
 
 ### Current architecture decisions

@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { AdminProviderCapabilities } from '@/services/admin.provider.types'
-import { adminService, type AdminUserSession } from '@/services/admin.service'
+import {
+  adminService,
+  type AdminSessionRevokeAuditContext,
+  type AdminUserSession
+} from '@/services/admin.service'
 import { useAuthStore } from '@/stores/auth.store'
 
 interface UseAdminUserSessionsResult {
@@ -17,8 +21,12 @@ interface UseAdminUserSessionsResult {
   sourceDetail: string
   capability: AdminProviderCapabilities
   refresh: () => Promise<void>
-  revokeAll: (reason?: string) => Promise<number | null>
-  revokeOne: (sessionId: string, reason?: string) => Promise<number | null>
+  revokeAll: (reason?: string, auditContext?: AdminSessionRevokeAuditContext) => Promise<number | null>
+  revokeOne: (
+    sessionId: string,
+    reason?: string,
+    auditContext?: AdminSessionRevokeAuditContext
+  ) => Promise<number | null>
   clearSessionMutationError: (sessionId: string) => void
 }
 
@@ -181,7 +189,8 @@ export const useAdminUserSessions = (userId: string | null): UseAdminUserSession
     }))
   }, [])
 
-  const revokeAll = useCallback(async (reason?: string): Promise<number | null> => {
+  const revokeAll = useCallback(
+    async (reason?: string, auditContext?: AdminSessionRevokeAuditContext): Promise<number | null> => {
     if (!userId || isRefreshing || hasSessionMutationInFlight) {
       return null
     }
@@ -197,7 +206,8 @@ export const useAdminUserSessions = (userId: string | null): UseAdminUserSession
         activeUser,
         accessToken,
         userId,
-        reason
+        reason,
+        auditContext
       })
       if (!mountedRef.current || requestId !== requestIdRef.current) {
         return result.revokedCount
@@ -223,9 +233,20 @@ export const useAdminUserSessions = (userId: string | null): UseAdminUserSession
         setIsRevoking(false)
       }
     }
-  }, [accessToken, activeUser, applyRevokeAllOptimisticPatch, hasSessionMutationInFlight, isRefreshing, userId])
+  }, [
+    accessToken,
+    activeUser,
+    applyRevokeAllOptimisticPatch,
+    hasSessionMutationInFlight,
+    isRefreshing,
+    userId
+  ])
 
-  const revokeOne = useCallback(async (sessionId: string, reason?: string): Promise<number | null> => {
+  const revokeOne = useCallback(async (
+    sessionId: string,
+    reason?: string,
+    auditContext?: AdminSessionRevokeAuditContext
+  ): Promise<number | null> => {
     if (!userId || isRefreshing || hasSessionMutationInFlight) {
       return null
     }
@@ -242,7 +263,8 @@ export const useAdminUserSessions = (userId: string | null): UseAdminUserSession
         accessToken,
         userId,
         sessionId,
-        reason
+        reason,
+        auditContext
       })
       if (!mountedRef.current || requestId !== requestIdRef.current) {
         return result.revokedCount

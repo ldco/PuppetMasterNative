@@ -1967,7 +1967,7 @@ describe('adminService', () => {
     })
   })
 
-  it('passes trimmed reason to revokeUserSessions provider call', async () => {
+  it('passes trimmed reason and context to revokeUserSessions provider call', async () => {
     const { adminService } = await import('@/services/admin.service')
 
     mockAdminProvider.getCapabilities.mockReturnValue({
@@ -2017,13 +2017,21 @@ describe('adminService', () => {
       },
       accessToken: 'token',
       userId: 'u2',
-      reason: '  suspicious_activity  '
+      reason: '  suspicious_activity  ',
+      auditContext: {
+        source: ' admin-user-detail ',
+        action: ' force-logout-all '
+      }
     })
 
     expect(mockAdminProvider.revokeUserSessions).toHaveBeenCalledWith({
       accessToken: 'token',
       userId: 'u2',
-      reason: 'suspicious_activity'
+      reason: 'suspicious_activity',
+      auditContext: {
+        source: 'admin-user-detail',
+        action: 'force-logout-all'
+      }
     })
   })
 
@@ -2174,7 +2182,7 @@ describe('adminService', () => {
     })
   })
 
-  it('passes trimmed reason to revokeUserSession provider call', async () => {
+  it('passes trimmed reason and context to revokeUserSession provider call', async () => {
     const { adminService } = await import('@/services/admin.service')
 
     mockAdminProvider.getCapabilities.mockReturnValue({
@@ -2228,14 +2236,22 @@ describe('adminService', () => {
       accessToken: 'token',
       userId: 'u2',
       sessionId: 'sess-1',
-      reason: '  manual_security_reset  '
+      reason: '  manual_security_reset  ',
+      auditContext: {
+        source: ' admin-user-detail ',
+        action: ' force-logout-one '
+      }
     })
 
     expect(mockAdminProvider.revokeUserSession).toHaveBeenCalledWith({
       accessToken: 'token',
       userId: 'u2',
       sessionId: 'sess-1',
-      reason: 'manual_security_reset'
+      reason: 'manual_security_reset',
+      auditContext: {
+        source: 'admin-user-detail',
+        action: 'force-logout-one'
+      }
     })
   })
 

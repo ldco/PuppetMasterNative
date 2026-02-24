@@ -17,7 +17,10 @@ import { useAdminUserSessions } from '@/hooks/useAdminUserSessions'
 import { useConfirm } from '@/hooks/useConfirm'
 import { useTheme } from '@/hooks/useTheme'
 import { useToast } from '@/hooks/useToast'
-import { ADMIN_SESSION_REVOKE_REASONS } from '@/services/admin.service'
+import {
+  ADMIN_SESSION_REVOKE_CONTEXTS,
+  ADMIN_SESSION_REVOKE_REASONS
+} from '@/services/admin.service'
 import { useAuthStore } from '@/stores/auth.store'
 import type { Role } from '@/types/config'
 
@@ -291,7 +294,10 @@ export default function AdminUserDetailScreen() {
                         return
                       }
 
-                      await revokeAllSessions(ADMIN_SESSION_REVOKE_REASONS.FORCE_LOGOUT_ALL)
+                      await revokeAllSessions(
+                        ADMIN_SESSION_REVOKE_REASONS.FORCE_LOGOUT_ALL,
+                        ADMIN_SESSION_REVOKE_CONTEXTS.FORCE_LOGOUT_ALL
+                      )
                         .then((revokedCount) => {
                           toast(
                             typeof revokedCount === 'number'
@@ -387,7 +393,11 @@ export default function AdminUserDetailScreen() {
                                 return
                               }
 
-                              await revokeOneSession(session.id, ADMIN_SESSION_REVOKE_REASONS.FORCE_LOGOUT_ONE)
+                              await revokeOneSession(
+                                session.id,
+                                ADMIN_SESSION_REVOKE_REASONS.FORCE_LOGOUT_ONE,
+                                ADMIN_SESSION_REVOKE_CONTEXTS.FORCE_LOGOUT_ONE
+                              )
                                 .then((revokedCount) => {
                                   toast(
                                     typeof revokedCount === 'number'

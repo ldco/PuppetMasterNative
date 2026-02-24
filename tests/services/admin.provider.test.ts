@@ -1205,7 +1205,7 @@ describe('adminProvider', () => {
     })
   })
 
-  it('generic-rest revokeUserSessions sends trimmed reason payload when provided', async () => {
+  it('generic-rest revokeUserSessions sends trimmed reason and context payload when provided', async () => {
     const apiRequestMock = vi.fn().mockResolvedValue({
       success: true,
       data: {
@@ -1226,7 +1226,11 @@ describe('adminProvider', () => {
       adminProvider.revokeUserSessions({
         accessToken: 'token',
         userId: 'u7',
-        reason: '  suspicious_activity  '
+        reason: '  suspicious_activity  ',
+        auditContext: {
+          source: ' admin-user-detail ',
+          action: ' force-logout-all '
+        }
       })
     ).resolves.toEqual({
       revokedCount: 2
@@ -1236,14 +1240,18 @@ describe('adminProvider', () => {
       method: 'POST',
       token: 'token',
       body: {
-        reason: 'suspicious_activity'
+        reason: 'suspicious_activity',
+        context: {
+          source: 'admin-user-detail',
+          action: 'force-logout-all'
+        }
       },
       schema: expect.any(Object),
       useAuthToken: false
     })
   })
 
-  it('generic-rest revokeUserSession sends trimmed reason payload when provided', async () => {
+  it('generic-rest revokeUserSession sends trimmed reason and context payload when provided', async () => {
     const apiRequestMock = vi.fn().mockResolvedValue({
       count: 1
     })
@@ -1262,7 +1270,11 @@ describe('adminProvider', () => {
         accessToken: 'token',
         userId: 'u7',
         sessionId: 'sess-3',
-        reason: '  manual_security_reset '
+        reason: '  manual_security_reset ',
+        auditContext: {
+          source: ' admin-user-detail ',
+          action: ' force-logout-one '
+        }
       })
     ).resolves.toEqual({
       session: null,
@@ -1273,7 +1285,11 @@ describe('adminProvider', () => {
       method: 'POST',
       token: 'token',
       body: {
-        reason: 'manual_security_reset'
+        reason: 'manual_security_reset',
+        context: {
+          source: 'admin-user-detail',
+          action: 'force-logout-one'
+        }
       },
       schema: expect.any(Object),
       useAuthToken: false

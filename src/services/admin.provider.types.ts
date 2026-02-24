@@ -111,13 +111,20 @@ export interface AdminProviderUpdateUserLockInput extends AdminProviderGetUserIn
 
 export interface AdminProviderListUserSessionsInput extends AdminProviderGetUserInput {}
 
+export interface AdminProviderSessionRevokeAuditContext {
+  source?: string
+  action?: string
+}
+
 export interface AdminProviderRevokeUserSessionsInput extends AdminProviderGetUserInput {
   reason?: string
+  auditContext?: AdminProviderSessionRevokeAuditContext
 }
 
 export interface AdminProviderRevokeUserSessionInput extends AdminProviderGetUserInput {
   sessionId: string
   reason?: string
+  auditContext?: AdminProviderSessionRevokeAuditContext
 }
 
 export interface AdminProviderDirectoryUser {

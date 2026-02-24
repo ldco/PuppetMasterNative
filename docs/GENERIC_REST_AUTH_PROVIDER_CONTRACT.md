@@ -882,14 +882,20 @@ PMNative sends:
 
 ```json
 {
-  "reason": "admin_user_detail_force_logout_all_sessions"
+  "reason": "admin_user_detail_force_logout_all_sessions",
+  "context": {
+    "source": "admin-user-detail",
+    "action": "force-logout-all"
+  }
 }
 ```
 
 Notes:
 
 - `reason` is optional.
+- `context` is optional and can include lightweight audit metadata (`source`, `action`).
 - PMNative trims reason values and omits blank strings from request bodies.
+- PMNative also trims context field values and omits blank context values.
 
 ### Revoke Single Session (`POST /admin/users/:id/sessions/:sessionId/revoke`)
 
@@ -903,7 +909,11 @@ PMNative sends:
 
 ```json
 {
-  "reason": "admin_user_detail_force_logout_single_session"
+  "reason": "admin_user_detail_force_logout_single_session",
+  "context": {
+    "source": "admin-user-detail",
+    "action": "force-logout-one"
+  }
 }
 ```
 

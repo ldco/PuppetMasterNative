@@ -95,16 +95,34 @@ export interface AdminUserDetailQueryInput extends AdminDirectoryQueryInput {
 
 export interface AdminRevokeUserSessionsInput extends AdminUserDetailQueryInput {
   reason?: string
+  auditContext?: AdminSessionRevokeAuditContext
 }
 
 export interface AdminRevokeUserSessionInput extends AdminUserDetailQueryInput {
   sessionId: string
   reason?: string
+  auditContext?: AdminSessionRevokeAuditContext
 }
 
 export const ADMIN_SESSION_REVOKE_REASONS = {
   FORCE_LOGOUT_ALL: 'admin_user_detail_force_logout_all_sessions',
   FORCE_LOGOUT_ONE: 'admin_user_detail_force_logout_single_session'
+} as const
+
+export interface AdminSessionRevokeAuditContext {
+  source?: string
+  action?: string
+}
+
+export const ADMIN_SESSION_REVOKE_CONTEXTS = {
+  FORCE_LOGOUT_ALL: {
+    source: 'admin-user-detail',
+    action: 'force-logout-all'
+  },
+  FORCE_LOGOUT_ONE: {
+    source: 'admin-user-detail',
+    action: 'force-logout-one'
+  }
 } as const
 
 export interface AdminUpdateUserRoleInput extends AdminUserDetailQueryInput {
@@ -316,6 +334,32 @@ const toTrimmedReason = (reason?: string): string | undefined => {
 
   const normalizedReason = reason.trim()
   return normalizedReason.length > 0 ? normalizedReason : undefined
+}
+
+const toNormalizedAuditContext = (
+  auditContext?: AdminSessionRevokeAuditContext
+): AdminSessionRevokeAuditContext | undefined => {
+  if (!auditContext) {
+    return undefined
+  }
+
+  const source =
+    typeof auditContext.source === 'string' && auditContext.source.trim().length > 0
+      ? auditContext.source.trim()
+      : undefined
+  const action =
+    typeof auditContext.action === 'string' && auditContext.action.trim().length > 0
+      ? auditContext.action.trim()
+      : undefined
+
+  if (!source && !action) {
+    return undefined
+  }
+
+  return {
+    ...(source ? { source } : {}),
+    ...(action ? { action } : {})
+  }
 }
 
 const toFallbackSettings = (): AdminSettingsSnapshot => {
@@ -896,7 +940,8 @@ export const adminService = {
     const result = await adminProvider.revokeUserSessions({
       accessToken: input.accessToken,
       userId: input.userId,
-      reason: toTrimmedReason(input.reason)
+      reason: toTrimmedReason(input.reason),
+      auditContext: toNormalizedAuditContext(input.auditContext)
     })
 
     return {
@@ -920,7 +965,8 @@ export const adminService = {
       accessToken: input.accessToken,
       userId: input.userId,
       sessionId: input.sessionId,
-      reason: toTrimmedReason(input.reason)
+      reason: toTrimmedReason(input.reason),
+      auditContext: toNormalizedAuditContext(input.auditContext)
     })
 
     return {
