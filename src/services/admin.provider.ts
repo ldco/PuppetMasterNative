@@ -302,11 +302,19 @@ const genericRestAdminUserSessionSchema = z.object({
   created_at: z.string().min(1).nullable().optional(),
   lastSeenAt: z.string().min(1).nullable().optional(),
   last_seen_at: z.string().min(1).nullable().optional(),
+  expiresAt: z.string().min(1).nullable().optional(),
+  expires_at: z.string().min(1).nullable().optional(),
   ipAddress: z.string().min(1).nullable().optional(),
   ip_address: z.string().min(1).nullable().optional(),
   ip: z.string().min(1).nullable().optional(),
   userAgent: z.string().min(1).nullable().optional(),
   user_agent: z.string().min(1).nullable().optional(),
+  deviceLabel: z.string().min(1).nullable().optional(),
+  device_label: z.string().min(1).nullable().optional(),
+  deviceName: z.string().min(1).nullable().optional(),
+  device_name: z.string().min(1).nullable().optional(),
+  device: z.string().min(1).nullable().optional(),
+  platform: z.string().min(1).nullable().optional(),
   current: z.boolean().optional(),
   isCurrent: z.boolean().optional(),
   revoked: z.boolean().optional(),
@@ -632,8 +640,17 @@ const normalizeAdminUserSession = (
 ): AdminProviderUserSession => {
   const createdAt = session.createdAt ?? session.created_at ?? null
   const lastSeenAt = session.lastSeenAt ?? session.last_seen_at ?? null
+  const expiresAt = session.expiresAt ?? session.expires_at ?? null
   const ipAddress = session.ipAddress ?? session.ip_address ?? session.ip ?? null
   const userAgent = session.userAgent ?? session.user_agent ?? null
+  const deviceLabel =
+    session.deviceLabel ??
+    session.device_label ??
+    session.deviceName ??
+    session.device_name ??
+    session.device ??
+    null
+  const platform = session.platform ?? null
   const current = typeof session.current === 'boolean' ? session.current : session.isCurrent
   const revoked = typeof session.revoked === 'boolean' ? session.revoked : session.isRevoked
   const id =
@@ -645,8 +662,11 @@ const normalizeAdminUserSession = (
     id,
     createdAt,
     lastSeenAt,
+    expiresAt,
     ipAddress,
     userAgent,
+    deviceLabel,
+    platform,
     ...(typeof current === 'boolean' ? { current } : {}),
     ...(typeof revoked === 'boolean' ? { revoked } : {})
   }

@@ -19,8 +19,11 @@ export interface AdminUserSession {
   id: string
   createdAt: string | null
   lastSeenAt: string | null
+  expiresAt: string | null
   ipAddress: string | null
   userAgent: string | null
+  deviceLabel: string | null
+  platform: string | null
   current?: boolean
   revoked?: boolean
 }
@@ -98,6 +101,11 @@ export interface AdminRevokeUserSessionInput extends AdminUserDetailQueryInput {
   sessionId: string
   reason?: string
 }
+
+export const ADMIN_SESSION_REVOKE_REASONS = {
+  FORCE_LOGOUT_ALL: 'admin_user_detail_force_logout_all_sessions',
+  FORCE_LOGOUT_ONE: 'admin_user_detail_force_logout_single_session'
+} as const
 
 export interface AdminUpdateUserRoleInput extends AdminUserDetailQueryInput {
   role: Role

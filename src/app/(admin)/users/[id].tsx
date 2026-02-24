@@ -17,6 +17,7 @@ import { useAdminUserSessions } from '@/hooks/useAdminUserSessions'
 import { useConfirm } from '@/hooks/useConfirm'
 import { useTheme } from '@/hooks/useTheme'
 import { useToast } from '@/hooks/useToast'
+import { ADMIN_SESSION_REVOKE_REASONS } from '@/services/admin.service'
 import { useAuthStore } from '@/stores/auth.store'
 import type { Role } from '@/types/config'
 
@@ -31,9 +32,6 @@ const resolveParamString = (value: string | string[] | undefined): string | null
 
   return null
 }
-
-const FORCE_LOGOUT_ALL_REASON = 'admin_user_detail_force_logout_all_sessions'
-const FORCE_LOGOUT_ONE_REASON = 'admin_user_detail_force_logout_single_session'
 
 export default function AdminUserDetailScreen() {
   const router = useRouter()
@@ -293,7 +291,7 @@ export default function AdminUserDetailScreen() {
                         return
                       }
 
-                      await revokeAllSessions(FORCE_LOGOUT_ALL_REASON)
+                      await revokeAllSessions(ADMIN_SESSION_REVOKE_REASONS.FORCE_LOGOUT_ALL)
                         .then((revokedCount) => {
                           toast(
                             typeof revokedCount === 'number'
@@ -347,6 +345,12 @@ export default function AdminUserDetailScreen() {
                       <Text tone="secondary" variant="caption">
                         Agent: {session.userAgent ?? 'unknown'}
                       </Text>
+                      <Text tone="secondary" variant="caption">
+                        Device: {session.deviceLabel ?? 'unknown'} • Platform: {session.platform ?? 'unknown'}
+                      </Text>
+                      <Text tone="secondary" variant="caption">
+                        Expires: {session.expiresAt ?? 'unknown'}
+                      </Text>
                       <View style={styles.actions}>
                         <Button
                           disabled={
@@ -383,7 +387,7 @@ export default function AdminUserDetailScreen() {
                                 return
                               }
 
-                              await revokeOneSession(session.id, FORCE_LOGOUT_ONE_REASON)
+                              await revokeOneSession(session.id, ADMIN_SESSION_REVOKE_REASONS.FORCE_LOGOUT_ONE)
                                 .then((revokedCount) => {
                                   toast(
                                     typeof revokedCount === 'number'

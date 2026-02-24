@@ -1029,15 +1029,21 @@ describe('adminProvider', () => {
             id: 'sess-1',
             created_at: '2026-02-24T00:00:00.000Z',
             last_seen_at: '2026-02-24T01:00:00.000Z',
+            expires_at: '2026-02-24T05:00:00.000Z',
             ip: '10.0.0.1',
             user_agent: 'Expo Go',
+            device_name: 'iPhone 15 Pro',
+            platform: 'ios',
             isCurrent: true,
             isRevoked: false
           },
           {
             createdAt: '2026-02-24T00:10:00.000Z',
+            expiresAt: '2026-02-24T04:00:00.000Z',
             ipAddress: '10.0.0.2',
-            userAgent: 'Chrome'
+            userAgent: 'Chrome',
+            deviceLabel: 'Chrome Browser',
+            platform: 'web'
           }
         ]
       }
@@ -1059,8 +1065,11 @@ describe('adminProvider', () => {
         id: 'sess-1',
         createdAt: '2026-02-24T00:00:00.000Z',
         lastSeenAt: '2026-02-24T01:00:00.000Z',
+        expiresAt: '2026-02-24T05:00:00.000Z',
         ipAddress: '10.0.0.1',
         userAgent: 'Expo Go',
+        deviceLabel: 'iPhone 15 Pro',
+        platform: 'ios',
         current: true,
         revoked: false
       },
@@ -1068,8 +1077,11 @@ describe('adminProvider', () => {
         id: '2026-02-24T00:10:00.000Z:1:10.0.0.2',
         createdAt: '2026-02-24T00:10:00.000Z',
         lastSeenAt: null,
+        expiresAt: '2026-02-24T04:00:00.000Z',
         ipAddress: '10.0.0.2',
-        userAgent: 'Chrome'
+        userAgent: 'Chrome',
+        deviceLabel: 'Chrome Browser',
+        platform: 'web'
       }
     ])
 
@@ -1131,8 +1143,11 @@ describe('adminProvider', () => {
           session: {
             id: 'sess-2',
             last_seen_at: '2026-02-24T02:00:00.000Z',
+            expires_at: '2026-02-24T07:00:00.000Z',
             ip: '10.0.0.8',
             user_agent: 'Safari',
+            device_name: 'MacBook Air',
+            platform: 'web',
             isRevoked: true
           }
         }
@@ -1161,8 +1176,11 @@ describe('adminProvider', () => {
         id: 'sess-2',
         createdAt: null,
         lastSeenAt: '2026-02-24T02:00:00.000Z',
+        expiresAt: '2026-02-24T07:00:00.000Z',
         ipAddress: '10.0.0.8',
         userAgent: 'Safari',
+        deviceLabel: 'MacBook Air',
+        platform: 'web',
         revoked: true
       },
       revokedCount: null

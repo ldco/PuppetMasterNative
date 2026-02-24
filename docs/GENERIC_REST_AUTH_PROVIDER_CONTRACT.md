@@ -864,8 +864,11 @@ Session object aliases normalized by PMNative include:
 
 - `createdAt` / `created_at`
 - `lastSeenAt` / `last_seen_at`
+- `expiresAt` / `expires_at`
 - `ipAddress` / `ip_address` / `ip`
 - `userAgent` / `user_agent`
+- `deviceLabel` / `device_label` / `deviceName` / `device_name` / `device`
+- `platform`
 - `current` / `isCurrent`
 - `revoked` / `isRevoked`
 

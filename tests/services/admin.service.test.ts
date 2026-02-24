@@ -1859,8 +1859,11 @@ describe('adminService', () => {
         id: 'sess-1',
         createdAt: '2026-02-24T00:00:00.000Z',
         lastSeenAt: '2026-02-24T01:00:00.000Z',
+        expiresAt: '2026-02-24T05:00:00.000Z',
         ipAddress: '10.0.0.1',
         userAgent: 'Expo Go',
+        deviceLabel: 'iPhone 15 Pro',
+        platform: 'ios',
         current: true,
         revoked: false
       }
@@ -1887,8 +1890,11 @@ describe('adminService', () => {
           id: 'sess-1',
           createdAt: '2026-02-24T00:00:00.000Z',
           lastSeenAt: '2026-02-24T01:00:00.000Z',
+          expiresAt: '2026-02-24T05:00:00.000Z',
           ipAddress: '10.0.0.1',
           userAgent: 'Expo Go',
+          deviceLabel: 'iPhone 15 Pro',
+          platform: 'ios',
           current: true,
           revoked: false
         }
@@ -2123,8 +2129,11 @@ describe('adminService', () => {
         id: 'sess-1',
         createdAt: '2026-02-24T00:00:00.000Z',
         lastSeenAt: '2026-02-24T01:00:00.000Z',
+        expiresAt: '2026-02-24T05:00:00.000Z',
         ipAddress: '10.0.0.1',
         userAgent: 'Expo Go',
+        deviceLabel: 'iPhone 15 Pro',
+        platform: 'ios',
         revoked: true
       },
       revokedCount: 1
@@ -2152,8 +2161,11 @@ describe('adminService', () => {
         id: 'sess-1',
         createdAt: '2026-02-24T00:00:00.000Z',
         lastSeenAt: '2026-02-24T01:00:00.000Z',
+        expiresAt: '2026-02-24T05:00:00.000Z',
         ipAddress: '10.0.0.1',
         userAgent: 'Expo Go',
+        deviceLabel: 'iPhone 15 Pro',
+        platform: 'ios',
         revoked: true
       },
       revokedCount: 1,

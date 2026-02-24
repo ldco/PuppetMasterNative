@@ -7,6 +7,60 @@ Planning note:
 - Canonical current roadmap + immediate next-step list now lives in `docs/pmnative/ROADMAP.md`.
 - This handoff file is for session history, implementation notes, and review findings.
 
+## Session Update (2026-02-25, clean-architecture refactor pass: PMN-074 session metadata normalization)
+
+### Current architecture decisions
+- Treated admin session payload normalization as a first-class contract instead of a thin minimal shape:
+  - session metadata now includes `expiresAt`, `deviceLabel`, and `platform` end-to-end.
+- Removed UI-level hardcoded revoke-reason string duplication by centralizing reason constants in service contracts:
+  - `ADMIN_SESSION_REVOKE_REASONS.FORCE_LOGOUT_ALL`
+  - `ADMIN_SESSION_REVOKE_REASONS.FORCE_LOGOUT_ONE`
+- Kept provider/service interfaces strict and explicit, preferring normalized fields over ad-hoc backend alias access in UI code.
+
+### Issues identified
+- Session normalization was too shallow for roadmap direction (`session expiry/device metadata`), forcing UI to rely on partial telemetry.
+- Revoke reason strings were duplicated in screen code, increasing drift risk versus provider/service/docs.
+- PMN-074 session contract docs were missing metadata alias details needed by backend implementers.
+
+### Completed work
+- Refactored session contracts:
+  - `AdminProviderUserSession` + `AdminUserSession` now include:
+    - `expiresAt`
+    - `deviceLabel`
+    - `platform`
+  - Files:
+    - `src/services/admin.provider.types.ts`
+    - `src/services/admin.service.ts`
+- Extended provider normalization:
+  - accepts/normalizes alias fields:
+    - `expiresAt` / `expires_at`
+    - `deviceLabel` / `device_label` / `deviceName` / `device_name` / `device`
+    - `platform`
+  - Files:
+    - `src/services/admin.provider.ts`
+- Admin user-detail UI now renders normalized metadata and uses centralized reason constants.
+  - File:
+    - `src/app/(admin)/users/[id].tsx`
+- Updated tests for richer session contracts and reason passthrough behavior:
+  - `tests/services/admin.provider.test.ts`
+  - `tests/services/admin.service.test.ts`
+- Updated PMN-074 contract docs:
+  - added session metadata alias map and force-logout reason body examples
+  - File:
+    - `docs/GENERIC_REST_AUTH_PROVIDER_CONTRACT.md`
+
+### Validation
+- `npm run typecheck` passed
+- `npm test -- --run tests/services/admin.provider.test.ts tests/services/admin.service.test.ts` passed (`70` tests)
+- `npm test -- --run` passed (`116` tests total)
+
+### Remaining tasks
+- Continue PMN-074 governance scope with stricter session audit payload semantics (optional actor/context metadata for revoke actions if backend contract adopts it).
+- Add hook-level coverage for `useAdminUserSessions` to validate reason passthrough + optimistic patch behavior at orchestration level.
+
+### Next phase goals
+- PMN-074 next contract slice: introduce explicit audit context fields for admin session revoke mutations (for example reason category / actor intent metadata), then wire provider tests first before UI adjustments.
+
 ## Session Update (2026-02-25, PMN-074 contract-first slice: force-logout reason metadata passthrough)
 
 ### Current status

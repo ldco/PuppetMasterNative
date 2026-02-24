@@ -141,8 +141,11 @@ export interface AdminProviderUserSession {
   id: string
   createdAt: string | null
   lastSeenAt: string | null
+  expiresAt: string | null
   ipAddress: string | null
   userAgent: string | null
+  deviceLabel: string | null
+  platform: string | null
   current?: boolean
   revoked?: boolean
 }
