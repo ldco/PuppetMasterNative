@@ -7,6 +7,38 @@ Planning note:
 - Canonical current roadmap + immediate next-step list now lives in `docs/pmnative/ROADMAP.md`.
 - This handoff file is for session history, implementation notes, and review findings.
 
+## Session Update (2026-02-25, checkpoint after PMN-074 session-governance refactor + audit-context phase start)
+
+### Current status
+- Branch: `master`
+- Working tree: clean
+- Latest pushed commits:
+  - `b185ed3` `feat(admin): add structured revoke audit context for PMN-074 sessions`
+  - `208a519` `refactor(admin): normalize session metadata contracts and centralize revoke reasons`
+
+### Architecture snapshot
+- PMN-074 admin session revoke flow now uses:
+  - normalized session metadata contract (`expiresAt`, `deviceLabel`, `platform`)
+  - centralized revoke reason constants
+  - structured optional revoke audit context (`context.source`, `context.action`)
+- Provider/service/tests/docs are aligned on the above contract.
+
+### Validation snapshot
+- Last green validation for the current phase:
+  - `npm run typecheck`
+  - `npm test -- --run tests/services/admin.provider.test.ts tests/services/admin.service.test.ts`
+  - `npm test -- --run`
+
+### Remaining tasks
+- Continue PMN-074 governance hardening by deciding whether reason/context should be constrained to strict enums.
+- If strict taxonomy is adopted, enforce it in provider/service contracts and docs before UI expansion.
+
+### Next phase goals
+- Extend PMN-074 policy/governance semantics beyond free-form strings:
+  - typed revoke reason taxonomy
+  - typed audit context taxonomy
+  - capability/reporting hooks for endpoints that require audit metadata
+
 ## Session Update (2026-02-25, PMN-074 next phase started: revoke audit context contract)
 
 ### Current architecture decisions
