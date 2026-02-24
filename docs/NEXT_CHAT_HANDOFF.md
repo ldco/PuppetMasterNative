@@ -7,6 +7,139 @@ Planning note:
 - Canonical current roadmap + immediate next-step list now lives in `docs/pmnative/ROADMAP.md`.
 - This handoff file is for session history, implementation notes, and review findings.
 
+## Session Update (2026-02-24, handoff refresh snapshot for PMN-074 export filters slice)
+
+### Current status
+- Branch: `master`
+- Base commit: `c8415be` (`feat(admin): scaffold filtered log export requests`)
+- Working tree is dirty and intentionally uncommitted for the active PMN-074 UI wiring slice.
+
+### Uncommitted files
+- `src/app/(admin)/logs.tsx`
+- `src/hooks/useAdminLogs.ts`
+- `docs/NEXT_CHAT_HANDOFF.md`
+
+### What is in progress
+- Admin logs export filters UI is wired (`query`, `levels`, `from`, `to`) and passed through `useAdminLogs.exportLogs(...)`.
+- Client-side export date validation and retry-snapshot behavior are implemented.
+- Last export result traceability now includes a filter summary.
+
+### Validation state
+- Last known green run (from the current slice before this refresh):
+  - `npm run typecheck`
+  - `npm test -- --run tests/services/admin.provider.test.ts tests/services/admin.service.test.ts`
+  - `npm test -- --run`
+- No additional commands were run during this handoff refresh step.
+
+### Resume checklist for next chat
+- Add focused hook/UI tests for export filter validation + retry-snapshot behavior.
+- Decide whether timestamp validation should require UTC `Z` or allow any parseable ISO value.
+- Commit and push the current PMN-074 export-filters UI batch when ready.
+
+## Session Update (2026-02-24, PMN-074 export filters helper extraction + validation/snapshot tests)
+
+### Current status
+- Continued the in-progress admin logs export-filters slice by extracting filter logic into a pure helper module and adding focused unit coverage.
+- Goal was to reduce regression risk around date validation + retry filter snapshots without introducing a new screen-test harness.
+
+### Completed work
+- Added `src/app/(admin)/logs.exportFilters.ts` with reusable export filter helpers:
+  - `createEmptyExportFilterDraft`
+  - `cloneExportFilterDraft`
+  - `summarizeExportFilters`
+  - `validateExportDateFilters`
+  - related filter level/constants/types
+- Refactored `src/app/(admin)/logs.tsx` to consume the helper module (no intended behavior change).
+- Added tests: `tests/app/admin.logs.exportFilters.test.ts`:
+  - summary generation
+  - clone/snapshot isolation behavior for retry state safety
+  - invalid from/to ISO validation errors
+  - invalid date-range validation
+  - valid/empty date acceptance
+
+### Validation
+- `npm run typecheck` passed
+- `npm test -- --run tests/app/admin.logs.exportFilters.test.ts` passed (`6` tests)
+- `npm test -- --run` passed (`106` tests total)
+
+### Open tasks
+- Decide whether to enforce stricter timestamp format semantics (for example UTC `Z` requirement) based on backend contract expectations.
+- Add integration-style coverage for screen-level retry wiring (`ErrorState` retry restoring last requested filters) if UI harness scope is expanded later.
+- Commit and push this combined PMN-074 filters UI + helper/test batch when ready.
+
+## Session Update (2026-02-24, PMN-074 timestamp policy decision and implementation)
+
+### Decision
+- Final export date filter rule is now: **RFC3339 timestamp with explicit timezone only** (`Z` or `+/-HH:MM`), then normalize to UTC before request dispatch.
+- Timezone-less timestamps are rejected client-side.
+
+### Completed work
+- Updated `src/app/(admin)/logs.exportFilters.ts` validation logic:
+  - requires RFC3339 with timezone
+  - normalizes valid `from`/`to` values via `toISOString()`
+  - performs range check on normalized values
+  - returns normalized values to callers
+- Updated `src/app/(admin)/logs.tsx` export flow:
+  - uses normalized `from`/`to` in `exportLogs(...)` requests
+  - keeps retry/last-success snapshots aligned with normalized payload values
+  - updates helper copy to document timezone requirement and UTC normalization
+- Expanded tests in `tests/app/admin.logs.exportFilters.test.ts`:
+  - timezone-less timestamps rejected
+  - offset timestamps accepted and normalized to UTC
+  - normalized values asserted across success/failure cases
+
+### Validation
+- `npm run typecheck` passed
+- `npm test -- --run tests/app/admin.logs.exportFilters.test.ts` passed (`8` tests)
+- `npm test -- --run` passed (`108` tests total)
+
+### Open tasks
+- Add integration-style screen/hook coverage for `ErrorState` retry path if we decide to introduce UI harness testing.
+- Commit and push the current PMN-074 export-filters batch.
+
+## Session Update (2026-02-24, PMN-074 admin log export filters UI wiring + validation + traceability)
+
+### Current status
+- Continued the post-push `PMN-074` richer export filters slice by wiring UI controls into Admin Logs and passing filter inputs through `useAdminLogs -> adminService.exportLogs`.
+- Added client-side validation for export date filters and result traceability for the last successful export request.
+- Work is currently uncommitted (screen + hook only).
+
+### Completed work
+- Extended `useAdminLogs.exportLogs(...)` to accept optional export filters (while keeping current callers backward-compatible):
+  - `query`
+  - `levels`
+  - `from`
+  - `to`
+- Added admin logs export filter UI in `src/app/(admin)/logs.tsx`:
+  - `Export Query` text input
+  - `From` / `To` timestamp inputs (optional)
+  - level toggle chips/buttons (`debug`, `info`, `warning`, `error`, `audit`)
+  - `Clear export filters` action
+  - active filter summary text
+- Added client-side date filter validation before export:
+  - ISO timestamp format check for `from` / `to`
+  - range validation (`from <= to`)
+  - inline field/range errors + warning toast when invalid
+- Export retry behavior now reuses the last requested filter snapshot (not whatever is currently typed in the draft fields), so retry semantics remain deterministic.
+- Added “last export request filter” traceability:
+  - captures filter snapshot on successful export
+  - shows `Filters: ...` (or `Filters: none`) in the `Last export result` panel
+
+### Validation
+- `npm run typecheck` passed
+- `npm test -- --run tests/services/admin.provider.test.ts tests/services/admin.service.test.ts` passed (`66` tests)
+- `npm test -- --run` passed (`100` tests)
+
+### Open tasks
+- Decide whether to validate timestamp strings more strictly (UTC `Z` only vs any ISO parseable value) based on backend contract expectations.
+- Consider surfacing the same filter traceability in the export job-status panel (not just `Last export result`) if polling can span long sessions.
+- Add hook/UI tests for export filter validation and retry-snapshot behavior (currently manually reviewed + typechecked).
+- Commit and push this UI wiring/validation batch when ready.
+
+### Recommended next steps
+- Keep the current slice focused and add lightweight docs/hints for accepted timestamp format in admin export filters (or backend-specific examples).
+- If backend supports it, extend export result/job metadata to echo normalized filters so the client can display authoritative server-side applied filters.
+
 ## Session Update (2026-02-24, review/hardening pass for PMN-074 admin log export + job-status slice)
 
 ### Current status

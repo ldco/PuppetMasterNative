@@ -8,6 +8,7 @@ import { Text } from '@/components/atoms/Text'
 import { Card } from '@/components/molecules/Card'
 import { EmptyState } from '@/components/molecules/EmptyState'
 import { ErrorState } from '@/components/molecules/ErrorState'
+import { FormField } from '@/components/molecules/FormField'
 import { ListItem } from '@/components/molecules/ListItem'
 import { SearchBar } from '@/components/molecules/SearchBar'
 import { SectionHeader } from '@/components/molecules/SectionHeader'
@@ -17,6 +18,16 @@ import { useConfirm } from '@/hooks/useConfirm'
 import { useAdminLogs } from '@/hooks/useAdminLogs'
 import { useTheme } from '@/hooks/useTheme'
 import { useToast } from '@/hooks/useToast'
+import {
+  cloneExportFilterDraft,
+  createEmptyExportFilterDraft,
+  emptyExportFilterValidationState,
+  EXPORT_FILTER_LEVELS,
+  summarizeExportFilters,
+  validateExportDateFilters,
+  type ExportFilterDraft,
+  type ExportFilterValidationState
+} from './logs.exportFilters'
 
 const LOG_LIMIT = 50
 
@@ -55,6 +66,14 @@ export default function AdminLogsScreen() {
   } = useAdminLogs(LOG_LIMIT)
   const [query, setQuery] = useState('')
   const [lastRequestedExportFormat, setLastRequestedExportFormat] = useState<'json' | 'csv'>('json')
+  const [exportFilters, setExportFilters] = useState<ExportFilterDraft>(() => createEmptyExportFilterDraft())
+  const [lastRequestedExportFilters, setLastRequestedExportFilters] = useState<ExportFilterDraft>(() =>
+    createEmptyExportFilterDraft()
+  )
+  const [lastSuccessfulExportFilters, setLastSuccessfulExportFilters] = useState<ExportFilterDraft | null>(null)
+  const [exportFilterValidation, setExportFilterValidation] = useState<ExportFilterValidationState>(() =>
+    emptyExportFilterValidationState()
+  )
 
   const normalizedQuery = query.trim().toLowerCase()
   const filteredLogs = useMemo(() => {
@@ -71,6 +90,16 @@ export default function AdminLogsScreen() {
       )
     })
   }, [logs, normalizedQuery])
+
+  const hasActiveExportFilters =
+    exportFilters.query.trim().length > 0 ||
+    exportFilters.from.trim().length > 0 ||
+    exportFilters.to.trim().length > 0 ||
+    exportFilters.levels.length > 0
+  const exportFilterSummary = summarizeExportFilters(exportFilters)
+  const lastSuccessfulExportFilterSummary = lastSuccessfulExportFilters
+    ? summarizeExportFilters(lastSuccessfulExportFilters)
+    : null
 
   const styles = StyleSheet.create({
     screen: {
@@ -96,6 +125,27 @@ export default function AdminLogsScreen() {
       gap: tokens.spacing.sm,
       marginBottom: tokens.spacing.sm
     },
+    exportFilters: {
+      gap: tokens.spacing.sm,
+      marginBottom: tokens.spacing.sm
+    },
+    exportFilterFields: {
+      gap: tokens.spacing.sm
+    },
+    exportFilterRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: tokens.spacing.sm
+    },
+    exportFilterField: {
+      flex: 1,
+      minWidth: 180
+    },
+    exportLevelButtons: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: tokens.spacing.sm
+    },
     searchRow: {
       marginBottom: tokens.spacing.xs
     },
@@ -109,6 +159,21 @@ export default function AdminLogsScreen() {
       marginBottom: tokens.spacing.sm
     }
   })
+
+  const toggleExportLevel = (level: (typeof EXPORT_FILTER_LEVELS)[number]): void => {
+    setExportFilters((prev) => ({
+      ...prev,
+      levels: prev.levels.includes(level)
+        ? prev.levels.filter((entry) => entry !== level)
+        : [...prev.levels, level]
+    }))
+  }
+
+  const clearExportFilters = (): void => {
+    setExportFilters(createEmptyExportFilterDraft())
+    setExportFilterValidation(emptyExportFilterValidationState())
+    clearExportError()
+  }
 
   const handleRefresh = (): void => {
     if (!capability.canListLogsRemote) {
@@ -163,7 +228,10 @@ export default function AdminLogsScreen() {
     })()
   }
 
-  const handleExportLogs = (format: 'json' | 'csv'): void => {
+  const handleExportLogs = (
+    format: 'json' | 'csv',
+    requestFilters: ExportFilterDraft = exportFilters
+  ): void => {
     if (!capability.canExportLogsRemote) {
       toast(capability.exportLogsDetail, 'warning')
       return
@@ -174,13 +242,35 @@ export default function AdminLogsScreen() {
       return
     }
 
+    const validation = validateExportDateFilters(requestFilters)
+    setExportFilterValidation(validation.errors)
+    if (!validation.isValid) {
+      toast('Fix export date filters before exporting logs.', 'warning')
+      return
+    }
+
+    const normalizedRequestFilters: ExportFilterDraft = {
+      ...requestFilters,
+      from: validation.normalized.from ?? '',
+      to: validation.normalized.to ?? ''
+    }
+
     setLastRequestedExportFormat(format)
+    setLastRequestedExportFilters(cloneExportFilterDraft(normalizedRequestFilters))
+    setExportFilterValidation(emptyExportFilterValidationState())
     clearExportError()
-    void exportLogs(format)
+    void exportLogs(format, {
+      query: normalizedRequestFilters.query,
+      from: normalizedRequestFilters.from,
+      to: normalizedRequestFilters.to,
+      levels: normalizedRequestFilters.levels
+    })
       .then((result) => {
         if (!result) {
           return
         }
+
+        setLastSuccessfulExportFilters(cloneExportFilterDraft(normalizedRequestFilters))
 
         if (result.url) {
           toast(`Export ${format.toUpperCase()} ready`, 'success')
@@ -301,6 +391,114 @@ export default function AdminLogsScreen() {
           />
         ) : null}
 
+        <View style={styles.exportFilters}>
+          <Text variant="label">Export filters (optional)</Text>
+          <Text tone="secondary" variant="caption">
+            Applies to both JSON and CSV export actions. Use RFC3339 timestamps with timezone (`Z` or `+/-HH:MM`); values are normalized to UTC before export.
+          </Text>
+          <View style={styles.exportFilterFields}>
+            <FormField
+              helperText="Server-side query filter (separate from local search below)"
+              label="Export Query"
+              onChangeText={(value) => {
+                setExportFilters((prev) => ({ ...prev, query: value }))
+                if (exportError) {
+                  clearExportError()
+                }
+              }}
+              placeholder="e.g. queue lag, user:42, payment"
+              value={exportFilters.query}
+            />
+            <View style={styles.exportFilterRow}>
+              <View style={styles.exportFilterField}>
+                <FormField
+                  errorText={exportFilterValidation.from ?? undefined}
+                  helperText="Inclusive lower bound (example: 2026-02-24T00:00:00.000Z or 2026-02-23T19:00:00-05:00)"
+                  label="From"
+                  onChangeText={(value) => {
+                    setExportFilters((prev) => ({ ...prev, from: value }))
+                    setExportFilterValidation((prev) => ({ ...prev, from: null, range: null }))
+                    if (exportError) {
+                      clearExportError()
+                    }
+                  }}
+                  placeholder="RFC3339 timestamp"
+                  value={exportFilters.from}
+                />
+              </View>
+              <View style={styles.exportFilterField}>
+                <FormField
+                  errorText={exportFilterValidation.to ?? undefined}
+                  helperText="Inclusive upper bound (example: 2026-02-24T23:59:59.999Z or 2026-02-24T18:59:59-05:00)"
+                  label="To"
+                  onChangeText={(value) => {
+                    setExportFilters((prev) => ({ ...prev, to: value }))
+                    setExportFilterValidation((prev) => ({ ...prev, to: null, range: null }))
+                    if (exportError) {
+                      clearExportError()
+                    }
+                  }}
+                  placeholder="RFC3339 timestamp"
+                  value={exportFilters.to}
+                />
+              </View>
+            </View>
+            {exportFilterValidation.range ? (
+              <Text tone="error" variant="caption">
+                {exportFilterValidation.range}
+              </Text>
+            ) : null}
+            <View style={styles.exportFilterFields}>
+              <Text variant="label">Levels</Text>
+              <View style={styles.exportLevelButtons}>
+                {EXPORT_FILTER_LEVELS.map((level) => {
+                  const selected = exportFilters.levels.includes(level)
+                  return (
+                    <Button
+                      key={level}
+                      disabled={
+                        isLoading ||
+                        isRefreshing ||
+                        isClearing ||
+                        isExporting ||
+                        isCheckingExportJob ||
+                        hasActiveLogMutation
+                      }
+                      label={selected ? `${level} ✓` : level}
+                      onPress={() => {
+                        toggleExportLevel(level)
+                        if (exportError) {
+                          clearExportError()
+                        }
+                      }}
+                      size="sm"
+                      variant={selected ? 'secondary' : 'outline'}
+                    />
+                  )
+                })}
+              </View>
+            </View>
+            <View style={styles.cardActions}>
+              <Button
+                disabled={!hasActiveExportFilters}
+                label="Clear export filters"
+                onPress={clearExportFilters}
+                size="sm"
+                variant="outline"
+              />
+            </View>
+            {hasActiveExportFilters ? (
+              <Text tone="secondary" variant="caption">
+                {exportFilterSummary}
+              </Text>
+            ) : (
+              <Text tone="muted" variant="caption">
+                No export filters selected. Export uses the provider default scope (plus current limit).
+              </Text>
+            )}
+          </View>
+        </View>
+
         <ListItem
           disabled={
             !capability.canExportLogsRemote ||
@@ -358,7 +556,14 @@ export default function AdminLogsScreen() {
         {exportError ? (
           <ErrorState
             description={exportError}
-            onRetry={capability.canExportLogsRemote ? () => handleExportLogs(lastRequestedExportFormat) : undefined}
+            onRetry={
+              capability.canExportLogsRemote
+                ? () => {
+                    setExportFilters(cloneExportFilterDraft(lastRequestedExportFilters))
+                    handleExportLogs(lastRequestedExportFormat, lastRequestedExportFilters)
+                  }
+                : undefined
+            }
             retryLabel={capability.canExportLogsRemote ? 'Retry export' : undefined}
             title="Export logs failed"
           />
@@ -411,6 +616,9 @@ export default function AdminLogsScreen() {
             <ListItem
               subtitle={[
                 lastExport.format ? `Format: ${lastExport.format.toUpperCase()}` : 'Format: unknown',
+                lastSuccessfulExportFilterSummary
+                  ? `Filters: ${lastSuccessfulExportFilterSummary}`
+                  : 'Filters: none',
                 lastExport.jobId ? `Job: ${lastExport.jobId}` : null,
                 lastExport.url ? 'Download URL ready' : 'No download URL returned',
                 lastExport.sourceDetail

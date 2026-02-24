@@ -5,6 +5,7 @@ import {
   adminService,
   type AdminExportLogsResult,
   type AdminLogEntry,
+  type AdminLogExportFilters,
   type AdminLogExportJobResult,
   type AdminLogExportFormat
 } from '@/services/admin.service'
@@ -37,7 +38,10 @@ interface UseAdminLogsResult {
   capability: AdminProviderCapabilities
   refresh: () => Promise<void>
   clear: () => Promise<number | null>
-  exportLogs: (format?: AdminLogExportFormat) => Promise<AdminExportLogsResult | null>
+  exportLogs: (
+    format?: AdminLogExportFormat,
+    filters?: AdminLogExportFilters
+  ) => Promise<AdminExportLogsResult | null>
   checkExportJob: (jobId?: string) => Promise<AdminLogExportJobResult | null>
   acknowledge: (logId: string) => Promise<void>
   resolve: (logId: string) => Promise<void>
@@ -325,7 +329,10 @@ export const useAdminLogs = (limit = 50): UseAdminLogsResult => {
   ])
 
   const exportLogs = useCallback(
-    async (format?: AdminLogExportFormat): Promise<AdminExportLogsResult | null> => {
+    async (
+      format?: AdminLogExportFormat,
+      filters?: AdminLogExportFilters
+    ): Promise<AdminExportLogsResult | null> => {
       if (isExporting || isCheckingExportJob || isRefreshing || isClearing || hasAnyLogMutationBusy()) {
         return null
       }
@@ -338,7 +345,13 @@ export const useAdminLogs = (limit = 50): UseAdminLogsResult => {
       setIsExporting(true)
 
       try {
-        const result = await adminService.exportLogs({ activeUser, accessToken, limit, format })
+        const result = await adminService.exportLogs({
+          activeUser,
+          accessToken,
+          limit,
+          format,
+          ...filters
+        })
         if (!mountedRef.current) {
           return result
         }
