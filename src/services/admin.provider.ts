@@ -995,6 +995,15 @@ const requireAccessToken = (accessToken?: string | null): string => {
   return accessToken
 }
 
+const toTrimmedReason = (reason?: string): string | undefined => {
+  if (typeof reason !== 'string') {
+    return undefined
+  }
+
+  const normalizedReason = reason.trim()
+  return normalizedReason.length > 0 ? normalizedReason : undefined
+}
+
 const appendQueryParam = (endpoint: string, key: string, value: string): string => {
   const encodedValue = encodeURIComponent(value)
   return endpoint.includes('?')
@@ -1428,10 +1437,12 @@ const genericRestAdminProvider: AdminProvider = {
   ): Promise<AdminProviderRevokeUserSessionsResult> {
     const endpoint = resolveRevokeUserSessionsEndpoint(input.userId)
     const accessToken = requireAccessToken(input.accessToken)
+    const reason = toTrimmedReason(input.reason)
 
     const payload = await apiRequest(endpoint, {
       method: 'POST',
       token: accessToken,
+      ...(reason ? { body: { reason } } : {}),
       schema: genericRestAdminRevokeUserSessionsPayloadSchema,
       useAuthToken: false
     }).catch((error: unknown) => {
@@ -1446,10 +1457,12 @@ const genericRestAdminProvider: AdminProvider = {
   ): Promise<AdminProviderRevokeUserSessionResult> {
     const endpoint = resolveRevokeUserSessionEndpoint(input.userId, input.sessionId)
     const accessToken = requireAccessToken(input.accessToken)
+    const reason = toTrimmedReason(input.reason)
 
     const payload = await apiRequest(endpoint, {
       method: 'POST',
       token: accessToken,
+      ...(reason ? { body: { reason } } : {}),
       schema: genericRestAdminRevokeUserSessionPayloadSchema,
       useAuthToken: false
     }).catch((error: unknown) => {

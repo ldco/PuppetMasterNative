@@ -63,4 +63,29 @@ describe('settingsSyncService', () => {
       }
     })
   })
+
+  it('marks admin module as warning when disabled even with remote sync available', () => {
+    const preview = settingsSyncService.buildPreview({
+      preferences: {
+        notificationsEnabled: true,
+        analyticsEnabled: true
+      },
+      backendProvider: 'generic-rest',
+      hasAdminModule: false,
+      actor: {
+        id: 'u-1',
+        email: 'admin@example.com',
+        role: 'admin'
+      },
+      hasRemoteSyncEndpoint: true
+    })
+
+    expect(preview.status).toBe('ok')
+    expect(preview.rows.find((row) => row.key === 'admin-module')).toEqual(
+      expect.objectContaining({
+        status: 'warning',
+        value: 'disabled'
+      })
+    )
+  })
 })

@@ -1,11 +1,91 @@
 # PMNative Next Chat Handoff
 
-Last updated: 2026-02-24
+Last updated: 2026-02-25
 Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 
 Planning note:
 - Canonical current roadmap + immediate next-step list now lives in `docs/pmnative/ROADMAP.md`.
 - This handoff file is for session history, implementation notes, and review findings.
+
+## Session Update (2026-02-25, PMN-074 contract-first slice: force-logout reason metadata passthrough)
+
+### Current status
+- Continued roadmap target 3 with a contract-first PMN-074 admin sessions update focused on force-logout audit metadata (`reason`).
+- Kept behavior backward-compatible: no reason still works, blank reason strings are omitted.
+
+### Completed work
+- Provider contracts:
+  - extended revoke inputs with optional `reason`:
+    - `AdminProviderRevokeUserSessionsInput.reason`
+    - `AdminProviderRevokeUserSessionInput.reason`
+  - `generic-rest` provider now sends `{ reason }` only when a non-empty trimmed value exists.
+  - Files:
+    - `src/services/admin.provider.types.ts`
+    - `src/services/admin.provider.ts`
+- Service contracts:
+  - added optional `reason` passthrough with trimming in:
+    - `adminService.revokeUserSessions(...)`
+    - `adminService.revokeUserSession(...)`
+  - Files:
+    - `src/services/admin.service.ts`
+- Hook + UI wiring:
+  - `useAdminUserSessions` now accepts optional reason parameters for revoke actions.
+  - Admin user-detail force-logout actions now send deterministic reasons:
+    - `admin_user_detail_force_logout_all_sessions`
+    - `admin_user_detail_force_logout_single_session`
+  - Files:
+    - `src/hooks/useAdminUserSessions.ts`
+    - `src/app/(admin)/users/[id].tsx`
+- Tests added:
+  - provider tests for reason payload passthrough + trimming on both revoke endpoints
+  - service tests for reason passthrough + trimming on both revoke methods
+  - Files:
+    - `tests/services/admin.provider.test.ts`
+    - `tests/services/admin.service.test.ts`
+- Docs updated:
+  - added PMN-074 Admin User Sessions + Force Logout contract extension with optional `reason` body examples.
+  - File:
+    - `docs/GENERIC_REST_AUTH_PROVIDER_CONTRACT.md`
+
+### Validation
+- `npm run typecheck` passed
+- `npm test -- --run tests/services/admin.provider.test.ts tests/services/admin.service.test.ts` passed (`70` tests)
+- `npm test -- --run` passed (`116` tests total)
+
+### Open tasks
+- Commit and push this PMN-074 reason-metadata contract batch.
+- Continue next PMN-074 policy/governance contract slice (for example richer audit fields or session/device metadata normalization).
+
+## Session Update (2026-02-25, roadmap continuation: PMN-074 export job traceability + PMN-071 contract test/docs expansion)
+
+### Current status
+- Continued implementation directly from roadmap targets after pushing `c1d3c72`.
+- Added missing export-filter traceability in admin export job status UI and expanded PMN-071 settings-sync contract coverage/docs.
+
+### Completed work
+- `PMN-074` admin logs screen:
+  - `Export job status` panel now includes the same filter summary shown in `Last export result`.
+  - File: `src/app/(admin)/logs.tsx`
+- `PMN-071` settings sync provider/service contract hardening (tests):
+  - added Supabase `setSession` `403 -> UNAUTHORIZED` mapping test
+  - added Supabase `updateUser` `500 -> PROVIDER` mapping test
+  - added no-rotated-token (`session: null`) result behavior test
+  - added preview test for `admin-module` warning row behavior when disabled
+  - Files:
+    - `tests/services/settingsSync.provider.test.ts`
+    - `tests/services/settingsSync.service.test.ts`
+- `PMN-071` docs expansion:
+  - added explicit Supabase metadata contract section for settings sync (`pmnative_settings_sync`, `pmnative_settings_synced_at`) and error mapping.
+  - File: `docs/GENERIC_REST_AUTH_PROVIDER_CONTRACT.md`
+
+### Validation
+- `npm run typecheck` passed
+- `npm test -- --run tests/services/settingsSync.provider.test.ts tests/services/settingsSync.service.test.ts` passed (`11` tests)
+- `npm test -- --run` passed (`112` tests total)
+
+### Open tasks
+- Commit and push this roadmap-continuation batch.
+- Continue next PMN-074 contract-first slice (policy/governance endpoints or force-logout reason metadata) per roadmap target 3.
 
 ## Session Update (2026-02-24, handoff refresh snapshot for PMN-074 export filters slice)
 

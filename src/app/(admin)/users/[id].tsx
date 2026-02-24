@@ -32,6 +32,9 @@ const resolveParamString = (value: string | string[] | undefined): string | null
   return null
 }
 
+const FORCE_LOGOUT_ALL_REASON = 'admin_user_detail_force_logout_all_sessions'
+const FORCE_LOGOUT_ONE_REASON = 'admin_user_detail_force_logout_single_session'
+
 export default function AdminUserDetailScreen() {
   const router = useRouter()
   const params = useLocalSearchParams<{ id?: string | string[] }>()
@@ -290,7 +293,7 @@ export default function AdminUserDetailScreen() {
                         return
                       }
 
-                      await revokeAllSessions()
+                      await revokeAllSessions(FORCE_LOGOUT_ALL_REASON)
                         .then((revokedCount) => {
                           toast(
                             typeof revokedCount === 'number'
@@ -380,7 +383,7 @@ export default function AdminUserDetailScreen() {
                                 return
                               }
 
-                              await revokeOneSession(session.id)
+                              await revokeOneSession(session.id, FORCE_LOGOUT_ONE_REASON)
                                 .then((revokedCount) => {
                                   toast(
                                     typeof revokedCount === 'number'

@@ -90,6 +90,15 @@ export interface AdminUserDetailQueryInput extends AdminDirectoryQueryInput {
   userId: string
 }
 
+export interface AdminRevokeUserSessionsInput extends AdminUserDetailQueryInput {
+  reason?: string
+}
+
+export interface AdminRevokeUserSessionInput extends AdminUserDetailQueryInput {
+  sessionId: string
+  reason?: string
+}
+
 export interface AdminUpdateUserRoleInput extends AdminUserDetailQueryInput {
   role: Role
 }
@@ -290,6 +299,15 @@ const toFallbackLogs = (): AdminLogEntry[] => {
 
 const toFallbackUserSessions = (): AdminUserSession[] => {
   return []
+}
+
+const toTrimmedReason = (reason?: string): string | undefined => {
+  if (typeof reason !== 'string') {
+    return undefined
+  }
+
+  const normalizedReason = reason.trim()
+  return normalizedReason.length > 0 ? normalizedReason : undefined
 }
 
 const toFallbackSettings = (): AdminSettingsSnapshot => {
@@ -857,7 +875,7 @@ export const adminService = {
     return adminService.getUserSessions(input)
   },
 
-  async revokeUserSessions(input: AdminUserDetailQueryInput): Promise<AdminRevokeUserSessionsResult> {
+  async revokeUserSessions(input: AdminRevokeUserSessionsInput): Promise<AdminRevokeUserSessionsResult> {
     if (!input.activeUser) {
       throw new AdminProviderError('No active user', 'UNAUTHORIZED')
     }
@@ -869,7 +887,8 @@ export const adminService = {
 
     const result = await adminProvider.revokeUserSessions({
       accessToken: input.accessToken,
-      userId: input.userId
+      userId: input.userId,
+      reason: toTrimmedReason(input.reason)
     })
 
     return {
@@ -879,9 +898,7 @@ export const adminService = {
     }
   },
 
-  async revokeUserSession(
-    input: AdminUserDetailQueryInput & { sessionId: string }
-  ): Promise<AdminRevokeUserSessionResult> {
+  async revokeUserSession(input: AdminRevokeUserSessionInput): Promise<AdminRevokeUserSessionResult> {
     if (!input.activeUser) {
       throw new AdminProviderError('No active user', 'UNAUTHORIZED')
     }
@@ -894,7 +911,8 @@ export const adminService = {
     const result = await adminProvider.revokeUserSession({
       accessToken: input.accessToken,
       userId: input.userId,
-      sessionId: input.sessionId
+      sessionId: input.sessionId,
+      reason: toTrimmedReason(input.reason)
     })
 
     return {

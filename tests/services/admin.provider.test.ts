@@ -1187,6 +1187,81 @@ describe('adminProvider', () => {
     })
   })
 
+  it('generic-rest revokeUserSessions sends trimmed reason payload when provided', async () => {
+    const apiRequestMock = vi.fn().mockResolvedValue({
+      success: true,
+      data: {
+        revokedCount: 2
+      }
+    })
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        revokeUserSessions: '/admin/users/:id/sessions/revoke'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(
+      adminProvider.revokeUserSessions({
+        accessToken: 'token',
+        userId: 'u7',
+        reason: '  suspicious_activity  '
+      })
+    ).resolves.toEqual({
+      revokedCount: 2
+    })
+
+    expect(apiRequestMock).toHaveBeenCalledWith('/admin/users/u7/sessions/revoke', {
+      method: 'POST',
+      token: 'token',
+      body: {
+        reason: 'suspicious_activity'
+      },
+      schema: expect.any(Object),
+      useAuthToken: false
+    })
+  })
+
+  it('generic-rest revokeUserSession sends trimmed reason payload when provided', async () => {
+    const apiRequestMock = vi.fn().mockResolvedValue({
+      count: 1
+    })
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        revokeUserSession: '/admin/users/:id/sessions/:sessionId/revoke'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(
+      adminProvider.revokeUserSession({
+        accessToken: 'token',
+        userId: 'u7',
+        sessionId: 'sess-3',
+        reason: '  manual_security_reset '
+      })
+    ).resolves.toEqual({
+      session: null,
+      revokedCount: 1
+    })
+
+    expect(apiRequestMock).toHaveBeenCalledWith('/admin/users/u7/sessions/sess-3/revoke', {
+      method: 'POST',
+      token: 'token',
+      body: {
+        reason: 'manual_security_reset'
+      },
+      schema: expect.any(Object),
+      useAuthToken: false
+    })
+  })
+
   it('generic-rest getHealth normalizes nested payload and degraded/down statuses', async () => {
     const apiRequestMock = vi.fn().mockResolvedValue({
       success: true,

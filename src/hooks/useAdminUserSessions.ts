@@ -17,8 +17,8 @@ interface UseAdminUserSessionsResult {
   sourceDetail: string
   capability: AdminProviderCapabilities
   refresh: () => Promise<void>
-  revokeAll: () => Promise<number | null>
-  revokeOne: (sessionId: string) => Promise<number | null>
+  revokeAll: (reason?: string) => Promise<number | null>
+  revokeOne: (sessionId: string, reason?: string) => Promise<number | null>
   clearSessionMutationError: (sessionId: string) => void
 }
 
@@ -181,7 +181,7 @@ export const useAdminUserSessions = (userId: string | null): UseAdminUserSession
     }))
   }, [])
 
-  const revokeAll = useCallback(async (): Promise<number | null> => {
+  const revokeAll = useCallback(async (reason?: string): Promise<number | null> => {
     if (!userId || isRefreshing || hasSessionMutationInFlight) {
       return null
     }
@@ -193,7 +193,12 @@ export const useAdminUserSessions = (userId: string | null): UseAdminUserSession
     const requestId = ++requestIdRef.current
 
     try {
-      const result = await adminService.revokeUserSessions({ activeUser, accessToken, userId })
+      const result = await adminService.revokeUserSessions({
+        activeUser,
+        accessToken,
+        userId,
+        reason
+      })
       if (!mountedRef.current || requestId !== requestIdRef.current) {
         return result.revokedCount
       }
@@ -220,7 +225,7 @@ export const useAdminUserSessions = (userId: string | null): UseAdminUserSession
     }
   }, [accessToken, activeUser, applyRevokeAllOptimisticPatch, hasSessionMutationInFlight, isRefreshing, userId])
 
-  const revokeOne = useCallback(async (sessionId: string): Promise<number | null> => {
+  const revokeOne = useCallback(async (sessionId: string, reason?: string): Promise<number | null> => {
     if (!userId || isRefreshing || hasSessionMutationInFlight) {
       return null
     }
@@ -236,7 +241,8 @@ export const useAdminUserSessions = (userId: string | null): UseAdminUserSession
         activeUser,
         accessToken,
         userId,
-        sessionId
+        sessionId,
+        reason
       })
       if (!mountedRef.current || requestId !== requestIdRef.current) {
         return result.revokedCount

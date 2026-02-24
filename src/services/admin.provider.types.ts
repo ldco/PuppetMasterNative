@@ -111,10 +111,13 @@ export interface AdminProviderUpdateUserLockInput extends AdminProviderGetUserIn
 
 export interface AdminProviderListUserSessionsInput extends AdminProviderGetUserInput {}
 
-export interface AdminProviderRevokeUserSessionsInput extends AdminProviderGetUserInput {}
+export interface AdminProviderRevokeUserSessionsInput extends AdminProviderGetUserInput {
+  reason?: string
+}
 
 export interface AdminProviderRevokeUserSessionInput extends AdminProviderGetUserInput {
   sessionId: string
+  reason?: string
 }
 
 export interface AdminProviderDirectoryUser {

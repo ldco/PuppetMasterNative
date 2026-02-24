@@ -667,6 +667,9 @@ export default function AdminLogsScreen() {
                 `Job: ${lastExportJob.jobId}`,
                 `Status: ${lastExportJob.status}`,
                 lastExportJob.format ? `Format: ${lastExportJob.format.toUpperCase()}` : null,
+                lastSuccessfulExportFilterSummary
+                  ? `Filters: ${lastSuccessfulExportFilterSummary}`
+                  : 'Filters: none',
                 lastExportJob.message,
                 lastExportJob.sourceDetail
               ]

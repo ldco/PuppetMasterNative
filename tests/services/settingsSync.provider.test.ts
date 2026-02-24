@@ -181,6 +181,108 @@ describe('settingsSyncProvider', () => {
     })
   })
 
+  it('maps supabase setSession 403 errors to UNAUTHORIZED', async () => {
+    const supabaseClient = {
+      auth: {
+        setSession: vi.fn().mockResolvedValue({
+          data: { session: null },
+          error: { message: 'forbidden', status: 403 }
+        }),
+        updateUser: vi.fn()
+      }
+    }
+
+    const { settingsSyncProvider } = await loadProviderModule({
+      provider: 'supabase',
+      supabaseClientImpl: supabaseClient
+    })
+
+    await expect(
+      settingsSyncProvider.executeSync({
+        draft: sampleDraft,
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token'
+      })
+    ).rejects.toMatchObject({
+      name: 'SettingsSyncProviderError',
+      code: 'UNAUTHORIZED',
+      message: 'forbidden'
+    })
+
+    expect(supabaseClient.auth.updateUser).not.toHaveBeenCalled()
+  })
+
+  it('maps supabase updateUser 500 errors to PROVIDER', async () => {
+    const supabaseClient = {
+      auth: {
+        setSession: vi.fn().mockResolvedValue({
+          data: {
+            session: {
+              access_token: 'rotated-access',
+              refresh_token: 'rotated-refresh'
+            }
+          },
+          error: null
+        }),
+        updateUser: vi.fn().mockResolvedValue({
+          data: { user: null },
+          error: { message: 'db failure', status: 500 }
+        })
+      }
+    }
+
+    const { settingsSyncProvider } = await loadProviderModule({
+      provider: 'supabase',
+      supabaseClientImpl: supabaseClient
+    })
+
+    await expect(
+      settingsSyncProvider.executeSync({
+        draft: sampleDraft,
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token'
+      })
+    ).rejects.toMatchObject({
+      name: 'SettingsSyncProviderError',
+      code: 'PROVIDER',
+      message: 'db failure'
+    })
+  })
+
+  it('omits rotatedSession when supabase setSession response has no access token', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-02-24T08:00:00.000Z'))
+
+    const supabaseClient = {
+      auth: {
+        setSession: vi.fn().mockResolvedValue({
+          data: { session: null },
+          error: null
+        }),
+        updateUser: vi.fn().mockResolvedValue({
+          data: { user: { id: 'u1' } },
+          error: null
+        })
+      }
+    }
+
+    const { settingsSyncProvider } = await loadProviderModule({
+      provider: 'supabase',
+      supabaseClientImpl: supabaseClient
+    })
+
+    await expect(
+      settingsSyncProvider.executeSync({
+        draft: sampleDraft,
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token'
+      })
+    ).resolves.toEqual({
+      kind: 'synced',
+      syncedAt: '2026-02-24T08:00:00.000Z'
+    })
+  })
+
   it('returns CONFIG when generic-rest sync endpoint is missing', async () => {
     const { settingsSyncProvider } = await loadProviderModule({
       provider: 'generic-rest'

@@ -473,6 +473,76 @@ Useful machine codes:
 
 PMNative currently maps generic-rest settings sync provider errors into typed `SettingsSyncProviderError` codes (`CONFIG` / `PROVIDER`) at the framework layer.
 
+## Settings Sync (PMN-071) — Supabase Metadata Contract
+
+This section documents the current PMNative behavior when `backend.provider = 'supabase'` and settings sync is executed from the admin settings workflow.
+
+Status:
+
+- implemented in PMNative (`settingsSyncProvider`)
+- writes to Supabase Auth user metadata (not a custom table/API)
+
+### Runtime Flow
+
+PMNative executes settings sync in two Supabase auth calls:
+
+1. `auth.setSession({ access_token, refresh_token })`
+2. `auth.updateUser({ data: ... })`
+
+If `setSession(...)` returns a rotated access token, PMNative propagates it back to app auth storage/session.
+
+### Metadata Keys Written
+
+PMNative writes the following keys to `user_metadata`:
+
+- `pmnative_settings_sync`
+- `pmnative_settings_synced_at`
+
+### `pmnative_settings_sync` Payload (Current Shape)
+
+```json
+{
+  "schema": "pmnative.settings.sync/1",
+  "backendProvider": "generic-rest|supabase",
+  "actor": {
+    "id": "user-id",
+    "email": "admin@example.com",
+    "role": "admin"
+  },
+  "preferences": {
+    "notificationsEnabled": true,
+    "analyticsEnabled": false
+  },
+  "context": {
+    "source": "admin-settings",
+    "hasAdminModule": true,
+    "hasRemoteSyncEndpoint": true,
+    "mode": "execute"
+  }
+}
+```
+
+Notes:
+
+- `context.mode` is forced to `"execute"` when writing metadata (preview mode is only for local draft generation).
+- `actor` may be `null` for preview/draft workflows; runtime execution normally uses an authenticated actor context.
+- `schema` is the forward-compatibility/version marker.
+
+### `pmnative_settings_synced_at`
+
+PMNative writes an ISO UTC timestamp (from `new Date().toISOString()`), for example:
+
+```json
+"pmnative_settings_synced_at": "2026-02-24T08:00:00.000Z"
+```
+
+### Error Mapping
+
+Supabase settings sync errors are mapped into `SettingsSyncProviderError`:
+
+- `401/403` -> `UNAUTHORIZED`
+- other statuses/errors -> `PROVIDER`
+
 ## Profile (PMN-070) — Contract Extension
 
 This section defines the current PMNative `generic-rest` profile fetch contract used by `profileProvider` when `backend.genericRest.profile.endpoints.get` is configured.
@@ -741,3 +811,123 @@ Behavior notes:
 
 - If `getUser` is not configured, PMNative falls back to local detail only for the active session user ID.
 - If the requested user is not the active session user and no remote detail endpoint is available, PMNative will show a fallback "user unavailable" state.
+
+## Admin User Sessions + Force Logout (PMN-074) — Contract Extension
+
+This section defines the current PMNative `generic-rest` admin session contract for user-detail session workflows.
+
+Status:
+
+- list/revoke session workflows implemented (generic-rest, config-gated)
+- UI sends structured revoke reasons for force-logout actions
+
+### Endpoint Config
+
+PMNative config paths:
+
+- `backend.genericRest.admin.endpoints.listUserSessions`
+- `backend.genericRest.admin.endpoints.revokeUserSessions`
+- `backend.genericRest.admin.endpoints.revokeUserSession`
+
+Example:
+
+```ts
+backend: {
+  provider: 'generic-rest',
+  genericRest: {
+    admin: {
+      endpoints: {
+        listUserSessions: '/admin/users/:id/sessions',
+        revokeUserSessions: '/admin/users/:id/sessions/revoke',
+        revokeUserSession: '/admin/users/:id/sessions/:sessionId/revoke'
+      }
+    }
+  }
+}
+```
+
+### List Sessions (`GET /admin/users/:id/sessions`)
+
+PMNative sends:
+
+- `GET` to configured endpoint with `:id` replaced by `encodeURIComponent(userId)`
+- `Authorization: Bearer <accessToken>` header
+
+Accepted response variants:
+
+- raw array
+- `{ sessions: [...] }`
+- `{ success: true, data: [...] }`
+- `{ success: true, data: { sessions: [...] } }`
+
+Session object aliases normalized by PMNative include:
+
+- `createdAt` / `created_at`
+- `lastSeenAt` / `last_seen_at`
+- `ipAddress` / `ip_address` / `ip`
+- `userAgent` / `user_agent`
+- `current` / `isCurrent`
+- `revoked` / `isRevoked`
+
+### Revoke All Sessions (`POST /admin/users/:id/sessions/revoke`)
+
+PMNative sends:
+
+- `POST` to configured endpoint with `:id` replaced by `encodeURIComponent(userId)`
+- `Authorization: Bearer <accessToken>` header
+- optional JSON body:
+
+```json
+{
+  "reason": "admin_user_detail_force_logout_all_sessions"
+}
+```
+
+Notes:
+
+- `reason` is optional.
+- PMNative trims reason values and omits blank strings from request bodies.
+
+### Revoke Single Session (`POST /admin/users/:id/sessions/:sessionId/revoke`)
+
+PMNative sends:
+
+- `POST` to configured endpoint with both placeholders replaced:
+  - `:id` -> `encodeURIComponent(userId)`
+  - `:sessionId` -> `encodeURIComponent(sessionId)`
+- `Authorization: Bearer <accessToken>` header
+- optional JSON body:
+
+```json
+{
+  "reason": "admin_user_detail_force_logout_single_session"
+}
+```
+
+Accepted success response variants:
+
+- revoke-count payload:
+```json
+{ "revokedCount": 1 }
+```
+or:
+```json
+{ "count": 1 }
+```
+- session payload:
+```json
+{
+  "session": {
+    "id": "sess-2",
+    "last_seen_at": "2026-02-24T02:00:00.000Z",
+    "ip": "10.0.0.8",
+    "user_agent": "Safari",
+    "isRevoked": true
+  }
+}
+```
+
+PMNative normalizes either shape into `AdminProviderRevokeUserSessionResult` with:
+
+- `session` (nullable)
+- `revokedCount` (nullable)
