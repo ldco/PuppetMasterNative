@@ -17,6 +17,7 @@ import { SectionHeader } from '@/components/molecules/SectionHeader'
 import { SkeletonList } from '@/components/molecules/SkeletonList'
 import { LoadingOverlay } from '@/components/organisms/LoadingOverlay'
 import { useAdminUsers } from '@/hooks/useAdmin'
+import { useConfirm } from '@/hooks/useConfirm'
 import { useTheme } from '@/hooks/useTheme'
 import { useToast } from '@/hooks/useToast'
 
@@ -24,6 +25,7 @@ export default function AdminUsersScreen() {
   const router = useRouter()
   const { colors, tokens } = useTheme()
   const { toast } = useToast()
+  const { confirm } = useConfirm()
   const {
     activeUser,
     capability,
@@ -236,14 +238,28 @@ export default function AdminUsersScreen() {
                         }
                         label="Disable"
                         onPress={() => {
-                          clearUserMutationError(entry.id)
-                          void updateUserStatus(entry.id, true)
-                            .then(() => {
-                              toast('User disabled', 'warning')
+                          void (async () => {
+                            const confirmed = await confirm({
+                              title: 'Disable user?',
+                              message: `Disable ${entry.name} (${entry.email}) until re-enabled.`,
+                              confirmLabel: 'Disable',
+                              cancelLabel: 'Cancel',
+                              tone: 'destructive'
                             })
-                            .catch(() => {
-                              // Hook state already stores row error.
-                            })
+
+                            if (!confirmed) {
+                              return
+                            }
+
+                            clearUserMutationError(entry.id)
+                            await updateUserStatus(entry.id, true)
+                              .then(() => {
+                                toast('User disabled', 'warning')
+                              })
+                              .catch(() => {
+                                // Hook state already stores row error.
+                              })
+                          })()
                         }}
                         size="sm"
                         variant="outline"
@@ -284,14 +300,28 @@ export default function AdminUsersScreen() {
                         }
                         label="Lock"
                         onPress={() => {
-                          clearUserMutationError(entry.id)
-                          void updateUserLock(entry.id, true)
-                            .then(() => {
-                              toast('User locked', 'warning')
+                          void (async () => {
+                            const confirmed = await confirm({
+                              title: 'Lock user?',
+                              message: `Lock ${entry.name} (${entry.email}) now.`,
+                              confirmLabel: 'Lock',
+                              cancelLabel: 'Cancel',
+                              tone: 'destructive'
                             })
-                            .catch(() => {
-                              // Hook state already stores row error.
-                            })
+
+                            if (!confirmed) {
+                              return
+                            }
+
+                            clearUserMutationError(entry.id)
+                            await updateUserLock(entry.id, true)
+                              .then(() => {
+                                toast('User locked', 'warning')
+                              })
+                              .catch(() => {
+                                // Hook state already stores row error.
+                              })
+                          })()
                         }}
                         size="sm"
                         variant="outline"

@@ -10,10 +10,16 @@ interface LoadAdminProviderOptions {
     listRoles?: string
     listLogs?: string
     clearLogs?: string
+    acknowledgeLog?: string
+    resolveLog?: string
+    retryLog?: string
     settings?: string
     updateUserRole?: string
     updateUserStatus?: string
     updateUserLock?: string
+    listUserSessions?: string
+    revokeUserSessions?: string
+    revokeUserSession?: string
     health?: string
   }
   apiRequestImpl?: ReturnType<typeof vi.fn>
@@ -69,10 +75,16 @@ describe('adminProvider', () => {
         listRoles: '/admin/roles',
         listLogs: '/admin/logs',
         clearLogs: '/admin/logs/clear',
+        acknowledgeLog: '/admin/logs/:id/ack',
+        resolveLog: '/admin/logs/:id/resolve',
+        retryLog: '/admin/logs/:id/retry',
         settings: '/admin/settings',
         updateUserRole: '/admin/users/:id/role',
         updateUserStatus: '/admin/users/:id/status',
         updateUserLock: '/admin/users/:id/lock',
+        listUserSessions: '/admin/users/:id/sessions',
+        revokeUserSessions: '/admin/users/:id/sessions/revoke',
+        revokeUserSession: '/admin/users/:id/sessions/:sessionId/revoke',
         health: '/admin/health'
       }
     })
@@ -83,20 +95,32 @@ describe('adminProvider', () => {
       canListRolesRemote: true,
       canListLogsRemote: true,
       canClearLogsRemote: true,
+      canAcknowledgeLogRemote: true,
+      canResolveLogRemote: true,
+      canRetryLogRemote: true,
       canGetSettingsRemote: true,
       canUpdateUserRoleRemote: true,
       canUpdateUserStatusRemote: true,
       canUpdateUserLockRemote: true,
+      canListUserSessionsRemote: true,
+      canRevokeUserSessionsRemote: true,
+      canRevokeUserSessionRemote: true,
       canGetHealthRemote: true,
       listUsersDetail: 'GET /admin/users',
       getUserDetail: 'GET /admin/users/:id',
       listRolesDetail: 'GET /admin/roles',
       listLogsDetail: 'GET /admin/logs',
       clearLogsDetail: 'POST /admin/logs/clear',
+      acknowledgeLogDetail: 'POST /admin/logs/:id/ack',
+      resolveLogDetail: 'POST /admin/logs/:id/resolve',
+      retryLogDetail: 'POST /admin/logs/:id/retry',
       getSettingsDetail: 'GET /admin/settings',
       updateUserRoleDetail: 'PATCH /admin/users/:id/role',
       updateUserStatusDetail: 'PATCH /admin/users/:id/status',
       updateUserLockDetail: 'PATCH /admin/users/:id/lock',
+      listUserSessionsDetail: 'GET /admin/users/:id/sessions',
+      revokeUserSessionsDetail: 'POST /admin/users/:id/sessions/revoke',
+      revokeUserSessionDetail: 'POST /admin/users/:id/sessions/:sessionId/revoke',
       getHealthDetail: 'GET /admin/health'
     })
   })
@@ -396,6 +420,157 @@ describe('adminProvider', () => {
     })
   })
 
+  it('generic-rest acknowledgeLog sends POST and normalizes single-log payload aliases', async () => {
+    const apiRequestMock = vi.fn().mockResolvedValue({
+      success: true,
+      data: {
+        log: {
+          id: 'log-7',
+          created_at: '2026-02-23T23:59:00.000Z',
+          level: 'warn',
+          message: 'Queue lag high',
+          service: 'worker',
+          acked: true,
+          acked_at: '2026-02-24T00:00:00.000Z'
+        }
+      }
+    })
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        acknowledgeLog: '/admin/logs/:id/ack'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(
+      adminProvider.acknowledgeLog({ accessToken: 'token', logId: 'log-7' })
+    ).resolves.toEqual({
+      id: 'log-7',
+      timestamp: '2026-02-23T23:59:00.000Z',
+      level: 'warning',
+      message: 'Queue lag high',
+      source: 'worker',
+      acknowledged: true,
+      acknowledgedAt: '2026-02-24T00:00:00.000Z'
+    })
+
+    expect(apiRequestMock).toHaveBeenCalledWith('/admin/logs/log-7/ack', {
+      method: 'POST',
+      token: 'token',
+      schema: expect.any(Object),
+      useAuthToken: false
+    })
+  })
+
+  it('generic-rest acknowledgeLog maps ApiError 403 to UNAUTHORIZED', async () => {
+    const apiRequestMock = vi.fn().mockRejectedValue(new ApiError('forbidden', 403, 'FORBIDDEN'))
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        acknowledgeLog: '/admin/logs/:id/ack'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(
+      adminProvider.acknowledgeLog({ accessToken: 'token', logId: 'log-7' })
+    ).rejects.toMatchObject({
+      name: 'AdminProviderError',
+      code: 'UNAUTHORIZED',
+      message: 'forbidden'
+    })
+  })
+
+  it('generic-rest resolveLog sends POST and normalizes resolved aliases', async () => {
+    const apiRequestMock = vi.fn().mockResolvedValue({
+      log: {
+        id: 'log-9',
+        createdAt: '2026-02-24T01:00:00.000Z',
+        level: 'audit',
+        message: 'Issue resolved',
+        category: 'ops',
+        acknowledged: true,
+        isResolved: true,
+        resolved_at: '2026-02-24T01:05:00.000Z'
+      }
+    })
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        resolveLog: '/admin/logs/:id/resolve'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(adminProvider.resolveLog({ accessToken: 'token', logId: 'log-9' })).resolves.toEqual({
+      id: 'log-9',
+      timestamp: '2026-02-24T01:00:00.000Z',
+      level: 'audit',
+      message: 'Issue resolved',
+      source: 'ops',
+      acknowledged: true,
+      resolved: true,
+      resolvedAt: '2026-02-24T01:05:00.000Z'
+    })
+
+    expect(apiRequestMock).toHaveBeenCalledWith('/admin/logs/log-9/resolve', {
+      method: 'POST',
+      token: 'token',
+      schema: expect.any(Object),
+      useAuthToken: false
+    })
+  })
+
+  it('generic-rest retryLog sends POST and maps unauthorized errors', async () => {
+    const apiRequestMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          id: 'log-11',
+          created_at: '2026-02-24T02:00:00.000Z',
+          level: 'error',
+          message: 'Job requeued',
+          source: 'worker',
+          acked: true,
+          resolved: false
+        }
+      })
+      .mockRejectedValueOnce(new ApiError('expired', 401, 'AUTH_EXPIRED'))
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        retryLog: '/admin/logs/:id/retry'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(adminProvider.retryLog({ accessToken: 'token', logId: 'log-11' })).resolves.toEqual({
+      id: 'log-11',
+      timestamp: '2026-02-24T02:00:00.000Z',
+      level: 'error',
+      message: 'Job requeued',
+      source: 'worker',
+      acknowledged: true,
+      resolved: false
+    })
+
+    await expect(adminProvider.retryLog({ accessToken: 'token', logId: 'log-11' })).rejects.toMatchObject({
+      name: 'AdminProviderError',
+      code: 'UNAUTHORIZED',
+      message: 'expired'
+    })
+  })
+
   it('generic-rest getSettings normalizes nested payload and aliases', async () => {
     const apiRequestMock = vi
       .fn()
@@ -629,6 +804,173 @@ describe('adminProvider', () => {
       name: 'AdminProviderError',
       code: 'UNAUTHORIZED',
       message: 'expired'
+    })
+  })
+
+  it('generic-rest listUserSessions normalizes payload aliases', async () => {
+    const apiRequestMock = vi.fn().mockResolvedValue({
+      success: true,
+      data: {
+        sessions: [
+          {
+            id: 'sess-1',
+            created_at: '2026-02-24T00:00:00.000Z',
+            last_seen_at: '2026-02-24T01:00:00.000Z',
+            ip: '10.0.0.1',
+            user_agent: 'Expo Go',
+            isCurrent: true,
+            isRevoked: false
+          },
+          {
+            createdAt: '2026-02-24T00:10:00.000Z',
+            ipAddress: '10.0.0.2',
+            userAgent: 'Chrome'
+          }
+        ]
+      }
+    })
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        listUserSessions: '/admin/users/:id/sessions'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(
+      adminProvider.listUserSessions({ accessToken: 'token', userId: 'u7' })
+    ).resolves.toEqual([
+      {
+        id: 'sess-1',
+        createdAt: '2026-02-24T00:00:00.000Z',
+        lastSeenAt: '2026-02-24T01:00:00.000Z',
+        ipAddress: '10.0.0.1',
+        userAgent: 'Expo Go',
+        current: true,
+        revoked: false
+      },
+      {
+        id: '2026-02-24T00:10:00.000Z:1:10.0.0.2',
+        createdAt: '2026-02-24T00:10:00.000Z',
+        lastSeenAt: null,
+        ipAddress: '10.0.0.2',
+        userAgent: 'Chrome'
+      }
+    ])
+
+    expect(apiRequestMock).toHaveBeenCalledWith('/admin/users/u7/sessions', {
+      token: 'token',
+      schema: expect.any(Object),
+      useAuthToken: false
+    })
+  })
+
+  it('generic-rest revokeUserSessions sends POST and maps unauthorized errors', async () => {
+    const apiRequestMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          revokedCount: 3
+        }
+      })
+      .mockRejectedValueOnce(new ApiError('forbidden', 403, 'FORBIDDEN'))
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        revokeUserSessions: '/admin/users/:id/sessions/revoke'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(
+      adminProvider.revokeUserSessions({ accessToken: 'token', userId: 'u7' })
+    ).resolves.toEqual({
+      revokedCount: 3
+    })
+
+    expect(apiRequestMock).toHaveBeenCalledWith('/admin/users/u7/sessions/revoke', {
+      method: 'POST',
+      token: 'token',
+      schema: expect.any(Object),
+      useAuthToken: false
+    })
+
+    await expect(
+      adminProvider.revokeUserSessions({ accessToken: 'token', userId: 'u7' })
+    ).rejects.toMatchObject({
+      name: 'AdminProviderError',
+      code: 'UNAUTHORIZED',
+      message: 'forbidden'
+    })
+  })
+
+  it('generic-rest revokeUserSession supports session payload and count payload responses', async () => {
+    const apiRequestMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          session: {
+            id: 'sess-2',
+            last_seen_at: '2026-02-24T02:00:00.000Z',
+            ip: '10.0.0.8',
+            user_agent: 'Safari',
+            isRevoked: true
+          }
+        }
+      })
+      .mockResolvedValueOnce({
+        count: 1
+      })
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        revokeUserSession: '/admin/users/:id/sessions/:sessionId/revoke'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(
+      adminProvider.revokeUserSession({
+        accessToken: 'token',
+        userId: 'u7',
+        sessionId: 'sess-2'
+      })
+    ).resolves.toEqual({
+      session: {
+        id: 'sess-2',
+        createdAt: null,
+        lastSeenAt: '2026-02-24T02:00:00.000Z',
+        ipAddress: '10.0.0.8',
+        userAgent: 'Safari',
+        revoked: true
+      },
+      revokedCount: null
+    })
+
+    expect(apiRequestMock).toHaveBeenCalledWith('/admin/users/u7/sessions/sess-2/revoke', {
+      method: 'POST',
+      token: 'token',
+      schema: expect.any(Object),
+      useAuthToken: false
+    })
+
+    await expect(
+      adminProvider.revokeUserSession({
+        accessToken: 'token',
+        userId: 'u7',
+        sessionId: 'sess-3'
+      })
+    ).resolves.toEqual({
+      session: null,
+      revokedCount: 1
     })
   })
 

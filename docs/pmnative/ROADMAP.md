@@ -47,9 +47,12 @@ What is already done (high level):
   - admin health endpoint slice has started (`backend.genericRest.admin.endpoints.health`, config-gated) with provider/service/hook/screen support and local fallback snapshot behavior
   - admin logs endpoint slice has started (`backend.genericRest.admin.endpoints.listLogs`, config-gated) with provider/service/hook/screen support and local fallback list behavior
   - admin clear-logs mutation slice has started (`backend.genericRest.admin.endpoints.clearLogs`, config-gated) with provider/service/hook/screen support and capability-gated action in admin logs
+  - admin per-log audit mutation slices have started (`backend.genericRest.admin.endpoints.acknowledgeLog|resolveLog|retryLog`, config-gated) with provider/service/hook/screen support, row-level mutation state, and capability-gated `Acknowledge` / `Resolve` / `Retry` actions in admin logs
   - admin settings endpoint slice has started (`backend.genericRest.admin.endpoints.settings`, config-gated) with provider/service/hook support and integration into the existing admin settings screen (remote snapshot + config fallback)
   - admin user lock/unlock mutation slice has started (`backend.genericRest.admin.endpoints.updateUserLock`, config-gated) with provider/service support and capability-gated actions in admin user detail
+  - admin user sessions/session-revoke workflow slice has started (`backend.genericRest.admin.endpoints.listUserSessions|revokeUserSessions|revokeUserSession`, config-gated) with provider/service support and admin user-detail sessions UI (list + force logout + per-session revoke)
   - admin users list now includes inline status/lock controls (ops UX polish) backed by existing provider/service mutations with per-row mutation state/error handling in `useAdmin()`
+  - destructive admin actions now use confirmation guardrails in UI flows (`clear logs`, `disable user`, `lock user` in list/detail)
 - Module architecture cleanup pass completed:
   - shared settings store (`useSettingsStore`)
   - explicit service inputs (no hidden global store reads in services)
@@ -65,7 +68,7 @@ What is already done (high level):
 
 What is not finished:
 
-- Full provider-backed admin module APIs are not implemented yet (users list/detail, roles list, logs list + clear logs, admin settings snapshot, role update, user status update, user lock/unlock, and health snapshot are started; deeper workflows/per-log audit mutations remain pending, though list-level ops UX is now improved)
+- Full provider-backed admin module APIs are not implemented yet (users list/detail, roles list, logs list + clear logs + audit actions [acknowledge/resolve/retry], admin settings snapshot, role update, user status update, user lock/unlock, user sessions/session-revoke workflows, and health snapshot are started; deeper admin workflows remain pending, though list-level ops UX is now improved)
 - Profile module now supports display name + avatar URL plus provider-backed avatar upload (capability-gated: `generic-rest` multipart endpoint or Supabase Storage bucket config), and a profile-linked change-password screen with direct password update capability-gating (Supabase-first implementation; generic-rest endpoint support + mocked provider tests with optional rotated-token handling); live validation remains pending
 - Settings sync live validation/policy verification for Supabase user metadata updates (adapter is implemented)
 - Full auth test matrix execution (especially interactive Supabase/social smoke tests)
@@ -117,6 +120,6 @@ Use this rule:
 
 1. `PMN-070` Profile: continue from name+avatarUrl editing + capability-gated direct password update + provider-backed avatar upload (now implemented behind config/capabilities) to live validation and UX polish (on-device upload + Supabase token rotation verification, clearer unsupported-provider messaging/docs).
 2. `PMN-071` Settings: Supabase settings sync adapter is implemented; continue contract docs/tests (especially `generic-rest` + Supabase metadata schema expectations) and run live validation.
-3. `PMN-074` Admin: continue from users list/detail + roles list + logs list + clear logs + admin settings snapshot + role update + user status + user lock + health (provider-backed generic-rest paths started, plus inline users-list ops controls) to next endpoints/actions (per-log audit mutations and confirmations/guardrails) with provider tests/contracts first.
+3. `PMN-074` Admin: continue from users list/detail + roles list + logs list + clear logs + per-log audit actions (`acknowledge/resolve/retry`) + admin settings snapshot + role update + user status + user lock + user sessions/session-revoke workflows + health (provider-backed generic-rest paths started, plus inline users-list ops controls and destructive-action confirmations) to broader admin workflows/endpoints (policy actions, exports, force logout reasons/audit metadata, session expiry/device metadata, etc.) with provider tests/contracts first.
 4. Expand mocked provider tests (auth/profile/settings/admin provider paths) on top of the `vitest` harness before live provider smoke tests.
 5. Defer live Supabase/social smoke tests (Google callback/deeplink validation) to the final integration validation phase.

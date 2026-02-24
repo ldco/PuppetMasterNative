@@ -6,20 +6,32 @@ export interface AdminProviderCapabilities {
   canListRolesRemote: boolean
   canListLogsRemote: boolean
   canClearLogsRemote: boolean
+  canAcknowledgeLogRemote: boolean
+  canResolveLogRemote: boolean
+  canRetryLogRemote: boolean
   canGetSettingsRemote: boolean
   canUpdateUserRoleRemote: boolean
   canUpdateUserStatusRemote: boolean
   canUpdateUserLockRemote: boolean
+  canListUserSessionsRemote: boolean
+  canRevokeUserSessionsRemote: boolean
+  canRevokeUserSessionRemote: boolean
   canGetHealthRemote: boolean
   listUsersDetail: string
   getUserDetail: string
   listRolesDetail: string
   listLogsDetail: string
   clearLogsDetail: string
+  acknowledgeLogDetail: string
+  resolveLogDetail: string
+  retryLogDetail: string
   getSettingsDetail: string
   updateUserRoleDetail: string
   updateUserStatusDetail: string
   updateUserLockDetail: string
+  listUserSessionsDetail: string
+  revokeUserSessionsDetail: string
+  revokeUserSessionDetail: string
   getHealthDetail: string
 }
 
@@ -50,6 +62,18 @@ export interface AdminProviderListLogsInput extends AdminProviderListUsersInput 
 
 export interface AdminProviderClearLogsInput extends AdminProviderListUsersInput {}
 
+export interface AdminProviderAcknowledgeLogInput extends AdminProviderListUsersInput {
+  logId: string
+}
+
+export interface AdminProviderResolveLogInput extends AdminProviderListUsersInput {
+  logId: string
+}
+
+export interface AdminProviderRetryLogInput extends AdminProviderListUsersInput {
+  logId: string
+}
+
 export interface AdminProviderGetUserInput {
   accessToken?: string | null
   userId: string
@@ -65,6 +89,14 @@ export interface AdminProviderUpdateUserStatusInput extends AdminProviderGetUser
 
 export interface AdminProviderUpdateUserLockInput extends AdminProviderGetUserInput {
   locked: boolean
+}
+
+export interface AdminProviderListUserSessionsInput extends AdminProviderGetUserInput {}
+
+export interface AdminProviderRevokeUserSessionsInput extends AdminProviderGetUserInput {}
+
+export interface AdminProviderRevokeUserSessionInput extends AdminProviderGetUserInput {
+  sessionId: string
 }
 
 export interface AdminProviderDirectoryUser {
@@ -84,6 +116,16 @@ export interface AdminProviderRoleSummary {
   assignable: boolean
 }
 
+export interface AdminProviderUserSession {
+  id: string
+  createdAt: string | null
+  lastSeenAt: string | null
+  ipAddress: string | null
+  userAgent: string | null
+  current?: boolean
+  revoked?: boolean
+}
+
 export type AdminProviderLogLevel =
   | 'debug'
   | 'info'
@@ -98,6 +140,10 @@ export interface AdminProviderLogEntry {
   level: AdminProviderLogLevel
   message: string
   source: string | null
+  acknowledged?: boolean
+  acknowledgedAt?: string | null
+  resolved?: boolean
+  resolvedAt?: string | null
 }
 
 export interface AdminProviderClearLogsResult {
@@ -134,6 +180,15 @@ export interface AdminProviderHealthSnapshot {
   checks: AdminProviderHealthCheck[]
 }
 
+export interface AdminProviderRevokeUserSessionsResult {
+  revokedCount: number | null
+}
+
+export interface AdminProviderRevokeUserSessionResult {
+  session: AdminProviderUserSession | null
+  revokedCount: number | null
+}
+
 export interface AdminProvider {
   getCapabilities: () => AdminProviderCapabilities
   listUsers: (input: AdminProviderListUsersInput) => Promise<AdminProviderDirectoryUser[]>
@@ -141,9 +196,19 @@ export interface AdminProvider {
   listRoles: (input: AdminProviderListUsersInput) => Promise<AdminProviderRoleSummary[]>
   listLogs: (input: AdminProviderListLogsInput) => Promise<AdminProviderLogEntry[]>
   clearLogs: (input: AdminProviderClearLogsInput) => Promise<AdminProviderClearLogsResult>
+  acknowledgeLog: (input: AdminProviderAcknowledgeLogInput) => Promise<AdminProviderLogEntry>
+  resolveLog: (input: AdminProviderResolveLogInput) => Promise<AdminProviderLogEntry>
+  retryLog: (input: AdminProviderRetryLogInput) => Promise<AdminProviderLogEntry>
   getSettings: (input: AdminProviderListUsersInput) => Promise<AdminProviderSettingsSnapshot>
   updateUserRole: (input: AdminProviderUpdateUserRoleInput) => Promise<AdminProviderDirectoryUser>
   updateUserStatus: (input: AdminProviderUpdateUserStatusInput) => Promise<AdminProviderDirectoryUser>
   updateUserLock: (input: AdminProviderUpdateUserLockInput) => Promise<AdminProviderDirectoryUser>
+  listUserSessions: (input: AdminProviderListUserSessionsInput) => Promise<AdminProviderUserSession[]>
+  revokeUserSessions: (
+    input: AdminProviderRevokeUserSessionsInput
+  ) => Promise<AdminProviderRevokeUserSessionsResult>
+  revokeUserSession: (
+    input: AdminProviderRevokeUserSessionInput
+  ) => Promise<AdminProviderRevokeUserSessionResult>
   getHealth: (input: AdminProviderListUsersInput) => Promise<AdminProviderHealthSnapshot>
 }

@@ -14,6 +14,16 @@ export interface AdminDirectoryUser {
   lockedUntil?: string | null
 }
 
+export interface AdminUserSession {
+  id: string
+  createdAt: string | null
+  lastSeenAt: string | null
+  ipAddress: string | null
+  userAgent: string | null
+  current?: boolean
+  revoked?: boolean
+}
+
 export interface AdminRoleSummary {
   key: Role
   label: string
@@ -29,6 +39,10 @@ export interface AdminLogEntry {
   level: AdminLogLevel
   message: string
   source: string | null
+  acknowledged?: boolean
+  acknowledgedAt?: string | null
+  resolved?: boolean
+  resolvedAt?: string | null
 }
 
 export type AdminSettingValue = string | number | boolean | null
@@ -116,6 +130,25 @@ export interface AdminUpdateUserLockResult {
   sourceDetail: string
 }
 
+export interface AdminUserSessionsResult {
+  sessions: AdminUserSession[]
+  source: 'remote' | 'local-fallback'
+  sourceDetail: string
+}
+
+export interface AdminRevokeUserSessionsResult {
+  revokedCount: number | null
+  source: 'remote'
+  sourceDetail: string
+}
+
+export interface AdminRevokeUserSessionResult {
+  session: AdminUserSession | null
+  revokedCount: number | null
+  source: 'remote'
+  sourceDetail: string
+}
+
 export interface AdminRolesResult {
   roles: AdminRoleSummary[]
   source: 'remote' | 'config-fallback'
@@ -130,6 +163,24 @@ export interface AdminLogsResult {
 
 export interface AdminClearLogsResult {
   clearedCount: number | null
+  source: 'remote'
+  sourceDetail: string
+}
+
+export interface AdminAcknowledgeLogResult {
+  log: AdminLogEntry
+  source: 'remote'
+  sourceDetail: string
+}
+
+export interface AdminResolveLogResult {
+  log: AdminLogEntry
+  source: 'remote'
+  sourceDetail: string
+}
+
+export interface AdminRetryLogResult {
+  log: AdminLogEntry
   source: 'remote'
   sourceDetail: string
 }
@@ -197,6 +248,10 @@ const toFallbackHealth = (message: string): AdminHealthSnapshot => {
 }
 
 const toFallbackLogs = (): AdminLogEntry[] => {
+  return []
+}
+
+const toFallbackUserSessions = (): AdminUserSession[] => {
   return []
 }
 
@@ -464,6 +519,74 @@ export const adminService = {
     }
   },
 
+  async acknowledgeLog(input: AdminDirectoryQueryInput & { logId: string }): Promise<AdminAcknowledgeLogResult> {
+    if (!input.activeUser) {
+      throw new AdminProviderError('No active user', 'UNAUTHORIZED')
+    }
+
+    const capability = adminProvider.getCapabilities()
+    if (!capability.canAcknowledgeLogRemote) {
+      throw new AdminProviderError(capability.acknowledgeLogDetail, 'NOT_SUPPORTED')
+    }
+
+    const log = await adminProvider.acknowledgeLog({
+      accessToken: input.accessToken,
+      logId: input.logId
+    })
+
+    return {
+      log,
+      source: 'remote',
+      sourceDetail: capability.acknowledgeLogDetail
+    }
+  },
+
+  async resolveLog(input: AdminDirectoryQueryInput & { logId: string }): Promise<AdminResolveLogResult> {
+    const capability = adminProvider.getCapabilities()
+
+    if (!input.activeUser) {
+      throw new AdminProviderError('Active admin user is required', 'UNAUTHORIZED')
+    }
+
+    if (!capability.canResolveLogRemote) {
+      throw new AdminProviderError(capability.resolveLogDetail, 'NOT_SUPPORTED')
+    }
+
+    const log = await adminProvider.resolveLog({
+      accessToken: input.accessToken,
+      logId: input.logId
+    })
+
+    return {
+      log,
+      source: 'remote',
+      sourceDetail: capability.resolveLogDetail
+    }
+  },
+
+  async retryLog(input: AdminDirectoryQueryInput & { logId: string }): Promise<AdminRetryLogResult> {
+    const capability = adminProvider.getCapabilities()
+
+    if (!input.activeUser) {
+      throw new AdminProviderError('Active admin user is required', 'UNAUTHORIZED')
+    }
+
+    if (!capability.canRetryLogRemote) {
+      throw new AdminProviderError(capability.retryLogDetail, 'NOT_SUPPORTED')
+    }
+
+    const log = await adminProvider.retryLog({
+      accessToken: input.accessToken,
+      logId: input.logId
+    })
+
+    return {
+      log,
+      source: 'remote',
+      sourceDetail: capability.retryLogDetail
+    }
+  },
+
   async getSettings(input: AdminDirectoryQueryInput): Promise<AdminSettingsResult> {
     if (!input.activeUser) {
       return {
@@ -584,6 +707,102 @@ export const adminService = {
       },
       source: 'remote',
       sourceDetail: capability.updateUserLockDetail
+    }
+  },
+
+  async getUserSessions(input: AdminUserDetailQueryInput): Promise<AdminUserSessionsResult> {
+    if (!input.activeUser) {
+      return {
+        sessions: toFallbackUserSessions(),
+        source: 'local-fallback',
+        sourceDetail: 'No active user'
+      }
+    }
+
+    const capability = adminProvider.getCapabilities()
+    if (!capability.canListUserSessionsRemote) {
+      return {
+        sessions: toFallbackUserSessions(),
+        source: 'local-fallback',
+        sourceDetail: capability.listUserSessionsDetail
+      }
+    }
+
+    try {
+      const sessions = await adminProvider.listUserSessions({
+        accessToken: input.accessToken,
+        userId: input.userId
+      })
+      return {
+        sessions,
+        source: 'remote',
+        sourceDetail: capability.listUserSessionsDetail
+      }
+    } catch (error) {
+      if (
+        error instanceof AdminProviderError &&
+        (error.code === 'CONFIG' || error.code === 'NOT_SUPPORTED' || error.code === 'UNAUTHORIZED')
+      ) {
+        return {
+          sessions: toFallbackUserSessions(),
+          source: 'local-fallback',
+          sourceDetail: error.message
+        }
+      }
+
+      throw error
+    }
+  },
+
+  async refreshUserSessions(input: AdminUserDetailQueryInput): Promise<AdminUserSessionsResult> {
+    return adminService.getUserSessions(input)
+  },
+
+  async revokeUserSessions(input: AdminUserDetailQueryInput): Promise<AdminRevokeUserSessionsResult> {
+    if (!input.activeUser) {
+      throw new AdminProviderError('No active user', 'UNAUTHORIZED')
+    }
+
+    const capability = adminProvider.getCapabilities()
+    if (!capability.canRevokeUserSessionsRemote) {
+      throw new AdminProviderError(capability.revokeUserSessionsDetail, 'NOT_SUPPORTED')
+    }
+
+    const result = await adminProvider.revokeUserSessions({
+      accessToken: input.accessToken,
+      userId: input.userId
+    })
+
+    return {
+      revokedCount: result.revokedCount,
+      source: 'remote',
+      sourceDetail: capability.revokeUserSessionsDetail
+    }
+  },
+
+  async revokeUserSession(
+    input: AdminUserDetailQueryInput & { sessionId: string }
+  ): Promise<AdminRevokeUserSessionResult> {
+    if (!input.activeUser) {
+      throw new AdminProviderError('No active user', 'UNAUTHORIZED')
+    }
+
+    const capability = adminProvider.getCapabilities()
+    if (!capability.canRevokeUserSessionRemote) {
+      throw new AdminProviderError(capability.revokeUserSessionDetail, 'NOT_SUPPORTED')
+    }
+
+    const result = await adminProvider.revokeUserSession({
+      accessToken: input.accessToken,
+      userId: input.userId,
+      sessionId: input.sessionId
+    })
+
+    return {
+      session: result.session,
+      revokedCount: result.revokedCount,
+      source: 'remote',
+      sourceDetail: capability.revokeUserSessionDetail
     }
   },
 

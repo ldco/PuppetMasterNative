@@ -7,6 +7,164 @@ Planning note:
 - Canonical current roadmap + immediate next-step list now lives in `docs/pmnative/ROADMAP.md`.
 - This handoff file is for session history, implementation notes, and review findings.
 
+## Session Update (2026-02-23, PMN-074 cleanup pass: admin logs/sessions concurrency + optimistic-state hardening)
+
+### Current architecture decisions
+- Kept feature scope unchanged, but tightened client mutation orchestration inside hooks rather than adding more UI-only guard code.
+- Preferred explicit local mutation helpers in hooks (`useAdminLogs`, `useAdminUserSessions`) over duplicating optimistic patch logic in screens.
+
+### Completed work
+- Fixed admin logs concurrency bug in `src/hooks/useAdminLogs.ts` / `src/app/(admin)/logs.tsx`:
+  - `refresh()` / `clear()` now block while row log mutations (`acknowledge/resolve/retry`) are in flight
+  - clear action UI is disabled during row mutations
+  - busy toasts now show action-specific messages instead of incorrectly reusing provider capability detail strings
+- Refactored `useAdminUserSessions` optimistic updates for correctness:
+  - extracted local helpers for applying list results and revoke patches
+  - `revokeAll` no longer leaves `current` target-user session unmodified (previously wrong assumption)
+  - `revokeAll` / `revokeOne` no longer force `revoked: true` when backend result indicates no revoked sessions (`revokedCount === 0`) or lacks actionable payload
+  - sessions refresh now blocks while any session mutation is running (`revoke all` or `revoke one`)
+- Hardened Admin User Detail sessions UX:
+  - per-session revoke now also disables on self-target (consistent with existing force-logout self-guard)
+  - row action busy gating is aligned with other user-detail mutations (role/status/lock)
+- Validation after cleanup pass:
+  - `npm run typecheck` passed
+  - `npm test -- --run` passed (`89` tests)
+
+### Remaining tasks
+- `src/services/admin.provider.ts` is now a large provider monolith; future admin slices should start extracting endpoint-template/request helper clusters (logs, sessions, users) into smaller internal modules if the file keeps growing.
+- Decide whether sessions UI should suppress single-session revoke for `session.current === true` on non-self targets, or leave fully backend-policy-driven (current behavior allows it for admins).
+- Commit and push the consolidated `PMN-074` admin batch (features + cleanup hardening) when ready.
+
+### Next phase goals
+- Start the next admin workflow family (`PMN-074`) beyond sessions/logs, ideally with provider/service-first contract work for exports or policy actions.
+
+### Current architecture decisions
+- Added user-sessions orchestration as a separate hook (`useAdminUserSessions`) instead of expanding `useAdminUser`, keeping user-detail identity/role-status-lock mutations separate from sessions list/revoke workflow state.
+- Kept the same provider/service-first pattern used across `PMN-074`, with capability-gated UI actions and config-driven `generic-rest` endpoints.
+
+### Completed work
+- Added config/validation/example contract support for `generic-rest` user sessions endpoints:
+  - `backend.genericRest.admin.endpoints.listUserSessions`
+  - `backend.genericRest.admin.endpoints.revokeUserSessions`
+  - `backend.genericRest.admin.endpoints.revokeUserSession`
+- Extended admin provider capabilities/contracts:
+  - `canListUserSessionsRemote`
+  - `canRevokeUserSessionsRemote`
+  - `canRevokeUserSessionRemote`
+  - `listUserSessionsDetail`
+  - `revokeUserSessionsDetail`
+  - `revokeUserSessionDetail`
+  - `listUserSessions({ accessToken, userId })`
+  - `revokeUserSessions({ accessToken, userId })`
+  - `revokeUserSession({ accessToken, userId, sessionId })`
+- Implemented `generic-rest` provider user sessions workflow:
+  - sessions payload normalization (aliases like `created_at`, `last_seen_at`, `ip`, `user_agent`, `isCurrent`, `isRevoked`)
+  - revoke-all sessions mutation payload normalization (`revokedCount` / `count`)
+  - per-session revoke mutation normalization (supports updated-session payload or count payload fallback)
+  - provider error mapping (`401/403 -> UNAUTHORIZED`)
+- Added admin service support:
+  - `adminService.getUserSessions(...)` / `refreshUserSessions(...)` with local fallback (`[]`) on unsupported/config/auth errors
+  - `adminService.revokeUserSessions(...)` capability-gated force-logout mutation
+  - `adminService.revokeUserSession(...)` capability-gated single-session revoke mutation
+- Added new hook:
+  - `src/hooks/useAdminUserSessions.ts` (sessions list + refresh + revoke-all + row-level single-session revoke state)
+- Updated `src/app/(admin)/users/[id].tsx`:
+  - sessions section in Admin User Detail
+  - provider capability messaging
+  - sessions list preview (up to 5 items)
+  - `Refresh sessions` action
+  - destructive `Force logout` action (confirmation-gated)
+  - per-session `Revoke session` action (confirmation-gated, row-level error state)
+  - loading overlay now reflects sessions refresh/revoke operations
+- Tests added/expanded:
+  - `tests/services/admin.provider.test.ts` (list/revoke-all/revoke-single user sessions success + unauthorized mapping)
+  - `tests/services/admin.service.test.ts` (sessions fallback/remote + revoke-all/revoke-single success + `NOT_SUPPORTED`)
+- Validation:
+  - `npm run typecheck` passed
+  - `npm test -- --run tests/services/admin.provider.test.ts tests/services/admin.service.test.ts` passed (`55` tests)
+  - `npm test -- --run` passed (`89` tests)
+
+### Remaining tasks
+- If backend supports it, expose richer session metadata in UI (device label, geo, revoke actor/reason, session expiry).
+- Decide whether per-session revoke should be blocked for `current` target session in client UX or left fully backend-policy-driven (current implementation is backend-policy-driven).
+- Commit the current admin batch (confirmations + logs audit actions + user sessions/force-logout + prior PMN-074 slices) when ready.
+
+### Next phase goals
+- Continue `PMN-074` with a different admin workflow family (policy actions / exports / audit exports) using the same provider/service-first pattern.
+
+## Session Update (2026-02-23, PMN-074 per-log audit mutations slice (acknowledge/resolve/retry))
+
+### Current architecture decisions
+- Continued the admin logs actions pattern with provider/service-first contracts and capability-gated UI actions.
+- Refactored `useAdminLogs` row mutations around a shared `runLogMutation(...)` path so new per-log actions (`acknowledge`, `resolve`, `retry`) do not duplicate async/error/state handling.
+- Kept log-entry normalization explicit in `adminProvider` (`normalizeAdminLog`) so alias mapping (`acked`, `acknowledged_at`, `isResolved`, `resolved_at`) works even in mocked tests that bypass schema transforms.
+
+### Completed work
+- Added config/validation/example contract support for `generic-rest` per-log audit action endpoints:
+  - `canAcknowledgeLogRemote`
+  - `canResolveLogRemote`
+  - `canRetryLogRemote`
+  - `acknowledgeLogDetail`
+  - `resolveLogDetail`
+  - `retryLogDetail`
+  - `acknowledgeLog({ accessToken, logId })`
+  - `resolveLog({ accessToken, logId })`
+  - `retryLog({ accessToken, logId })`
+- Implemented `generic-rest` provider per-log audit mutations (`POST` to `:id` endpoint templates) with single-log payload normalization and admin error mapping.
+- Added service methods (capability-gated, provider-source detail preserved):
+  - `adminService.acknowledgeLog(...)`
+  - `adminService.resolveLog(...)`
+  - `adminService.retryLog(...)`
+- Extended `useAdminLogs()` with row-level audit mutation orchestration:
+  - `logMutations[logId]`
+  - `acknowledge(logId)`
+  - `resolve(logId)`
+  - `retry(logId)`
+  - `clearLogMutationError(logId)`
+- Updated `src/app/(admin)/logs.tsx`:
+  - per-row `Acknowledge` / `Resolve` / `Retry` actions (capability-gated)
+  - row-level mutation error state (shared across log actions)
+  - `ack/new` and `resolved/open` badges
+  - loading overlay reflects any in-flight row log mutation (`Updating logs...`)
+- Tests added/expanded:
+  - `tests/services/admin.provider.test.ts` (`acknowledge`, `resolve`, `retry` success/error coverage)
+  - `tests/services/admin.service.test.ts` (`acknowledge`, `resolve`, `retry` success + `NOT_SUPPORTED`)
+- Validation:
+  - `npm run typecheck` passed
+  - `npm test -- --run tests/services/admin.provider.test.ts tests/services/admin.service.test.ts` passed (`46` tests)
+  - `npm test -- --run` passed (`80` tests)
+
+### Remaining tasks
+- Decide whether per-log actions should expose actor metadata / reason fields in UI when backend returns them (currently UI tracks booleans/timestamps only).
+- Consider splitting `useAdminLogs` row mutation status into a reusable internal helper if future per-log actions add additional payload-specific state (the current shared mutation runner is sufficient for now).
+- Commit the current admin batch (confirmations + acknowledge log + prior PMN-074 slices) when ready.
+
+### Next phase goals
+- Move beyond logs actions to the next `PMN-074` admin workflow slice (for example sessions/force-logout or export/audit endpoints) using the same provider/service-first pattern.
+
+## Session Update (2026-02-23, post-push next phase: destructive-action confirmations)
+
+### Current architecture decisions
+- Reused the existing app-level `useConfirm()` / `ConfirmDialog` infrastructure for admin guardrails instead of introducing screen-local `Alert` calls or a parallel confirmation mechanism.
+- Confirmations are applied directly at action callsites in admin screens (no wrapper/adaptor layer), keeping control flow explicit and avoiding compatibility abstractions.
+
+### Completed work
+- Added confirmation prompts for destructive admin actions:
+  - `src/app/(admin)/logs.tsx`: confirm before `Clear remote logs`
+  - `src/app/(admin)/users.tsx`: confirm before inline `Disable` / `Lock`
+  - `src/app/(admin)/users/[id].tsx`: confirm before detail-screen `Disable user` / `Lock user`
+- Confirmations use destructive tone and context-specific messages (user name/email or destructive log warning).
+- Validation after post-push continuation:
+  - `npm run typecheck` passed
+  - `npm test -- --run` passed (`70` tests)
+
+### Remaining tasks
+- Continue `PMN-074` per-log audit/log mutations (acknowledge/resolve/retry) when backend contract is defined.
+- Consider expanding confirmations to any future destructive admin actions (e.g., per-log delete, force logout) as they are added.
+
+### Next phase goals
+- Start provider/service-first per-log audit mutation contract (or equivalent backend-supported log action mutation) and wire capability-gated UI actions in `/(admin)/logs`.
+
 ## Session Update (2026-02-23, admin hooks architecture refactor + PMN-074 continuation cleanup)
 
 ### Current architecture decisions

@@ -13,6 +13,8 @@ import { SectionHeader } from '@/components/molecules/SectionHeader'
 import { SkeletonCard } from '@/components/molecules/SkeletonCard'
 import { LoadingOverlay } from '@/components/organisms/LoadingOverlay'
 import { useAdminUser } from '@/hooks/useAdminUser'
+import { useAdminUserSessions } from '@/hooks/useAdminUserSessions'
+import { useConfirm } from '@/hooks/useConfirm'
 import { useTheme } from '@/hooks/useTheme'
 import { useToast } from '@/hooks/useToast'
 import { useAuthStore } from '@/stores/auth.store'
@@ -36,6 +38,7 @@ export default function AdminUserDetailScreen() {
   const userId = useMemo(() => resolveParamString(params.id), [params.id])
   const { colors, tokens } = useTheme()
   const { toast } = useToast()
+  const { confirm } = useConfirm()
   const actor = useAuthStore((state) => state.user)
   const {
     capability,
@@ -56,6 +59,23 @@ export default function AdminUserDetailScreen() {
     updateStatus,
     user
   } = useAdminUser(userId)
+  const {
+    capability: sessionsCapability,
+    clearSessionMutationError,
+    error: sessionsError,
+    isLoading: isLoadingSessions,
+    isRefreshing: isRefreshingSessions,
+    isRevoking: isRevokingSessions,
+    revokingSessionId,
+    refresh: refreshSessions,
+    revokeAll: revokeAllSessions,
+    revokeOne: revokeOneSession,
+    revokeError: revokeSessionsError,
+    sessionMutationErrors,
+    sessions,
+    source: sessionsSource,
+    sourceDetail: sessionsSourceDetail
+  } = useAdminUserSessions(userId)
 
   const roleOptions: Role[] = ['master', 'admin', 'editor', 'user']
 
@@ -85,6 +105,24 @@ export default function AdminUserDetailScreen() {
       gap: tokens.spacing.xs
     },
     statusSection: {
+      gap: tokens.spacing.xs
+    },
+    sessionsSection: {
+      gap: tokens.spacing.xs
+    },
+    sessionList: {
+      gap: tokens.spacing.xs
+    },
+    sessionRow: {
+      borderColor: colors.border,
+      borderRadius: tokens.radius.md,
+      borderWidth: 1,
+      gap: tokens.spacing.xs,
+      padding: tokens.spacing.sm
+    },
+    sessionRowMeta: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
       gap: tokens.spacing.xs
     }
   })
@@ -184,6 +222,197 @@ export default function AdminUserDetailScreen() {
             {user.lockedUntil ? (
               <Text tone="secondary">Locked until: {user.lockedUntil}</Text>
             ) : null}
+            <View style={styles.sessionsSection}>
+              <Text variant="label">Sessions</Text>
+              {!sessionsCapability.canListUserSessionsRemote ? (
+                <Text tone="secondary" variant="caption">
+                  {sessionsCapability.listUserSessionsDetail}
+                </Text>
+              ) : sessionsError ? (
+                <Text tone="error" variant="caption">
+                  {sessionsError}
+                </Text>
+              ) : (
+                <Text tone="muted" variant="caption">
+                  {sessionsSource === 'remote'
+                    ? `Remote sessions (${sessionsSourceDetail})`
+                    : `Fallback sessions (${sessionsSourceDetail})`}
+                </Text>
+              )}
+              {revokeSessionsError ? (
+                <Text tone="error" variant="caption">
+                  {revokeSessionsError}
+                </Text>
+              ) : null}
+              <View style={styles.actions}>
+                <Button
+                  disabled={
+                    !sessionsCapability.canListUserSessionsRemote ||
+                    isRefreshingSessions ||
+                    isRevokingSessions ||
+                    Boolean(revokingSessionId) ||
+                    isRefreshing ||
+                    isUpdatingRole ||
+                    isUpdatingStatus ||
+                    isUpdatingLock
+                  }
+                  label="Refresh sessions"
+                  onPress={() => {
+                    void refreshSessions()
+                  }}
+                  size="sm"
+                  variant="outline"
+                />
+                <Button
+                  disabled={
+                    !sessionsCapability.canRevokeUserSessionsRemote ||
+                    isRefreshingSessions ||
+                    isRevokingSessions ||
+                    Boolean(revokingSessionId) ||
+                    isRefreshing ||
+                    isUpdatingRole ||
+                    isUpdatingStatus ||
+                    isUpdatingLock ||
+                    user.id === actor?.id
+                  }
+                  label="Force logout"
+                  onPress={() => {
+                    void (async () => {
+                      const confirmed = await confirm({
+                        title: 'Force logout user sessions?',
+                        message: `Revoke active sessions for ${user.name} (${user.email}).`,
+                        confirmLabel: 'Force logout',
+                        cancelLabel: 'Cancel',
+                        tone: 'destructive'
+                      })
+
+                      if (!confirmed) {
+                        return
+                      }
+
+                      await revokeAllSessions()
+                        .then((revokedCount) => {
+                          toast(
+                            typeof revokedCount === 'number'
+                              ? `Revoked ${revokedCount} sessions`
+                              : 'User sessions revoked',
+                            'warning'
+                          )
+                        })
+                        .catch(() => {
+                          // Hook state already reflects the error message.
+                        })
+                    })()
+                  }}
+                  size="sm"
+                  variant="outline"
+                />
+              </View>
+              {isLoadingSessions ? (
+                <Text tone="secondary" variant="caption">
+                  Loading sessions...
+                </Text>
+              ) : sessions.length === 0 ? (
+                <Text tone="secondary" variant="caption">
+                  No sessions returned for this user.
+                </Text>
+              ) : (
+                <View style={styles.sessionList}>
+                  {sessions.slice(0, 5).map((session) => (
+                    <View key={session.id} style={styles.sessionRow}>
+                      <View style={styles.sessionRowMeta}>
+                        {typeof session.current === 'boolean' ? (
+                          <Badge
+                            label={session.current ? 'current' : 'other'}
+                            tone={session.current ? 'brand' : 'neutral'}
+                          />
+                        ) : null}
+                        {typeof session.revoked === 'boolean' ? (
+                          <Badge
+                            label={session.revoked ? 'revoked' : 'active'}
+                            tone={session.revoked ? 'warning' : 'success'}
+                          />
+                        ) : null}
+                      </View>
+                      <Text tone="secondary" variant="caption">
+                        Last seen: {session.lastSeenAt ?? 'unknown'} • Created:{' '}
+                        {session.createdAt ?? 'unknown'}
+                      </Text>
+                      <Text tone="secondary" variant="caption">
+                        IP: {session.ipAddress ?? 'unknown'}
+                      </Text>
+                      <Text tone="secondary" variant="caption">
+                        Agent: {session.userAgent ?? 'unknown'}
+                      </Text>
+                      <View style={styles.actions}>
+                        <Button
+                          disabled={
+                            !sessionsCapability.canRevokeUserSessionRemote ||
+                            isRefreshingSessions ||
+                            isRevokingSessions ||
+                            Boolean(revokingSessionId) ||
+                            isRefreshing ||
+                            isUpdatingRole ||
+                            isUpdatingStatus ||
+                            isUpdatingLock ||
+                            user.id === actor?.id ||
+                            session.revoked === true
+                          }
+                          label={
+                            session.revoked
+                              ? 'Revoked'
+                              : revokingSessionId === session.id
+                              ? 'Revoking...'
+                              : 'Revoke session'
+                          }
+                          onPress={() => {
+                            void (async () => {
+                              clearSessionMutationError(session.id)
+                              const confirmed = await confirm({
+                                title: 'Revoke session?',
+                                message: `Revoke session ${session.id} for ${user.name} (${user.email}).`,
+                                confirmLabel: 'Revoke',
+                                cancelLabel: 'Cancel',
+                                tone: 'destructive'
+                              })
+
+                              if (!confirmed) {
+                                return
+                              }
+
+                              await revokeOneSession(session.id)
+                                .then((revokedCount) => {
+                                  toast(
+                                    typeof revokedCount === 'number'
+                                      ? `Revoked ${revokedCount} session`
+                                      : 'Session revoked',
+                                    'warning'
+                                  )
+                                })
+                                .catch(() => {
+                                  // Hook state already reflects the error message.
+                                })
+                            })()
+                          }}
+                          size="sm"
+                          variant="outline"
+                        />
+                      </View>
+                      {sessionMutationErrors[session.id] ? (
+                        <Text tone="error" variant="caption">
+                          {sessionMutationErrors[session.id]}
+                        </Text>
+                      ) : null}
+                    </View>
+                  ))}
+                  {sessions.length > 5 ? (
+                    <Text tone="muted" variant="caption">
+                      Showing 5 of {sessions.length} sessions.
+                    </Text>
+                  ) : null}
+                </View>
+              )}
+            </View>
             <View style={styles.lockSection}>
               <Text variant="label">Lock Actions</Text>
               {!capability.canUpdateUserLockRemote ? (
@@ -235,13 +464,27 @@ export default function AdminUserDetailScreen() {
                   }
                   label="Lock user"
                   onPress={() => {
-                    void updateLock(true)
-                      .then(() => {
-                        toast('User locked', 'warning')
+                    void (async () => {
+                      const confirmed = await confirm({
+                        title: 'Lock user?',
+                        message: `Lock ${user.name} (${user.email}) now.`,
+                        confirmLabel: 'Lock',
+                        cancelLabel: 'Cancel',
+                        tone: 'destructive'
                       })
-                      .catch(() => {
-                        // Hook state already reflects the error message.
-                      })
+
+                      if (!confirmed) {
+                        return
+                      }
+
+                      await updateLock(true)
+                        .then(() => {
+                          toast('User locked', 'warning')
+                        })
+                        .catch(() => {
+                          // Hook state already reflects the error message.
+                        })
+                    })()
                   }}
                   size="sm"
                   variant="outline"
@@ -299,13 +542,27 @@ export default function AdminUserDetailScreen() {
                   }
                   label="Disable user"
                   onPress={() => {
-                    void updateStatus(true)
-                      .then(() => {
-                        toast('User disabled', 'warning')
+                    void (async () => {
+                      const confirmed = await confirm({
+                        title: 'Disable user?',
+                        message: `Disable ${user.name} (${user.email}) until re-enabled.`,
+                        confirmLabel: 'Disable',
+                        cancelLabel: 'Cancel',
+                        tone: 'destructive'
                       })
-                      .catch(() => {
-                        // Hook state already reflects the error message.
-                      })
+
+                      if (!confirmed) {
+                        return
+                      }
+
+                      await updateStatus(true)
+                        .then(() => {
+                          toast('User disabled', 'warning')
+                        })
+                        .catch(() => {
+                          // Hook state already reflects the error message.
+                        })
+                    })()
                   }}
                   size="sm"
                   variant="outline"
@@ -360,10 +617,18 @@ export default function AdminUserDetailScreen() {
             {capability.canGetUserRemote ? (
               <View style={styles.actions}>
                 <Button
-                  disabled={isUpdatingRole || isUpdatingStatus || isUpdatingLock}
+                  disabled={
+                    isUpdatingRole ||
+                    isUpdatingStatus ||
+                    isUpdatingLock ||
+                    isRefreshingSessions ||
+                    isRevokingSessions ||
+                    Boolean(revokingSessionId)
+                  }
                   label="Refresh"
                   onPress={() => {
                     void refresh()
+                    void refreshSessions()
                   }}
                   size="sm"
                   variant="outline"
@@ -376,7 +641,13 @@ export default function AdminUserDetailScreen() {
 
       <LoadingOverlay
         label={
-          isUpdatingLock
+          revokingSessionId
+            ? 'Revoking session...'
+            : isRevokingSessions
+            ? 'Revoking sessions...'
+            : isRefreshingSessions
+            ? 'Refreshing sessions...'
+            : isUpdatingLock
             ? 'Updating lock state...'
             : isUpdatingStatus
             ? 'Updating status...'
@@ -384,7 +655,15 @@ export default function AdminUserDetailScreen() {
               ? 'Updating role...'
               : 'Refreshing user...'
         }
-        visible={isRefreshing || isUpdatingRole || isUpdatingStatus || isUpdatingLock}
+        visible={
+          isRefreshing ||
+          isRefreshingSessions ||
+          isRevokingSessions ||
+          Boolean(revokingSessionId) ||
+          isUpdatingRole ||
+          isUpdatingStatus ||
+          isUpdatingLock
+        }
       />
     </View>
   )

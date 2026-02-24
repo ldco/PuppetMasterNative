@@ -44,10 +44,16 @@ const genericRestAdminEndpointsSchema = z.object({
   listRoles: z.string().min(1).optional(),
   listLogs: z.string().min(1).optional(),
   clearLogs: z.string().min(1).optional(),
+  acknowledgeLog: z.string().min(1).optional(),
+  resolveLog: z.string().min(1).optional(),
+  retryLog: z.string().min(1).optional(),
   settings: z.string().min(1).optional(),
   updateUserRole: z.string().min(1).optional(),
   updateUserStatus: z.string().min(1).optional(),
   updateUserLock: z.string().min(1).optional(),
+  listUserSessions: z.string().min(1).optional(),
+  revokeUserSessions: z.string().min(1).optional(),
+  revokeUserSession: z.string().min(1).optional(),
   health: z.string().min(1).optional()
 })
 

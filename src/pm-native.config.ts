@@ -110,10 +110,16 @@ export const pmNativeConfig: PMNativeConfig = {
       //     listRoles: '/admin/roles',
       //     listLogs: '/admin/logs',
       //     clearLogs: '/admin/logs/clear',
+      //     acknowledgeLog: '/admin/logs/:id/ack',
+      //     resolveLog: '/admin/logs/:id/resolve',
+      //     retryLog: '/admin/logs/:id/retry',
       //     settings: '/admin/settings',
       //     updateUserRole: '/admin/users/:id/role',
       //     updateUserStatus: '/admin/users/:id/status',
       //     updateUserLock: '/admin/users/:id/lock',
+      //     listUserSessions: '/admin/users/:id/sessions',
+      //     revokeUserSessions: '/admin/users/:id/sessions/revoke',
+      //     revokeUserSession: '/admin/users/:id/sessions/:sessionId/revoke',
       //     health: '/admin/health'
       //   }
       // }

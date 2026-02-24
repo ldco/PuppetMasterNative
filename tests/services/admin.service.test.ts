@@ -9,10 +9,16 @@ const mockAdminProvider = {
   listRoles: vi.fn(),
   listLogs: vi.fn(),
   clearLogs: vi.fn(),
+  acknowledgeLog: vi.fn(),
+  resolveLog: vi.fn(),
+  retryLog: vi.fn(),
   getSettings: vi.fn(),
   updateUserRole: vi.fn(),
   updateUserStatus: vi.fn(),
   updateUserLock: vi.fn(),
+  listUserSessions: vi.fn(),
+  revokeUserSessions: vi.fn(),
+  revokeUserSession: vi.fn(),
   getHealth: vi.fn()
 }
 
@@ -34,20 +40,32 @@ describe('adminService', () => {
       canListRolesRemote: false,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
       canGetSettingsRemote: false,
       canUpdateUserRoleRemote: false,
       canUpdateUserStatusRemote: false,
       canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
       canGetHealthRemote: false,
       listUsersDetail: 'users',
       getUserDetail: 'user-detail',
       listRolesDetail: 'roles unsupported',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
       getSettingsDetail: 'settings unsupported',
       updateUserRoleDetail: 'role update unsupported',
       updateUserStatusDetail: 'status update unsupported',
       updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
       getHealthDetail: 'health unsupported'
     })
 
@@ -81,20 +99,32 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
       canGetSettingsRemote: false,
       canUpdateUserRoleRemote: false,
       canUpdateUserStatusRemote: false,
       canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
       canGetHealthRemote: false,
       listUsersDetail: 'users',
       getUserDetail: 'user-detail',
       listRolesDetail: 'GET /admin/roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
       getSettingsDetail: 'settings unsupported',
       updateUserRoleDetail: 'role update unsupported',
       updateUserStatusDetail: 'status update unsupported',
       updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
       getHealthDetail: 'health unsupported'
     })
     mockAdminProvider.listRoles.mockResolvedValueOnce([
@@ -134,20 +164,32 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
       canGetSettingsRemote: false,
       canUpdateUserRoleRemote: false,
       canUpdateUserStatusRemote: false,
       canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
       canGetHealthRemote: false,
       listUsersDetail: 'users',
       getUserDetail: 'user-detail',
       listRolesDetail: 'GET /admin/roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
       getSettingsDetail: 'settings unsupported',
       updateUserRoleDetail: 'role update unsupported',
       updateUserStatusDetail: 'status update unsupported',
       updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
       getHealthDetail: 'health unsupported'
     })
 
@@ -174,20 +216,32 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
       canGetSettingsRemote: false,
       canUpdateUserRoleRemote: false,
       canUpdateUserStatusRemote: false,
       canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
       canGetHealthRemote: false,
       listUsersDetail: 'users',
       getUserDetail: 'user-detail',
       listRolesDetail: 'roles',
       listLogsDetail: 'logs endpoint unavailable',
       clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
       getSettingsDetail: 'settings unsupported',
       updateUserRoleDetail: 'role update unsupported',
       updateUserStatusDetail: 'status update unsupported',
       updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
       getHealthDetail: 'health unsupported'
     })
 
@@ -219,20 +273,32 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: true,
       canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
       canGetSettingsRemote: false,
       canUpdateUserRoleRemote: false,
       canUpdateUserStatusRemote: false,
       canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
       canGetHealthRemote: false,
       listUsersDetail: 'users',
       getUserDetail: 'user-detail',
       listRolesDetail: 'roles',
       listLogsDetail: 'GET /admin/logs',
       clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
       getSettingsDetail: 'settings unsupported',
       updateUserRoleDetail: 'role update unsupported',
       updateUserStatusDetail: 'status update unsupported',
       updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
       getHealthDetail: 'health unsupported'
     })
     mockAdminProvider.listLogs.mockResolvedValueOnce([
@@ -284,20 +350,32 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: true,
       canClearLogsRemote: true,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
       canGetSettingsRemote: false,
       canUpdateUserRoleRemote: false,
       canUpdateUserStatusRemote: false,
       canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
       canGetHealthRemote: false,
       listUsersDetail: 'users',
       getUserDetail: 'user-detail',
       listRolesDetail: 'roles',
       listLogsDetail: 'GET /admin/logs',
       clearLogsDetail: 'POST /admin/logs/clear',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
       getSettingsDetail: 'settings unsupported',
       updateUserRoleDetail: 'role update unsupported',
       updateUserStatusDetail: 'status update unsupported',
       updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
       getHealthDetail: 'health unsupported'
     })
     mockAdminProvider.clearLogs.mockResolvedValueOnce({ clearedCount: 8 })
@@ -329,20 +407,32 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: true,
       canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
       canGetSettingsRemote: false,
       canUpdateUserRoleRemote: false,
       canUpdateUserStatusRemote: false,
       canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
       canGetHealthRemote: false,
       listUsersDetail: 'users',
       getUserDetail: 'user-detail',
       listRolesDetail: 'roles',
       listLogsDetail: 'GET /admin/logs',
       clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
       getSettingsDetail: 'settings unsupported',
       updateUserRoleDetail: 'role update unsupported',
       updateUserStatusDetail: 'status update unsupported',
       updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
       getHealthDetail: 'health unsupported'
     })
 
@@ -363,6 +453,405 @@ describe('adminService', () => {
     })
   })
 
+  it('acknowledges a log through provider when mutation capability is available', async () => {
+    const { adminService } = await import('@/services/admin.service')
+
+    mockAdminProvider.getCapabilities.mockReturnValue({
+      canListUsersRemote: true,
+      canGetUserRemote: true,
+      canListRolesRemote: true,
+      canListLogsRemote: true,
+      canClearLogsRemote: true,
+      canAcknowledgeLogRemote: true,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
+      canGetSettingsRemote: false,
+      canUpdateUserRoleRemote: false,
+      canUpdateUserStatusRemote: false,
+      canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
+      canGetHealthRemote: false,
+      listUsersDetail: 'users',
+      getUserDetail: 'user-detail',
+      listRolesDetail: 'roles',
+      listLogsDetail: 'GET /admin/logs',
+      clearLogsDetail: 'POST /admin/logs/clear',
+      acknowledgeLogDetail: 'POST /admin/logs/:id/ack',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
+      getSettingsDetail: 'settings unsupported',
+      updateUserRoleDetail: 'role update unsupported',
+      updateUserStatusDetail: 'status update unsupported',
+      updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
+      getHealthDetail: 'health unsupported'
+    })
+    mockAdminProvider.acknowledgeLog.mockResolvedValueOnce({
+      id: 'log-1',
+      timestamp: '2026-02-24T00:10:00.000Z',
+      level: 'warning',
+      message: 'Queue lag high',
+      source: 'worker',
+      acknowledged: true,
+      acknowledgedAt: '2026-02-24T00:12:00.000Z'
+    })
+
+    const result = await adminService.acknowledgeLog({
+      activeUser: {
+        id: 'u1',
+        email: 'admin@example.com',
+        name: 'Admin',
+        role: 'admin'
+      },
+      accessToken: 'token',
+      logId: 'log-1'
+    })
+
+    expect(mockAdminProvider.acknowledgeLog).toHaveBeenCalledWith({
+      accessToken: 'token',
+      logId: 'log-1'
+    })
+    expect(result).toEqual({
+      log: {
+        id: 'log-1',
+        timestamp: '2026-02-24T00:10:00.000Z',
+        level: 'warning',
+        message: 'Queue lag high',
+        source: 'worker',
+        acknowledged: true,
+        acknowledgedAt: '2026-02-24T00:12:00.000Z'
+      },
+      source: 'remote',
+      sourceDetail: 'POST /admin/logs/:id/ack'
+    })
+  })
+
+  it('throws NOT_SUPPORTED for acknowledgeLog when mutation capability is unavailable', async () => {
+    const { adminService } = await import('@/services/admin.service')
+
+    mockAdminProvider.getCapabilities.mockReturnValue({
+      canListUsersRemote: true,
+      canGetUserRemote: true,
+      canListRolesRemote: true,
+      canListLogsRemote: true,
+      canClearLogsRemote: true,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
+      canGetSettingsRemote: false,
+      canUpdateUserRoleRemote: false,
+      canUpdateUserStatusRemote: false,
+      canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
+      canGetHealthRemote: false,
+      listUsersDetail: 'users',
+      getUserDetail: 'user-detail',
+      listRolesDetail: 'roles',
+      listLogsDetail: 'GET /admin/logs',
+      clearLogsDetail: 'POST /admin/logs/clear',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
+      getSettingsDetail: 'settings unsupported',
+      updateUserRoleDetail: 'role update unsupported',
+      updateUserStatusDetail: 'status update unsupported',
+      updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
+      getHealthDetail: 'health unsupported'
+    })
+
+    await expect(
+      adminService.acknowledgeLog({
+        activeUser: {
+          id: 'u1',
+          email: 'admin@example.com',
+          name: 'Admin',
+          role: 'admin'
+        },
+        accessToken: 'token',
+        logId: 'log-1'
+      })
+    ).rejects.toMatchObject({
+      name: 'AdminProviderError',
+      code: 'NOT_SUPPORTED',
+      message: 'ack log unsupported'
+    })
+  })
+
+  it('resolves a log through provider when mutation capability is available', async () => {
+    const { adminService } = await import('@/services/admin.service')
+
+    mockAdminProvider.getCapabilities.mockReturnValue({
+      canListUsersRemote: true,
+      canGetUserRemote: true,
+      canListRolesRemote: true,
+      canListLogsRemote: true,
+      canClearLogsRemote: true,
+      canAcknowledgeLogRemote: true,
+      canResolveLogRemote: true,
+      canRetryLogRemote: false,
+      canGetSettingsRemote: false,
+      canUpdateUserRoleRemote: false,
+      canUpdateUserStatusRemote: false,
+      canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
+      canGetHealthRemote: false,
+      listUsersDetail: 'users',
+      getUserDetail: 'user-detail',
+      listRolesDetail: 'roles',
+      listLogsDetail: 'GET /admin/logs',
+      clearLogsDetail: 'POST /admin/logs/clear',
+      acknowledgeLogDetail: 'POST /admin/logs/:id/ack',
+      resolveLogDetail: 'POST /admin/logs/:id/resolve',
+      retryLogDetail: 'retry log unsupported',
+      getSettingsDetail: 'settings unsupported',
+      updateUserRoleDetail: 'role update unsupported',
+      updateUserStatusDetail: 'status update unsupported',
+      updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
+      getHealthDetail: 'health unsupported'
+    })
+    mockAdminProvider.resolveLog.mockResolvedValueOnce({
+      id: 'log-2',
+      timestamp: '2026-02-24T00:20:00.000Z',
+      level: 'audit',
+      message: 'Issue resolved',
+      source: 'worker',
+      resolved: true,
+      resolvedAt: '2026-02-24T00:21:00.000Z'
+    })
+
+    const result = await adminService.resolveLog({
+      activeUser: {
+        id: 'u1',
+        email: 'admin@example.com',
+        name: 'Admin',
+        role: 'admin'
+      },
+      accessToken: 'token',
+      logId: 'log-2'
+    })
+
+    expect(mockAdminProvider.resolveLog).toHaveBeenCalledWith({
+      accessToken: 'token',
+      logId: 'log-2'
+    })
+    expect(result).toEqual({
+      log: {
+        id: 'log-2',
+        timestamp: '2026-02-24T00:20:00.000Z',
+        level: 'audit',
+        message: 'Issue resolved',
+        source: 'worker',
+        resolved: true,
+        resolvedAt: '2026-02-24T00:21:00.000Z'
+      },
+      source: 'remote',
+      sourceDetail: 'POST /admin/logs/:id/resolve'
+    })
+  })
+
+  it('throws NOT_SUPPORTED for resolveLog when mutation capability is unavailable', async () => {
+    const { adminService } = await import('@/services/admin.service')
+
+    mockAdminProvider.getCapabilities.mockReturnValue({
+      canListUsersRemote: true,
+      canGetUserRemote: true,
+      canListRolesRemote: true,
+      canListLogsRemote: true,
+      canClearLogsRemote: true,
+      canAcknowledgeLogRemote: true,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
+      canGetSettingsRemote: false,
+      canUpdateUserRoleRemote: false,
+      canUpdateUserStatusRemote: false,
+      canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
+      canGetHealthRemote: false,
+      listUsersDetail: 'users',
+      getUserDetail: 'user-detail',
+      listRolesDetail: 'roles',
+      listLogsDetail: 'GET /admin/logs',
+      clearLogsDetail: 'POST /admin/logs/clear',
+      acknowledgeLogDetail: 'POST /admin/logs/:id/ack',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
+      getSettingsDetail: 'settings unsupported',
+      updateUserRoleDetail: 'role update unsupported',
+      updateUserStatusDetail: 'status update unsupported',
+      updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
+      getHealthDetail: 'health unsupported'
+    })
+
+    await expect(
+      adminService.resolveLog({
+        activeUser: {
+          id: 'u1',
+          email: 'admin@example.com',
+          name: 'Admin',
+          role: 'admin'
+        },
+        accessToken: 'token',
+        logId: 'log-2'
+      })
+    ).rejects.toMatchObject({
+      name: 'AdminProviderError',
+      code: 'NOT_SUPPORTED',
+      message: 'resolve log unsupported'
+    })
+  })
+
+  it('retries a log through provider when mutation capability is available', async () => {
+    const { adminService } = await import('@/services/admin.service')
+
+    mockAdminProvider.getCapabilities.mockReturnValue({
+      canListUsersRemote: true,
+      canGetUserRemote: true,
+      canListRolesRemote: true,
+      canListLogsRemote: true,
+      canClearLogsRemote: true,
+      canAcknowledgeLogRemote: true,
+      canResolveLogRemote: true,
+      canRetryLogRemote: true,
+      canGetSettingsRemote: false,
+      canUpdateUserRoleRemote: false,
+      canUpdateUserStatusRemote: false,
+      canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
+      canGetHealthRemote: false,
+      listUsersDetail: 'users',
+      getUserDetail: 'user-detail',
+      listRolesDetail: 'roles',
+      listLogsDetail: 'GET /admin/logs',
+      clearLogsDetail: 'POST /admin/logs/clear',
+      acknowledgeLogDetail: 'POST /admin/logs/:id/ack',
+      resolveLogDetail: 'POST /admin/logs/:id/resolve',
+      retryLogDetail: 'POST /admin/logs/:id/retry',
+      getSettingsDetail: 'settings unsupported',
+      updateUserRoleDetail: 'role update unsupported',
+      updateUserStatusDetail: 'status update unsupported',
+      updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
+      getHealthDetail: 'health unsupported'
+    })
+    mockAdminProvider.retryLog.mockResolvedValueOnce({
+      id: 'log-3',
+      timestamp: '2026-02-24T00:30:00.000Z',
+      level: 'error',
+      message: 'Retry requested',
+      source: 'worker',
+      acknowledged: true,
+      resolved: false
+    })
+
+    const result = await adminService.retryLog({
+      activeUser: {
+        id: 'u1',
+        email: 'admin@example.com',
+        name: 'Admin',
+        role: 'admin'
+      },
+      accessToken: 'token',
+      logId: 'log-3'
+    })
+
+    expect(mockAdminProvider.retryLog).toHaveBeenCalledWith({
+      accessToken: 'token',
+      logId: 'log-3'
+    })
+    expect(result).toEqual({
+      log: {
+        id: 'log-3',
+        timestamp: '2026-02-24T00:30:00.000Z',
+        level: 'error',
+        message: 'Retry requested',
+        source: 'worker',
+        acknowledged: true,
+        resolved: false
+      },
+      source: 'remote',
+      sourceDetail: 'POST /admin/logs/:id/retry'
+    })
+  })
+
+  it('throws NOT_SUPPORTED for retryLog when mutation capability is unavailable', async () => {
+    const { adminService } = await import('@/services/admin.service')
+
+    mockAdminProvider.getCapabilities.mockReturnValue({
+      canListUsersRemote: true,
+      canGetUserRemote: true,
+      canListRolesRemote: true,
+      canListLogsRemote: true,
+      canClearLogsRemote: true,
+      canAcknowledgeLogRemote: true,
+      canResolveLogRemote: true,
+      canRetryLogRemote: false,
+      canGetSettingsRemote: false,
+      canUpdateUserRoleRemote: false,
+      canUpdateUserStatusRemote: false,
+      canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
+      canGetHealthRemote: false,
+      listUsersDetail: 'users',
+      getUserDetail: 'user-detail',
+      listRolesDetail: 'roles',
+      listLogsDetail: 'GET /admin/logs',
+      clearLogsDetail: 'POST /admin/logs/clear',
+      acknowledgeLogDetail: 'POST /admin/logs/:id/ack',
+      resolveLogDetail: 'POST /admin/logs/:id/resolve',
+      retryLogDetail: 'retry log unsupported',
+      getSettingsDetail: 'settings unsupported',
+      updateUserRoleDetail: 'role update unsupported',
+      updateUserStatusDetail: 'status update unsupported',
+      updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
+      getHealthDetail: 'health unsupported'
+    })
+
+    await expect(
+      adminService.retryLog({
+        activeUser: {
+          id: 'u1',
+          email: 'admin@example.com',
+          name: 'Admin',
+          role: 'admin'
+        },
+        accessToken: 'token',
+        logId: 'log-3'
+      })
+    ).rejects.toMatchObject({
+      name: 'AdminProviderError',
+      code: 'NOT_SUPPORTED',
+      message: 'retry log unsupported'
+    })
+  })
+
   it('returns config fallback admin settings when settings endpoint is unsupported', async () => {
     const { adminService } = await import('@/services/admin.service')
 
@@ -372,20 +861,32 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: true,
       canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
       canGetSettingsRemote: false,
       canUpdateUserRoleRemote: false,
       canUpdateUserStatusRemote: false,
       canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
       canGetHealthRemote: false,
       listUsersDetail: 'users',
       getUserDetail: 'user-detail',
       listRolesDetail: 'roles',
       listLogsDetail: 'GET /admin/logs',
       clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
       getSettingsDetail: 'settings endpoint unavailable',
       updateUserRoleDetail: 'role update unsupported',
       updateUserStatusDetail: 'status update unsupported',
       updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
       getHealthDetail: 'health unsupported'
     })
 
@@ -415,20 +916,32 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
       canGetSettingsRemote: true,
       canUpdateUserRoleRemote: false,
       canUpdateUserStatusRemote: false,
       canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
       canGetHealthRemote: false,
       listUsersDetail: 'users',
       getUserDetail: 'user-detail',
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
       getSettingsDetail: 'GET /admin/settings',
       updateUserRoleDetail: 'role update unsupported',
       updateUserStatusDetail: 'status update unsupported',
       updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
       getHealthDetail: 'health unsupported'
     })
     mockAdminProvider.getSettings.mockResolvedValueOnce({
@@ -480,20 +993,32 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
       canGetSettingsRemote: false,
       canUpdateUserRoleRemote: true,
       canUpdateUserStatusRemote: false,
       canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
       canGetHealthRemote: false,
       listUsersDetail: 'users',
       getUserDetail: 'user-detail',
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
       getSettingsDetail: 'settings unsupported',
       updateUserRoleDetail: 'PATCH /admin/users/:id/role',
       updateUserStatusDetail: 'status update unsupported',
       updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
       getHealthDetail: 'health unsupported'
     })
     mockAdminProvider.updateUserRole.mockResolvedValueOnce({
@@ -541,20 +1066,32 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
       canGetSettingsRemote: false,
       canUpdateUserRoleRemote: false,
       canUpdateUserStatusRemote: false,
       canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
       canGetHealthRemote: false,
       listUsersDetail: 'users',
       getUserDetail: 'user-detail',
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
       getSettingsDetail: 'settings unsupported',
       updateUserRoleDetail: 'role update unsupported',
       updateUserStatusDetail: 'status update unsupported',
       updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
       getHealthDetail: 'health unsupported'
     })
 
@@ -586,20 +1123,32 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
       canGetSettingsRemote: false,
       canUpdateUserRoleRemote: true,
       canUpdateUserStatusRemote: true,
       canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
       canGetHealthRemote: false,
       listUsersDetail: 'users',
       getUserDetail: 'user-detail',
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
       getSettingsDetail: 'settings unsupported',
       updateUserRoleDetail: 'PATCH /admin/users/:id/role',
       updateUserStatusDetail: 'PATCH /admin/users/:id/status',
       updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
       getHealthDetail: 'health unsupported'
     })
     mockAdminProvider.updateUserStatus.mockResolvedValueOnce({
@@ -647,20 +1196,32 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
       canGetSettingsRemote: false,
       canUpdateUserRoleRemote: true,
       canUpdateUserStatusRemote: false,
       canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
       canGetHealthRemote: false,
       listUsersDetail: 'users',
       getUserDetail: 'user-detail',
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
       getSettingsDetail: 'settings unsupported',
       updateUserRoleDetail: 'PATCH /admin/users/:id/role',
       updateUserStatusDetail: 'status update unsupported',
       updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
       getHealthDetail: 'health unsupported'
     })
 
@@ -692,20 +1253,32 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
       canGetSettingsRemote: false,
       canUpdateUserRoleRemote: true,
       canUpdateUserStatusRemote: true,
       canUpdateUserLockRemote: true,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
       canGetHealthRemote: false,
       listUsersDetail: 'users',
       getUserDetail: 'user-detail',
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
       getSettingsDetail: 'settings unsupported',
       updateUserRoleDetail: 'PATCH /admin/users/:id/role',
       updateUserStatusDetail: 'PATCH /admin/users/:id/status',
       updateUserLockDetail: 'PATCH /admin/users/:id/lock',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
       getHealthDetail: 'health unsupported'
     })
     mockAdminProvider.updateUserLock.mockResolvedValueOnce({
@@ -757,20 +1330,32 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
       canGetSettingsRemote: false,
       canUpdateUserRoleRemote: true,
       canUpdateUserStatusRemote: true,
       canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
       canGetHealthRemote: false,
       listUsersDetail: 'users',
       getUserDetail: 'user-detail',
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
       getSettingsDetail: 'settings unsupported',
       updateUserRoleDetail: 'PATCH /admin/users/:id/role',
       updateUserStatusDetail: 'PATCH /admin/users/:id/status',
       updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
       getHealthDetail: 'health unsupported'
     })
 
@@ -793,6 +1378,399 @@ describe('adminService', () => {
     })
   })
 
+  it('returns local fallback user sessions when sessions capability is unavailable', async () => {
+    const { adminService } = await import('@/services/admin.service')
+
+    mockAdminProvider.getCapabilities.mockReturnValue({
+      canListUsersRemote: true,
+      canGetUserRemote: true,
+      canListRolesRemote: true,
+      canListLogsRemote: false,
+      canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
+      canGetSettingsRemote: false,
+      canUpdateUserRoleRemote: false,
+      canUpdateUserStatusRemote: false,
+      canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
+      canGetHealthRemote: false,
+      listUsersDetail: 'users',
+      getUserDetail: 'user-detail',
+      listRolesDetail: 'roles',
+      listLogsDetail: 'logs unsupported',
+      clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
+      getSettingsDetail: 'settings unsupported',
+      updateUserRoleDetail: 'role update unsupported',
+      updateUserStatusDetail: 'status update unsupported',
+      updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
+      getHealthDetail: 'health unsupported'
+    })
+
+    const result = await adminService.getUserSessions({
+      activeUser: {
+        id: 'admin-1',
+        email: 'admin@example.com',
+        name: 'Admin',
+        role: 'admin'
+      },
+      accessToken: 'token',
+      userId: 'u2'
+    })
+
+    expect(mockAdminProvider.listUserSessions).not.toHaveBeenCalled()
+    expect(result).toEqual({
+      sessions: [],
+      source: 'local-fallback',
+      sourceDetail: 'user sessions unsupported'
+    })
+  })
+
+  it('returns remote user sessions and preserves provider source detail', async () => {
+    const { adminService } = await import('@/services/admin.service')
+
+    mockAdminProvider.getCapabilities.mockReturnValue({
+      canListUsersRemote: true,
+      canGetUserRemote: true,
+      canListRolesRemote: true,
+      canListLogsRemote: false,
+      canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
+      canGetSettingsRemote: false,
+      canUpdateUserRoleRemote: false,
+      canUpdateUserStatusRemote: false,
+      canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: true,
+      canRevokeUserSessionsRemote: true,
+      canRevokeUserSessionRemote: false,
+      canGetHealthRemote: false,
+      listUsersDetail: 'users',
+      getUserDetail: 'user-detail',
+      listRolesDetail: 'roles',
+      listLogsDetail: 'logs unsupported',
+      clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
+      getSettingsDetail: 'settings unsupported',
+      updateUserRoleDetail: 'role update unsupported',
+      updateUserStatusDetail: 'status update unsupported',
+      updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'GET /admin/users/:id/sessions',
+      revokeUserSessionsDetail: 'POST /admin/users/:id/sessions/revoke',
+      revokeUserSessionDetail: 'revoke user session unsupported',
+      getHealthDetail: 'health unsupported'
+    })
+    mockAdminProvider.listUserSessions.mockResolvedValueOnce([
+      {
+        id: 'sess-1',
+        createdAt: '2026-02-24T00:00:00.000Z',
+        lastSeenAt: '2026-02-24T01:00:00.000Z',
+        ipAddress: '10.0.0.1',
+        userAgent: 'Expo Go',
+        current: true,
+        revoked: false
+      }
+    ])
+
+    const result = await adminService.getUserSessions({
+      activeUser: {
+        id: 'admin-1',
+        email: 'admin@example.com',
+        name: 'Admin',
+        role: 'admin'
+      },
+      accessToken: 'token',
+      userId: 'u2'
+    })
+
+    expect(mockAdminProvider.listUserSessions).toHaveBeenCalledWith({
+      accessToken: 'token',
+      userId: 'u2'
+    })
+    expect(result).toEqual({
+      sessions: [
+        {
+          id: 'sess-1',
+          createdAt: '2026-02-24T00:00:00.000Z',
+          lastSeenAt: '2026-02-24T01:00:00.000Z',
+          ipAddress: '10.0.0.1',
+          userAgent: 'Expo Go',
+          current: true,
+          revoked: false
+        }
+      ],
+      source: 'remote',
+      sourceDetail: 'GET /admin/users/:id/sessions'
+    })
+  })
+
+  it('revokes user sessions through provider when mutation capability is available', async () => {
+    const { adminService } = await import('@/services/admin.service')
+
+    mockAdminProvider.getCapabilities.mockReturnValue({
+      canListUsersRemote: true,
+      canGetUserRemote: true,
+      canListRolesRemote: true,
+      canListLogsRemote: false,
+      canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
+      canGetSettingsRemote: false,
+      canUpdateUserRoleRemote: false,
+      canUpdateUserStatusRemote: false,
+      canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: true,
+      canRevokeUserSessionsRemote: true,
+      canRevokeUserSessionRemote: false,
+      canGetHealthRemote: false,
+      listUsersDetail: 'users',
+      getUserDetail: 'user-detail',
+      listRolesDetail: 'roles',
+      listLogsDetail: 'logs unsupported',
+      clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
+      getSettingsDetail: 'settings unsupported',
+      updateUserRoleDetail: 'role update unsupported',
+      updateUserStatusDetail: 'status update unsupported',
+      updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'GET /admin/users/:id/sessions',
+      revokeUserSessionsDetail: 'POST /admin/users/:id/sessions/revoke',
+      revokeUserSessionDetail: 'revoke user session unsupported',
+      getHealthDetail: 'health unsupported'
+    })
+    mockAdminProvider.revokeUserSessions.mockResolvedValueOnce({ revokedCount: 4 })
+
+    const result = await adminService.revokeUserSessions({
+      activeUser: {
+        id: 'admin-1',
+        email: 'admin@example.com',
+        name: 'Admin',
+        role: 'admin'
+      },
+      accessToken: 'token',
+      userId: 'u2'
+    })
+
+    expect(mockAdminProvider.revokeUserSessions).toHaveBeenCalledWith({
+      accessToken: 'token',
+      userId: 'u2'
+    })
+    expect(result).toEqual({
+      revokedCount: 4,
+      source: 'remote',
+      sourceDetail: 'POST /admin/users/:id/sessions/revoke'
+    })
+  })
+
+  it('throws NOT_SUPPORTED for revokeUserSessions when mutation capability is unavailable', async () => {
+    const { adminService } = await import('@/services/admin.service')
+
+    mockAdminProvider.getCapabilities.mockReturnValue({
+      canListUsersRemote: true,
+      canGetUserRemote: true,
+      canListRolesRemote: true,
+      canListLogsRemote: false,
+      canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
+      canGetSettingsRemote: false,
+      canUpdateUserRoleRemote: false,
+      canUpdateUserStatusRemote: false,
+      canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: true,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
+      canGetHealthRemote: false,
+      listUsersDetail: 'users',
+      getUserDetail: 'user-detail',
+      listRolesDetail: 'roles',
+      listLogsDetail: 'logs unsupported',
+      clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
+      getSettingsDetail: 'settings unsupported',
+      updateUserRoleDetail: 'role update unsupported',
+      updateUserStatusDetail: 'status update unsupported',
+      updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'GET /admin/users/:id/sessions',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
+      getHealthDetail: 'health unsupported'
+    })
+
+    await expect(
+      adminService.revokeUserSessions({
+        activeUser: {
+          id: 'admin-1',
+          email: 'admin@example.com',
+          name: 'Admin',
+          role: 'admin'
+        },
+        accessToken: 'token',
+        userId: 'u2'
+      })
+    ).rejects.toMatchObject({
+      name: 'AdminProviderError',
+      code: 'NOT_SUPPORTED',
+      message: 'revoke user sessions unsupported'
+    })
+  })
+
+  it('revokes a single user session through provider when mutation capability is available', async () => {
+    const { adminService } = await import('@/services/admin.service')
+
+    mockAdminProvider.getCapabilities.mockReturnValue({
+      canListUsersRemote: true,
+      canGetUserRemote: true,
+      canListRolesRemote: true,
+      canListLogsRemote: false,
+      canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
+      canGetSettingsRemote: false,
+      canUpdateUserRoleRemote: false,
+      canUpdateUserStatusRemote: false,
+      canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: true,
+      canRevokeUserSessionsRemote: true,
+      canRevokeUserSessionRemote: true,
+      canGetHealthRemote: false,
+      listUsersDetail: 'users',
+      getUserDetail: 'user-detail',
+      listRolesDetail: 'roles',
+      listLogsDetail: 'logs unsupported',
+      clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
+      getSettingsDetail: 'settings unsupported',
+      updateUserRoleDetail: 'role update unsupported',
+      updateUserStatusDetail: 'status update unsupported',
+      updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'GET /admin/users/:id/sessions',
+      revokeUserSessionsDetail: 'POST /admin/users/:id/sessions/revoke',
+      revokeUserSessionDetail: 'POST /admin/users/:id/sessions/:sessionId/revoke',
+      getHealthDetail: 'health unsupported'
+    })
+    mockAdminProvider.revokeUserSession.mockResolvedValueOnce({
+      session: {
+        id: 'sess-1',
+        createdAt: '2026-02-24T00:00:00.000Z',
+        lastSeenAt: '2026-02-24T01:00:00.000Z',
+        ipAddress: '10.0.0.1',
+        userAgent: 'Expo Go',
+        revoked: true
+      },
+      revokedCount: 1
+    })
+
+    const result = await adminService.revokeUserSession({
+      activeUser: {
+        id: 'admin-1',
+        email: 'admin@example.com',
+        name: 'Admin',
+        role: 'admin'
+      },
+      accessToken: 'token',
+      userId: 'u2',
+      sessionId: 'sess-1'
+    })
+
+    expect(mockAdminProvider.revokeUserSession).toHaveBeenCalledWith({
+      accessToken: 'token',
+      userId: 'u2',
+      sessionId: 'sess-1'
+    })
+    expect(result).toEqual({
+      session: {
+        id: 'sess-1',
+        createdAt: '2026-02-24T00:00:00.000Z',
+        lastSeenAt: '2026-02-24T01:00:00.000Z',
+        ipAddress: '10.0.0.1',
+        userAgent: 'Expo Go',
+        revoked: true
+      },
+      revokedCount: 1,
+      source: 'remote',
+      sourceDetail: 'POST /admin/users/:id/sessions/:sessionId/revoke'
+    })
+  })
+
+  it('throws NOT_SUPPORTED for revokeUserSession when mutation capability is unavailable', async () => {
+    const { adminService } = await import('@/services/admin.service')
+
+    mockAdminProvider.getCapabilities.mockReturnValue({
+      canListUsersRemote: true,
+      canGetUserRemote: true,
+      canListRolesRemote: true,
+      canListLogsRemote: false,
+      canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
+      canGetSettingsRemote: false,
+      canUpdateUserRoleRemote: false,
+      canUpdateUserStatusRemote: false,
+      canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: true,
+      canRevokeUserSessionsRemote: true,
+      canRevokeUserSessionRemote: false,
+      canGetHealthRemote: false,
+      listUsersDetail: 'users',
+      getUserDetail: 'user-detail',
+      listRolesDetail: 'roles',
+      listLogsDetail: 'logs unsupported',
+      clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
+      getSettingsDetail: 'settings unsupported',
+      updateUserRoleDetail: 'role update unsupported',
+      updateUserStatusDetail: 'status update unsupported',
+      updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'GET /admin/users/:id/sessions',
+      revokeUserSessionsDetail: 'POST /admin/users/:id/sessions/revoke',
+      revokeUserSessionDetail: 'revoke user session unsupported',
+      getHealthDetail: 'health unsupported'
+    })
+
+    await expect(
+      adminService.revokeUserSession({
+        activeUser: {
+          id: 'admin-1',
+          email: 'admin@example.com',
+          name: 'Admin',
+          role: 'admin'
+        },
+        accessToken: 'token',
+        userId: 'u2',
+        sessionId: 'sess-1'
+      })
+    ).rejects.toMatchObject({
+      name: 'AdminProviderError',
+      code: 'NOT_SUPPORTED',
+      message: 'revoke user session unsupported'
+    })
+  })
+
   it('returns local fallback health when health capability is unavailable', async () => {
     const { adminService } = await import('@/services/admin.service')
 
@@ -802,20 +1780,32 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
       canGetSettingsRemote: false,
       canUpdateUserRoleRemote: false,
       canUpdateUserStatusRemote: false,
       canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
       canGetHealthRemote: false,
       listUsersDetail: 'users',
       getUserDetail: 'user-detail',
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
       getSettingsDetail: 'settings unsupported',
       updateUserRoleDetail: 'role update unsupported',
       updateUserStatusDetail: 'status update unsupported',
       updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
       getHealthDetail: 'health endpoint unavailable'
     })
 
@@ -851,20 +1841,32 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
       canGetSettingsRemote: false,
       canUpdateUserRoleRemote: false,
       canUpdateUserStatusRemote: false,
       canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
       canGetHealthRemote: true,
       listUsersDetail: 'users',
       getUserDetail: 'user-detail',
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
       getSettingsDetail: 'settings unsupported',
       updateUserRoleDetail: 'role update unsupported',
       updateUserStatusDetail: 'status update unsupported',
       updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
       getHealthDetail: 'GET /admin/health'
     })
     mockAdminProvider.getHealth.mockResolvedValueOnce({
@@ -906,20 +1908,32 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
       canGetSettingsRemote: false,
       canUpdateUserRoleRemote: false,
       canUpdateUserStatusRemote: false,
       canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
       canGetHealthRemote: true,
       listUsersDetail: 'users',
       getUserDetail: 'user-detail',
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
       getSettingsDetail: 'settings unsupported',
       updateUserRoleDetail: 'role update unsupported',
       updateUserStatusDetail: 'status update unsupported',
       updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
       getHealthDetail: 'GET /admin/health'
     })
     mockAdminProvider.getHealth.mockRejectedValueOnce(

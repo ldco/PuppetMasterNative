@@ -5,6 +5,8 @@ import { apiRequest } from '@/services/api'
 import {
   AdminProviderError,
   type AdminProvider,
+  type AdminProviderAcknowledgeLogInput,
+  type AdminProviderRetryLogInput,
   type AdminProviderDirectoryUser,
   type AdminProviderClearLogsResult,
   type AdminProviderGetUserInput,
@@ -12,11 +14,18 @@ import {
   type AdminProviderListUsersInput,
   type AdminProviderHealthSnapshot,
   type AdminProviderLogEntry,
+  type AdminProviderListUserSessionsInput,
+  type AdminProviderResolveLogInput,
+  type AdminProviderRevokeUserSessionInput,
+  type AdminProviderRevokeUserSessionResult,
+  type AdminProviderRevokeUserSessionsInput,
+  type AdminProviderRevokeUserSessionsResult,
   type AdminProviderRoleSummary,
   type AdminProviderSettingsSnapshot,
   type AdminProviderUpdateUserLockInput,
   type AdminProviderUpdateUserRoleInput,
-  type AdminProviderUpdateUserStatusInput
+  type AdminProviderUpdateUserStatusInput,
+  type AdminProviderUserSession
 } from '@/services/admin.provider.types'
 
 const genericRestAdminUserSchema = z
@@ -124,8 +133,34 @@ const genericRestAdminLogEntrySchema = z.object({
   message: z.string().min(1),
   source: z.string().min(1).nullable().optional(),
   service: z.string().min(1).nullable().optional(),
-  category: z.string().min(1).nullable().optional()
+  category: z.string().min(1).nullable().optional(),
+  acknowledged: z.boolean().optional(),
+  acked: z.boolean().optional(),
+  acknowledgedAt: z.string().min(1).nullable().optional(),
+  acknowledged_at: z.string().min(1).nullable().optional(),
+  ackedAt: z.string().min(1).nullable().optional(),
+  acked_at: z.string().min(1).nullable().optional(),
+  resolved: z.boolean().optional(),
+  isResolved: z.boolean().optional(),
+  resolvedAt: z.string().min(1).nullable().optional(),
+  resolved_at: z.string().min(1).nullable().optional()
 })
+
+const genericRestAdminLogPayloadSchema = z.union([
+  genericRestAdminLogEntrySchema,
+  z.object({
+    log: genericRestAdminLogEntrySchema
+  }),
+  z.object({
+    success: z.literal(true),
+    data: z.union([
+      genericRestAdminLogEntrySchema,
+      z.object({
+        log: genericRestAdminLogEntrySchema
+      })
+    ])
+  })
+])
 
 const genericRestAdminLogsPayloadSchema = z.union([
   z.array(genericRestAdminLogEntrySchema),
@@ -160,6 +195,79 @@ const genericRestAdminClearLogsPayloadSchema = z.union([
       count: z.number().int().nonnegative().optional()
     })
   })
+])
+
+const genericRestAdminUserSessionSchema = z.object({
+  id: z.union([z.string().min(1), z.number().int().nonnegative()]).optional(),
+  createdAt: z.string().min(1).nullable().optional(),
+  created_at: z.string().min(1).nullable().optional(),
+  lastSeenAt: z.string().min(1).nullable().optional(),
+  last_seen_at: z.string().min(1).nullable().optional(),
+  ipAddress: z.string().min(1).nullable().optional(),
+  ip_address: z.string().min(1).nullable().optional(),
+  ip: z.string().min(1).nullable().optional(),
+  userAgent: z.string().min(1).nullable().optional(),
+  user_agent: z.string().min(1).nullable().optional(),
+  current: z.boolean().optional(),
+  isCurrent: z.boolean().optional(),
+  revoked: z.boolean().optional(),
+  isRevoked: z.boolean().optional()
+})
+
+const genericRestAdminUserSessionsPayloadSchema = z.union([
+  z.array(genericRestAdminUserSessionSchema),
+  z.object({
+    sessions: z.array(genericRestAdminUserSessionSchema)
+  }),
+  z.object({
+    success: z.literal(true),
+    data: z.union([
+      z.array(genericRestAdminUserSessionSchema),
+      z.object({
+        sessions: z.array(genericRestAdminUserSessionSchema)
+      })
+    ])
+  })
+])
+
+const genericRestAdminUserSessionPayloadSchema = z.union([
+  genericRestAdminUserSessionSchema,
+  z.object({
+    session: genericRestAdminUserSessionSchema
+  }),
+  z.object({
+    success: z.literal(true),
+    data: z.union([
+      genericRestAdminUserSessionSchema,
+      z.object({
+        session: genericRestAdminUserSessionSchema
+      })
+    ])
+  })
+])
+
+const genericRestAdminRevokeUserSessionsPayloadSchema = z.union([
+  z.object({
+    revokedCount: z.number().int().nonnegative().optional(),
+    count: z.number().int().nonnegative().optional()
+  }),
+  z.object({
+    success: z.literal(true),
+    revokedCount: z.number().int().nonnegative().optional(),
+    count: z.number().int().nonnegative().optional()
+  }),
+  z.object({
+    success: z.literal(true),
+    data: z.object({
+      revokedCount: z.number().int().nonnegative().optional(),
+      count: z.number().int().nonnegative().optional()
+    })
+  })
+])
+
+const genericRestAdminRevokeUserSessionPayloadSchema = z.union([
+  genericRestAdminUserSessionPayloadSchema,
+  genericRestAdminRevokeUserSessionsPayloadSchema
 ])
 
 const genericRestAdminSettingValueSchema = z.union([z.string(), z.number(), z.boolean(), z.null()])
@@ -307,22 +415,47 @@ const normalizeGenericRestLogsPayload = (
         : payload.data.logs
       : payload.logs
 
-  return logs.map((log, index) => {
-    const timestamp = log.timestamp ?? log.createdAt ?? log.created_at ?? null
-    const source = log.source ?? log.service ?? log.category ?? null
-    const id =
-      log.id !== undefined
-        ? String(log.id)
-        : `${timestamp ?? 'no-ts'}:${index}:${log.message.slice(0, 24)}`
+  return logs.map((log, index) => normalizeAdminLog(log, index))
+}
 
-    return {
-      id,
-      timestamp,
-      level: normalizeLogLevel(log.level),
-      message: log.message,
-      source
-    }
-  })
+const normalizeAdminLog = (
+  log: z.infer<typeof genericRestAdminLogEntrySchema>,
+  index = 0
+): AdminProviderLogEntry => {
+  const timestamp = log.timestamp ?? log.createdAt ?? log.created_at ?? null
+  const source = log.source ?? log.service ?? log.category ?? null
+  const id =
+    log.id !== undefined
+      ? String(log.id)
+      : `${timestamp ?? 'no-ts'}:${index}:${log.message.slice(0, 24)}`
+  const acknowledged = typeof log.acknowledged === 'boolean' ? log.acknowledged : log.acked
+  const acknowledgedAt =
+    log.acknowledgedAt ??
+    log.acknowledged_at ??
+    log.ackedAt ??
+    log.acked_at ??
+    undefined
+  const resolved = typeof log.resolved === 'boolean' ? log.resolved : log.isResolved
+  const resolvedAt = log.resolvedAt ?? log.resolved_at ?? undefined
+
+  return {
+    id,
+    timestamp,
+    level: normalizeLogLevel(log.level),
+    message: log.message,
+    source,
+    ...(typeof acknowledged === 'boolean' ? { acknowledged } : {}),
+    ...(typeof acknowledgedAt !== 'undefined' ? { acknowledgedAt } : {}),
+    ...(typeof resolved === 'boolean' ? { resolved } : {}),
+    ...(typeof resolvedAt !== 'undefined' ? { resolvedAt } : {})
+  }
+}
+
+const normalizeGenericRestLogPayload = (
+  payload: z.infer<typeof genericRestAdminLogPayloadSchema>
+): AdminProviderLogEntry => {
+  const log = 'data' in payload ? ('log' in payload.data ? payload.data.log : payload.data) : 'log' in payload ? payload.log : payload
+  return normalizeAdminLog(log)
 }
 
 const normalizeGenericRestClearLogsPayload = (
@@ -332,6 +465,102 @@ const normalizeGenericRestClearLogsPayload = (
 
   return {
     clearedCount: raw.clearedCount ?? raw.count ?? null
+  }
+}
+
+const normalizeAdminUserSession = (
+  session: z.infer<typeof genericRestAdminUserSessionSchema>,
+  index = 0
+): AdminProviderUserSession => {
+  const createdAt = session.createdAt ?? session.created_at ?? null
+  const lastSeenAt = session.lastSeenAt ?? session.last_seen_at ?? null
+  const ipAddress = session.ipAddress ?? session.ip_address ?? session.ip ?? null
+  const userAgent = session.userAgent ?? session.user_agent ?? null
+  const current = typeof session.current === 'boolean' ? session.current : session.isCurrent
+  const revoked = typeof session.revoked === 'boolean' ? session.revoked : session.isRevoked
+  const id =
+    session.id !== undefined
+      ? String(session.id)
+      : `${createdAt ?? lastSeenAt ?? 'session'}:${index}:${ipAddress ?? 'no-ip'}`
+
+  return {
+    id,
+    createdAt,
+    lastSeenAt,
+    ipAddress,
+    userAgent,
+    ...(typeof current === 'boolean' ? { current } : {}),
+    ...(typeof revoked === 'boolean' ? { revoked } : {})
+  }
+}
+
+const normalizeGenericRestUserSessionsPayload = (
+  payload: z.infer<typeof genericRestAdminUserSessionsPayloadSchema>
+): AdminProviderUserSession[] => {
+  const sessions = Array.isArray(payload)
+    ? payload
+    : 'data' in payload
+      ? Array.isArray(payload.data)
+        ? payload.data
+        : payload.data.sessions
+      : payload.sessions
+
+  return sessions.map((session, index) => normalizeAdminUserSession(session, index))
+}
+
+const normalizeGenericRestUserSessionPayload = (
+  payload: z.infer<typeof genericRestAdminUserSessionPayloadSchema>
+): AdminProviderUserSession => {
+  const session =
+    'data' in payload
+      ? 'session' in payload.data
+        ? payload.data.session
+        : payload.data
+      : 'session' in payload
+        ? payload.session
+        : payload
+
+  return normalizeAdminUserSession(session)
+}
+
+const normalizeGenericRestRevokeUserSessionsPayload = (
+  payload: z.infer<typeof genericRestAdminRevokeUserSessionsPayloadSchema>
+): AdminProviderRevokeUserSessionsResult => {
+  const raw = 'data' in payload ? payload.data : payload
+  return {
+    revokedCount: raw.revokedCount ?? raw.count ?? null
+  }
+}
+
+const normalizeGenericRestRevokeUserSessionPayload = (
+  payload: z.infer<typeof genericRestAdminRevokeUserSessionPayloadSchema>
+): AdminProviderRevokeUserSessionResult => {
+  const looksLikeCountPayload =
+    (typeof payload === 'object' &&
+      payload !== null &&
+      ('revokedCount' in payload || 'count' in payload)) ||
+    (typeof payload === 'object' &&
+      payload !== null &&
+      'data' in payload &&
+      typeof payload.data === 'object' &&
+      payload.data !== null &&
+      ('revokedCount' in payload.data || 'count' in payload.data))
+
+  if (looksLikeCountPayload) {
+    const countResult = normalizeGenericRestRevokeUserSessionsPayload(
+      payload as z.infer<typeof genericRestAdminRevokeUserSessionsPayloadSchema>
+    )
+    return {
+      session: null,
+      revokedCount: countResult.revokedCount
+    }
+  }
+
+  return {
+    session: normalizeGenericRestUserSessionPayload(
+      payload as z.infer<typeof genericRestAdminUserSessionPayloadSchema>
+    ),
+    revokedCount: null
   }
 }
 
@@ -410,10 +639,16 @@ const genericRestGetUserEndpointTemplate = genericRestAdminEndpoints?.getUser
 const genericRestListRolesEndpoint = genericRestAdminEndpoints?.listRoles
 const genericRestListLogsEndpoint = genericRestAdminEndpoints?.listLogs
 const genericRestClearLogsEndpoint = genericRestAdminEndpoints?.clearLogs
+const genericRestAcknowledgeLogEndpointTemplate = genericRestAdminEndpoints?.acknowledgeLog
+const genericRestResolveLogEndpointTemplate = genericRestAdminEndpoints?.resolveLog
+const genericRestRetryLogEndpointTemplate = genericRestAdminEndpoints?.retryLog
 const genericRestSettingsEndpoint = genericRestAdminEndpoints?.settings
 const genericRestUpdateUserRoleEndpointTemplate = genericRestAdminEndpoints?.updateUserRole
 const genericRestUpdateUserStatusEndpointTemplate = genericRestAdminEndpoints?.updateUserStatus
 const genericRestUpdateUserLockEndpointTemplate = genericRestAdminEndpoints?.updateUserLock
+const genericRestListUserSessionsEndpointTemplate = genericRestAdminEndpoints?.listUserSessions
+const genericRestRevokeUserSessionsEndpointTemplate = genericRestAdminEndpoints?.revokeUserSessions
+const genericRestRevokeUserSessionEndpointTemplate = genericRestAdminEndpoints?.revokeUserSession
 const genericRestHealthEndpoint = genericRestAdminEndpoints?.health
 
 const resolveGetUserEndpoint = (userId: string): string => {
@@ -476,6 +711,107 @@ const resolveUpdateUserLockEndpoint = (userId: string): string => {
   return genericRestUpdateUserLockEndpointTemplate.replace(':id', encodeURIComponent(userId))
 }
 
+const resolveListUserSessionsEndpoint = (userId: string): string => {
+  if (!genericRestListUserSessionsEndpointTemplate) {
+    throw new AdminProviderError('generic-rest admin user sessions endpoint is not configured', 'CONFIG')
+  }
+
+  if (!genericRestListUserSessionsEndpointTemplate.includes(':id')) {
+    throw new AdminProviderError(
+      'generic-rest admin user sessions endpoint must include :id placeholder',
+      'CONFIG'
+    )
+  }
+
+  return genericRestListUserSessionsEndpointTemplate.replace(':id', encodeURIComponent(userId))
+}
+
+const resolveRevokeUserSessionsEndpoint = (userId: string): string => {
+  if (!genericRestRevokeUserSessionsEndpointTemplate) {
+    throw new AdminProviderError(
+      'generic-rest admin revoke user sessions endpoint is not configured',
+      'CONFIG'
+    )
+  }
+
+  if (!genericRestRevokeUserSessionsEndpointTemplate.includes(':id')) {
+    throw new AdminProviderError(
+      'generic-rest admin revoke user sessions endpoint must include :id placeholder',
+      'CONFIG'
+    )
+  }
+
+  return genericRestRevokeUserSessionsEndpointTemplate.replace(':id', encodeURIComponent(userId))
+}
+
+const resolveRevokeUserSessionEndpoint = (userId: string, sessionId: string): string => {
+  if (!genericRestRevokeUserSessionEndpointTemplate) {
+    throw new AdminProviderError(
+      'generic-rest admin revoke user session endpoint is not configured',
+      'CONFIG'
+    )
+  }
+
+  if (
+    !genericRestRevokeUserSessionEndpointTemplate.includes(':id') ||
+    !genericRestRevokeUserSessionEndpointTemplate.includes(':sessionId')
+  ) {
+    throw new AdminProviderError(
+      'generic-rest admin revoke user session endpoint must include :id and :sessionId placeholders',
+      'CONFIG'
+    )
+  }
+
+  return genericRestRevokeUserSessionEndpointTemplate
+    .replace(':id', encodeURIComponent(userId))
+    .replace(':sessionId', encodeURIComponent(sessionId))
+}
+
+const resolveAcknowledgeLogEndpoint = (logId: string): string => {
+  if (!genericRestAcknowledgeLogEndpointTemplate) {
+    throw new AdminProviderError('generic-rest admin acknowledge log endpoint is not configured', 'CONFIG')
+  }
+
+  if (!genericRestAcknowledgeLogEndpointTemplate.includes(':id')) {
+    throw new AdminProviderError(
+      'generic-rest admin acknowledge log endpoint must include :id placeholder',
+      'CONFIG'
+    )
+  }
+
+  return genericRestAcknowledgeLogEndpointTemplate.replace(':id', encodeURIComponent(logId))
+}
+
+const resolveResolveLogEndpoint = (logId: string): string => {
+  if (!genericRestResolveLogEndpointTemplate) {
+    throw new AdminProviderError('generic-rest admin resolve log endpoint is not configured', 'CONFIG')
+  }
+
+  if (!genericRestResolveLogEndpointTemplate.includes(':id')) {
+    throw new AdminProviderError(
+      'generic-rest admin resolve log endpoint must include :id placeholder',
+      'CONFIG'
+    )
+  }
+
+  return genericRestResolveLogEndpointTemplate.replace(':id', encodeURIComponent(logId))
+}
+
+const resolveRetryLogEndpoint = (logId: string): string => {
+  if (!genericRestRetryLogEndpointTemplate) {
+    throw new AdminProviderError('generic-rest admin retry log endpoint is not configured', 'CONFIG')
+  }
+
+  if (!genericRestRetryLogEndpointTemplate.includes(':id')) {
+    throw new AdminProviderError(
+      'generic-rest admin retry log endpoint must include :id placeholder',
+      'CONFIG'
+    )
+  }
+
+  return genericRestRetryLogEndpointTemplate.replace(':id', encodeURIComponent(logId))
+}
+
 const requireAccessToken = (accessToken?: string | null): string => {
   if (!accessToken) {
     throw new AdminProviderError('No access token available for admin request', 'UNAUTHORIZED')
@@ -523,10 +859,16 @@ const genericRestAdminProvider: AdminProvider = {
     const canListRolesRemote = Boolean(genericRestListRolesEndpoint)
     const canListLogsRemote = Boolean(genericRestListLogsEndpoint)
     const canClearLogsRemote = Boolean(genericRestClearLogsEndpoint)
+    const canAcknowledgeLogRemote = Boolean(genericRestAcknowledgeLogEndpointTemplate)
+    const canResolveLogRemote = Boolean(genericRestResolveLogEndpointTemplate)
+    const canRetryLogRemote = Boolean(genericRestRetryLogEndpointTemplate)
     const canGetSettingsRemote = Boolean(genericRestSettingsEndpoint)
     const canUpdateUserRoleRemote = Boolean(genericRestUpdateUserRoleEndpointTemplate)
     const canUpdateUserStatusRemote = Boolean(genericRestUpdateUserStatusEndpointTemplate)
     const canUpdateUserLockRemote = Boolean(genericRestUpdateUserLockEndpointTemplate)
+    const canListUserSessionsRemote = Boolean(genericRestListUserSessionsEndpointTemplate)
+    const canRevokeUserSessionsRemote = Boolean(genericRestRevokeUserSessionsEndpointTemplate)
+    const canRevokeUserSessionRemote = Boolean(genericRestRevokeUserSessionEndpointTemplate)
     const canGetHealthRemote = Boolean(genericRestHealthEndpoint)
 
     return {
@@ -535,10 +877,16 @@ const genericRestAdminProvider: AdminProvider = {
       canListRolesRemote,
       canListLogsRemote,
       canClearLogsRemote,
+      canAcknowledgeLogRemote,
+      canResolveLogRemote,
+      canRetryLogRemote,
       canGetSettingsRemote,
       canUpdateUserRoleRemote,
       canUpdateUserStatusRemote,
       canUpdateUserLockRemote,
+      canListUserSessionsRemote,
+      canRevokeUserSessionsRemote,
+      canRevokeUserSessionRemote,
       canGetHealthRemote,
       listUsersDetail: canListUsersRemote
         ? `GET ${genericRestListUsersEndpoint}`
@@ -555,6 +903,15 @@ const genericRestAdminProvider: AdminProvider = {
       clearLogsDetail: canClearLogsRemote
         ? `POST ${genericRestClearLogsEndpoint}`
         : 'generic-rest admin clear logs endpoint is not configured (backend.genericRest.admin.endpoints.clearLogs)',
+      acknowledgeLogDetail: canAcknowledgeLogRemote
+        ? `POST ${genericRestAcknowledgeLogEndpointTemplate}`
+        : 'generic-rest admin acknowledge log endpoint is not configured (backend.genericRest.admin.endpoints.acknowledgeLog)',
+      resolveLogDetail: canResolveLogRemote
+        ? `POST ${genericRestResolveLogEndpointTemplate}`
+        : 'generic-rest admin resolve log endpoint is not configured (backend.genericRest.admin.endpoints.resolveLog)',
+      retryLogDetail: canRetryLogRemote
+        ? `POST ${genericRestRetryLogEndpointTemplate}`
+        : 'generic-rest admin retry log endpoint is not configured (backend.genericRest.admin.endpoints.retryLog)',
       getSettingsDetail: canGetSettingsRemote
         ? `GET ${genericRestSettingsEndpoint}`
         : 'generic-rest admin settings endpoint is not configured (backend.genericRest.admin.endpoints.settings)',
@@ -567,6 +924,15 @@ const genericRestAdminProvider: AdminProvider = {
       updateUserLockDetail: canUpdateUserLockRemote
         ? `PATCH ${genericRestUpdateUserLockEndpointTemplate}`
         : 'generic-rest admin lock update endpoint is not configured (backend.genericRest.admin.endpoints.updateUserLock)',
+      listUserSessionsDetail: canListUserSessionsRemote
+        ? `GET ${genericRestListUserSessionsEndpointTemplate}`
+        : 'generic-rest admin user sessions endpoint is not configured (backend.genericRest.admin.endpoints.listUserSessions)',
+      revokeUserSessionsDetail: canRevokeUserSessionsRemote
+        ? `POST ${genericRestRevokeUserSessionsEndpointTemplate}`
+        : 'generic-rest admin revoke user sessions endpoint is not configured (backend.genericRest.admin.endpoints.revokeUserSessions)',
+      revokeUserSessionDetail: canRevokeUserSessionRemote
+        ? `POST ${genericRestRevokeUserSessionEndpointTemplate}`
+        : 'generic-rest admin revoke user session endpoint is not configured (backend.genericRest.admin.endpoints.revokeUserSession)',
       getHealthDetail: canGetHealthRemote
         ? `GET ${genericRestHealthEndpoint}`
         : 'generic-rest admin health endpoint is not configured (backend.genericRest.admin.endpoints.health)'
@@ -665,6 +1031,54 @@ const genericRestAdminProvider: AdminProvider = {
     return normalizeGenericRestClearLogsPayload(payload)
   },
 
+  async acknowledgeLog(input: AdminProviderAcknowledgeLogInput): Promise<AdminProviderLogEntry> {
+    const endpoint = resolveAcknowledgeLogEndpoint(input.logId)
+    const accessToken = requireAccessToken(input.accessToken)
+
+    const payload = await apiRequest(endpoint, {
+      method: 'POST',
+      token: accessToken,
+      schema: genericRestAdminLogPayloadSchema,
+      useAuthToken: false
+    }).catch((error: unknown) => {
+      throw toAdminProviderRequestError(error, 'Admin acknowledge log request failed')
+    })
+
+    return normalizeGenericRestLogPayload(payload)
+  },
+
+  async resolveLog(input: AdminProviderResolveLogInput): Promise<AdminProviderLogEntry> {
+    const endpoint = resolveResolveLogEndpoint(input.logId)
+    const accessToken = requireAccessToken(input.accessToken)
+
+    const payload = await apiRequest(endpoint, {
+      method: 'POST',
+      token: accessToken,
+      schema: genericRestAdminLogPayloadSchema,
+      useAuthToken: false
+    }).catch((error: unknown) => {
+      throw toAdminProviderRequestError(error, 'Admin resolve log request failed')
+    })
+
+    return normalizeGenericRestLogPayload(payload)
+  },
+
+  async retryLog(input: AdminProviderRetryLogInput): Promise<AdminProviderLogEntry> {
+    const endpoint = resolveRetryLogEndpoint(input.logId)
+    const accessToken = requireAccessToken(input.accessToken)
+
+    const payload = await apiRequest(endpoint, {
+      method: 'POST',
+      token: accessToken,
+      schema: genericRestAdminLogPayloadSchema,
+      useAuthToken: false
+    }).catch((error: unknown) => {
+      throw toAdminProviderRequestError(error, 'Admin retry log request failed')
+    })
+
+    return normalizeGenericRestLogPayload(payload)
+  },
+
   async getSettings(input: AdminProviderListUsersInput): Promise<AdminProviderSettingsSnapshot> {
     if (!genericRestSettingsEndpoint) {
       throw new AdminProviderError('generic-rest admin settings endpoint is not configured', 'CONFIG')
@@ -740,6 +1154,57 @@ const genericRestAdminProvider: AdminProvider = {
     return normalizeGenericRestUserPayload(payload)
   },
 
+  async listUserSessions(input: AdminProviderListUserSessionsInput): Promise<AdminProviderUserSession[]> {
+    const endpoint = resolveListUserSessionsEndpoint(input.userId)
+    const accessToken = requireAccessToken(input.accessToken)
+
+    const payload = await apiRequest(endpoint, {
+      token: accessToken,
+      schema: genericRestAdminUserSessionsPayloadSchema,
+      useAuthToken: false
+    }).catch((error: unknown) => {
+      throw toAdminProviderRequestError(error, 'Admin user sessions request failed')
+    })
+
+    return normalizeGenericRestUserSessionsPayload(payload)
+  },
+
+  async revokeUserSessions(
+    input: AdminProviderRevokeUserSessionsInput
+  ): Promise<AdminProviderRevokeUserSessionsResult> {
+    const endpoint = resolveRevokeUserSessionsEndpoint(input.userId)
+    const accessToken = requireAccessToken(input.accessToken)
+
+    const payload = await apiRequest(endpoint, {
+      method: 'POST',
+      token: accessToken,
+      schema: genericRestAdminRevokeUserSessionsPayloadSchema,
+      useAuthToken: false
+    }).catch((error: unknown) => {
+      throw toAdminProviderRequestError(error, 'Admin revoke user sessions request failed')
+    })
+
+    return normalizeGenericRestRevokeUserSessionsPayload(payload)
+  },
+
+  async revokeUserSession(
+    input: AdminProviderRevokeUserSessionInput
+  ): Promise<AdminProviderRevokeUserSessionResult> {
+    const endpoint = resolveRevokeUserSessionEndpoint(input.userId, input.sessionId)
+    const accessToken = requireAccessToken(input.accessToken)
+
+    const payload = await apiRequest(endpoint, {
+      method: 'POST',
+      token: accessToken,
+      schema: genericRestAdminRevokeUserSessionPayloadSchema,
+      useAuthToken: false
+    }).catch((error: unknown) => {
+      throw toAdminProviderRequestError(error, 'Admin revoke user session request failed')
+    })
+
+    return normalizeGenericRestRevokeUserSessionPayload(payload)
+  },
+
   async getHealth(input: AdminProviderListUsersInput): Promise<AdminProviderHealthSnapshot> {
     if (!genericRestHealthEndpoint) {
       throw new AdminProviderError('generic-rest admin health endpoint is not configured', 'CONFIG')
@@ -767,20 +1232,32 @@ const supabaseAdminProvider: AdminProvider = {
       canListRolesRemote: false,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
       canGetSettingsRemote: false,
       canUpdateUserRoleRemote: false,
       canUpdateUserStatusRemote: false,
       canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
       canGetHealthRemote: false,
       listUsersDetail: 'supabase admin directory endpoints are not implemented yet (provider stub active)',
       getUserDetail: 'supabase admin user detail endpoint is not implemented yet (provider stub active)',
       listRolesDetail: 'supabase admin roles endpoint is not implemented yet (provider stub active)',
       listLogsDetail: 'supabase admin logs endpoint is not implemented yet (provider stub active)',
       clearLogsDetail: 'supabase admin clear logs endpoint is not implemented yet (provider stub active)',
+      acknowledgeLogDetail: 'supabase admin acknowledge log endpoint is not implemented yet (provider stub active)',
+      resolveLogDetail: 'supabase admin resolve log endpoint is not implemented yet (provider stub active)',
+      retryLogDetail: 'supabase admin retry log endpoint is not implemented yet (provider stub active)',
       getSettingsDetail: 'supabase admin settings endpoint is not implemented yet (provider stub active)',
       updateUserRoleDetail: 'supabase admin role update endpoint is not implemented yet (provider stub active)',
       updateUserStatusDetail: 'supabase admin status update endpoint is not implemented yet (provider stub active)',
       updateUserLockDetail: 'supabase admin lock update endpoint is not implemented yet (provider stub active)',
+      listUserSessionsDetail: 'supabase admin user sessions endpoint is not implemented yet (provider stub active)',
+      revokeUserSessionsDetail: 'supabase admin revoke user sessions endpoint is not implemented yet (provider stub active)',
+      revokeUserSessionDetail: 'supabase admin revoke user session endpoint is not implemented yet (provider stub active)',
       getHealthDetail: 'supabase admin health endpoint is not implemented yet (provider stub active)'
     }
   },
@@ -811,6 +1288,18 @@ const supabaseAdminProvider: AdminProvider = {
     throw new AdminProviderError('supabase admin clear logs endpoint is not implemented yet', 'NOT_SUPPORTED')
   },
 
+  async acknowledgeLog(): Promise<AdminProviderLogEntry> {
+    throw new AdminProviderError('supabase admin acknowledge log endpoint is not implemented yet', 'NOT_SUPPORTED')
+  },
+
+  async resolveLog(): Promise<AdminProviderLogEntry> {
+    throw new AdminProviderError('supabase admin resolve log endpoint is not implemented yet', 'NOT_SUPPORTED')
+  },
+
+  async retryLog(): Promise<AdminProviderLogEntry> {
+    throw new AdminProviderError('supabase admin retry log endpoint is not implemented yet', 'NOT_SUPPORTED')
+  },
+
   async getSettings(): Promise<AdminProviderSettingsSnapshot> {
     return {
       updatedAt: null,
@@ -830,6 +1319,24 @@ const supabaseAdminProvider: AdminProvider = {
     throw new AdminProviderError('supabase admin lock update endpoint is not implemented yet', 'NOT_SUPPORTED')
   },
 
+  async listUserSessions(): Promise<AdminProviderUserSession[]> {
+    return []
+  },
+
+  async revokeUserSessions(): Promise<AdminProviderRevokeUserSessionsResult> {
+    throw new AdminProviderError(
+      'supabase admin revoke user sessions endpoint is not implemented yet',
+      'NOT_SUPPORTED'
+    )
+  },
+
+  async revokeUserSession(): Promise<AdminProviderRevokeUserSessionResult> {
+    throw new AdminProviderError(
+      'supabase admin revoke user session endpoint is not implemented yet',
+      'NOT_SUPPORTED'
+    )
+  },
+
   async getHealth() {
     throw new AdminProviderError('supabase admin health endpoint is not implemented yet', 'NOT_SUPPORTED')
   }
@@ -843,20 +1350,32 @@ const notSupportedProvider = (provider: string): AdminProvider => ({
       canListRolesRemote: false,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
       canGetSettingsRemote: false,
       canUpdateUserRoleRemote: false,
       canUpdateUserStatusRemote: false,
       canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
       canGetHealthRemote: false,
       listUsersDetail: `${provider} admin provider is not implemented yet`,
       getUserDetail: `${provider} admin provider is not implemented yet`,
       listRolesDetail: `${provider} admin provider is not implemented yet`,
       listLogsDetail: `${provider} admin provider is not implemented yet`,
       clearLogsDetail: `${provider} admin provider is not implemented yet`,
+      acknowledgeLogDetail: `${provider} admin provider is not implemented yet`,
+      resolveLogDetail: `${provider} admin provider is not implemented yet`,
+      retryLogDetail: `${provider} admin provider is not implemented yet`,
       getSettingsDetail: `${provider} admin provider is not implemented yet`,
       updateUserRoleDetail: `${provider} admin provider is not implemented yet`,
       updateUserStatusDetail: `${provider} admin provider is not implemented yet`,
       updateUserLockDetail: `${provider} admin provider is not implemented yet`,
+      listUserSessionsDetail: `${provider} admin provider is not implemented yet`,
+      revokeUserSessionsDetail: `${provider} admin provider is not implemented yet`,
+      revokeUserSessionDetail: `${provider} admin provider is not implemented yet`,
       getHealthDetail: `${provider} admin provider is not implemented yet`
     }
   },
@@ -881,6 +1400,18 @@ const notSupportedProvider = (provider: string): AdminProvider => ({
     throw new AdminProviderError(`${provider} admin provider is not implemented yet`, 'NOT_SUPPORTED')
   },
 
+  async acknowledgeLog() {
+    throw new AdminProviderError(`${provider} admin provider is not implemented yet`, 'NOT_SUPPORTED')
+  },
+
+  async resolveLog() {
+    throw new AdminProviderError(`${provider} admin provider is not implemented yet`, 'NOT_SUPPORTED')
+  },
+
+  async retryLog() {
+    throw new AdminProviderError(`${provider} admin provider is not implemented yet`, 'NOT_SUPPORTED')
+  },
+
   async getSettings() {
     throw new AdminProviderError(`${provider} admin provider is not implemented yet`, 'NOT_SUPPORTED')
   },
@@ -894,6 +1425,18 @@ const notSupportedProvider = (provider: string): AdminProvider => ({
   },
 
   async updateUserLock() {
+    throw new AdminProviderError(`${provider} admin provider is not implemented yet`, 'NOT_SUPPORTED')
+  },
+
+  async listUserSessions() {
+    throw new AdminProviderError(`${provider} admin provider is not implemented yet`, 'NOT_SUPPORTED')
+  },
+
+  async revokeUserSessions() {
+    throw new AdminProviderError(`${provider} admin provider is not implemented yet`, 'NOT_SUPPORTED')
+  },
+
+  async revokeUserSession() {
     throw new AdminProviderError(`${provider} admin provider is not implemented yet`, 'NOT_SUPPORTED')
   },
 
