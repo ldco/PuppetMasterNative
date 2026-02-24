@@ -110,6 +110,8 @@ export const pmNativeConfig: PMNativeConfig = {
       //     listRoles: '/admin/roles',
       //     listLogs: '/admin/logs',
       //     clearLogs: '/admin/logs/clear',
+      //     exportLogs: '/admin/logs/export',
+      //     getLogExportJob: '/admin/logs/export/:jobId',
       //     acknowledgeLog: '/admin/logs/:id/ack',
       //     resolveLog: '/admin/logs/:id/resolve',
       //     retryLog: '/admin/logs/:id/retry',

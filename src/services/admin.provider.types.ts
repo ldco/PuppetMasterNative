@@ -6,6 +6,8 @@ export interface AdminProviderCapabilities {
   canListRolesRemote: boolean
   canListLogsRemote: boolean
   canClearLogsRemote: boolean
+  canExportLogsRemote: boolean
+  canGetLogExportJobRemote?: boolean
   canAcknowledgeLogRemote: boolean
   canResolveLogRemote: boolean
   canRetryLogRemote: boolean
@@ -22,6 +24,8 @@ export interface AdminProviderCapabilities {
   listRolesDetail: string
   listLogsDetail: string
   clearLogsDetail: string
+  exportLogsDetail: string
+  getLogExportJobDetail?: string
   acknowledgeLogDetail: string
   resolveLogDetail: string
   retryLogDetail: string
@@ -61,6 +65,16 @@ export interface AdminProviderListLogsInput extends AdminProviderListUsersInput 
 }
 
 export interface AdminProviderClearLogsInput extends AdminProviderListUsersInput {}
+
+export type AdminProviderLogExportFormat = 'json' | 'csv'
+
+export interface AdminProviderExportLogsInput extends AdminProviderListLogsInput {
+  format?: AdminProviderLogExportFormat
+}
+
+export interface AdminProviderGetLogExportJobInput extends AdminProviderListUsersInput {
+  jobId: string
+}
 
 export interface AdminProviderAcknowledgeLogInput extends AdminProviderListUsersInput {
   logId: string
@@ -150,6 +164,27 @@ export interface AdminProviderClearLogsResult {
   clearedCount: number | null
 }
 
+export interface AdminProviderExportLogsResult {
+  url: string | null
+  jobId: string | null
+  format: AdminProviderLogExportFormat | null
+}
+
+export type AdminProviderLogExportJobStatus =
+  | 'queued'
+  | 'running'
+  | 'ready'
+  | 'error'
+  | 'unknown'
+
+export interface AdminProviderLogExportJobResult {
+  jobId: string
+  status: AdminProviderLogExportJobStatus
+  url: string | null
+  format: AdminProviderLogExportFormat | null
+  message: string | null
+}
+
 export type AdminProviderSettingValue = string | number | boolean | null
 
 export interface AdminProviderSettingItem {
@@ -196,6 +231,8 @@ export interface AdminProvider {
   listRoles: (input: AdminProviderListUsersInput) => Promise<AdminProviderRoleSummary[]>
   listLogs: (input: AdminProviderListLogsInput) => Promise<AdminProviderLogEntry[]>
   clearLogs: (input: AdminProviderClearLogsInput) => Promise<AdminProviderClearLogsResult>
+  exportLogs: (input: AdminProviderExportLogsInput) => Promise<AdminProviderExportLogsResult>
+  getLogExportJob: (input: AdminProviderGetLogExportJobInput) => Promise<AdminProviderLogExportJobResult>
   acknowledgeLog: (input: AdminProviderAcknowledgeLogInput) => Promise<AdminProviderLogEntry>
   resolveLog: (input: AdminProviderResolveLogInput) => Promise<AdminProviderLogEntry>
   retryLog: (input: AdminProviderRetryLogInput) => Promise<AdminProviderLogEntry>

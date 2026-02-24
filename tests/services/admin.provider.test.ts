@@ -10,6 +10,8 @@ interface LoadAdminProviderOptions {
     listRoles?: string
     listLogs?: string
     clearLogs?: string
+    exportLogs?: string
+    getLogExportJob?: string
     acknowledgeLog?: string
     resolveLog?: string
     retryLog?: string
@@ -75,6 +77,8 @@ describe('adminProvider', () => {
         listRoles: '/admin/roles',
         listLogs: '/admin/logs',
         clearLogs: '/admin/logs/clear',
+        exportLogs: '/admin/logs/export',
+        getLogExportJob: '/admin/logs/export/:jobId',
         acknowledgeLog: '/admin/logs/:id/ack',
         resolveLog: '/admin/logs/:id/resolve',
         retryLog: '/admin/logs/:id/retry',
@@ -95,6 +99,8 @@ describe('adminProvider', () => {
       canListRolesRemote: true,
       canListLogsRemote: true,
       canClearLogsRemote: true,
+      canExportLogsRemote: true,
+      canGetLogExportJobRemote: true,
       canAcknowledgeLogRemote: true,
       canResolveLogRemote: true,
       canRetryLogRemote: true,
@@ -111,6 +117,8 @@ describe('adminProvider', () => {
       listRolesDetail: 'GET /admin/roles',
       listLogsDetail: 'GET /admin/logs',
       clearLogsDetail: 'POST /admin/logs/clear',
+      exportLogsDetail: 'POST /admin/logs/export',
+      getLogExportJobDetail: 'GET /admin/logs/export/:jobId',
       acknowledgeLogDetail: 'POST /admin/logs/:id/ack',
       resolveLogDetail: 'POST /admin/logs/:id/resolve',
       retryLogDetail: 'POST /admin/logs/:id/retry',
@@ -123,6 +131,21 @@ describe('adminProvider', () => {
       revokeUserSessionDetail: 'POST /admin/users/:id/sessions/:sessionId/revoke',
       getHealthDetail: 'GET /admin/health'
     })
+  })
+
+  it('generic-rest getCapabilities marks export job endpoint unsupported when :jobId placeholder is missing', async () => {
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        getLogExportJob: '/admin/logs/export/status'
+      }
+    })
+
+    const capability = adminProvider.getCapabilities()
+
+    expect(capability.canGetLogExportJobRemote).toBe(false)
+    expect(capability.getLogExportJobDetail).toContain(':jobId placeholder')
   })
 
   it('generic-rest listRoles normalizes payload variants and default assignable=true', async () => {
@@ -417,6 +440,155 @@ describe('adminProvider', () => {
       name: 'AdminProviderError',
       code: 'UNAUTHORIZED',
       message: 'expired'
+    })
+  })
+
+  it('generic-rest exportLogs sends POST and normalizes url/job payload aliases', async () => {
+    const apiRequestMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          download_url: 'https://example.com/logs.csv',
+          job_id: 'job-1',
+          format: 'csv'
+        }
+      })
+      .mockResolvedValueOnce({
+        url: 'https://example.com/logs.json'
+      })
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        exportLogs: '/admin/logs/export'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(
+      adminProvider.exportLogs({ accessToken: 'token', format: 'csv', limit: 25 })
+    ).resolves.toEqual({
+      url: 'https://example.com/logs.csv',
+      jobId: 'job-1',
+      format: 'csv'
+    })
+
+    await expect(adminProvider.exportLogs({ accessToken: 'token' })).resolves.toEqual({
+      url: 'https://example.com/logs.json',
+      jobId: null,
+      format: null
+    })
+
+    expect(apiRequestMock).toHaveBeenNthCalledWith(1, '/admin/logs/export', {
+      method: 'POST',
+      token: 'token',
+      body: {
+        format: 'csv',
+        limit: 25
+      },
+      schema: expect.any(Object),
+      useAuthToken: false
+    })
+  })
+
+  it('generic-rest exportLogs maps ApiError 403 to UNAUTHORIZED', async () => {
+    const apiRequestMock = vi.fn().mockRejectedValue(new ApiError('forbidden', 403, 'FORBIDDEN'))
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        exportLogs: '/admin/logs/export'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(adminProvider.exportLogs({ accessToken: 'token' })).rejects.toMatchObject({
+      name: 'AdminProviderError',
+      code: 'UNAUTHORIZED',
+      message: 'forbidden'
+    })
+  })
+
+  it('generic-rest getLogExportJob normalizes status/url aliases and maps terminal states', async () => {
+    const apiRequestMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          export: {
+            job_id: 'job-1',
+            status: 'processing',
+            format: 'csv'
+          }
+        }
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          jobId: 'job-1',
+          status: 'completed',
+          downloadUrl: 'https://example.com/logs.csv',
+          message: 'Ready'
+        }
+      })
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        getLogExportJob: '/admin/logs/export/:jobId'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(
+      adminProvider.getLogExportJob({ accessToken: 'token', jobId: 'job-1' })
+    ).resolves.toEqual({
+      jobId: 'job-1',
+      status: 'running',
+      url: null,
+      format: 'csv',
+      message: null
+    })
+
+    await expect(
+      adminProvider.getLogExportJob({ accessToken: 'token', jobId: 'job-1' })
+    ).resolves.toEqual({
+      jobId: 'job-1',
+      status: 'ready',
+      url: 'https://example.com/logs.csv',
+      format: null,
+      message: 'Ready'
+    })
+
+    expect(apiRequestMock).toHaveBeenNthCalledWith(1, '/admin/logs/export/job-1', {
+      token: 'token',
+      schema: expect.any(Object),
+      useAuthToken: false
+    })
+  })
+
+  it('generic-rest getLogExportJob maps ApiError 403 to UNAUTHORIZED', async () => {
+    const apiRequestMock = vi.fn().mockRejectedValue(new ApiError('forbidden', 403, 'FORBIDDEN'))
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        getLogExportJob: '/admin/logs/export/:jobId'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(
+      adminProvider.getLogExportJob({ accessToken: 'token', jobId: 'job-1' })
+    ).rejects.toMatchObject({
+      name: 'AdminProviderError',
+      code: 'UNAUTHORIZED',
+      message: 'forbidden'
     })
   })
 

@@ -1,6 +1,7 @@
 import { pmNativeConfig } from '@/pm-native.config'
 import { adminProvider } from '@/services/admin.provider'
 import { AdminProviderError } from '@/services/admin.provider.types'
+import type { AdminProviderLogExportJobStatus } from '@/services/admin.provider.types'
 import type { AuthUser } from '@/types/auth'
 import type { Role } from '@/types/config'
 
@@ -32,6 +33,7 @@ export interface AdminRoleSummary {
 }
 
 export type AdminLogLevel = 'debug' | 'info' | 'warning' | 'error' | 'audit' | 'unknown'
+export type AdminLogExportFormat = 'json' | 'csv'
 
 export interface AdminLogEntry {
   id: string
@@ -167,10 +169,38 @@ export interface AdminClearLogsResult {
   sourceDetail: string
 }
 
+export interface AdminExportLogsResult {
+  url: string | null
+  jobId: string | null
+  format: AdminLogExportFormat | null
+  source: 'remote'
+  sourceDetail: string
+}
+
+export type AdminLogExportJobStatus = AdminProviderLogExportJobStatus
+
+export interface AdminLogExportJobResult {
+  jobId: string
+  status: AdminLogExportJobStatus
+  url: string | null
+  format: AdminLogExportFormat | null
+  message: string | null
+  source: 'remote'
+  sourceDetail: string
+}
+
 export interface AdminAcknowledgeLogResult {
   log: AdminLogEntry
   source: 'remote'
   sourceDetail: string
+}
+
+export interface AdminExportLogsInput extends AdminLogsQueryInput {
+  format?: AdminLogExportFormat
+}
+
+export interface AdminGetLogExportJobInput extends AdminDirectoryQueryInput {
+  jobId: string
 }
 
 export interface AdminResolveLogResult {
@@ -516,6 +546,64 @@ export const adminService = {
       clearedCount: result.clearedCount,
       source: 'remote',
       sourceDetail: capability.clearLogsDetail
+    }
+  },
+
+  async exportLogs(input: AdminExportLogsInput): Promise<AdminExportLogsResult> {
+    if (!input.activeUser) {
+      throw new AdminProviderError('No active user', 'UNAUTHORIZED')
+    }
+
+    const capability = adminProvider.getCapabilities()
+    if (!capability.canExportLogsRemote) {
+      throw new AdminProviderError(capability.exportLogsDetail, 'NOT_SUPPORTED')
+    }
+
+    const result = await adminProvider.exportLogs({
+      accessToken: input.accessToken,
+      limit: input.limit,
+      format: input.format
+    })
+
+    return {
+      url: result.url,
+      jobId: result.jobId,
+      format: result.format,
+      source: 'remote',
+      sourceDetail: capability.exportLogsDetail
+    }
+  },
+
+  async getLogExportJob(input: AdminGetLogExportJobInput): Promise<AdminLogExportJobResult> {
+    if (!input.activeUser) {
+      throw new AdminProviderError('No active user', 'UNAUTHORIZED')
+    }
+    const normalizedJobId = input.jobId.trim()
+    if (!normalizedJobId) {
+      throw new AdminProviderError('Export job id is required', 'UNKNOWN')
+    }
+
+    const capability = adminProvider.getCapabilities()
+    if (capability.canGetLogExportJobRemote !== true) {
+      throw new AdminProviderError(
+        capability.getLogExportJobDetail ?? 'Admin export job status endpoint is not supported',
+        'NOT_SUPPORTED'
+      )
+    }
+
+    const result = await adminProvider.getLogExportJob({
+      accessToken: input.accessToken,
+      jobId: normalizedJobId
+    })
+
+    return {
+      jobId: result.jobId,
+      status: result.status,
+      url: result.url,
+      format: result.format,
+      message: result.message,
+      source: 'remote',
+      sourceDetail: capability.getLogExportJobDetail ?? capability.exportLogsDetail
     }
   },
 

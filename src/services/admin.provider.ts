@@ -9,9 +9,15 @@ import {
   type AdminProviderRetryLogInput,
   type AdminProviderDirectoryUser,
   type AdminProviderClearLogsResult,
+  type AdminProviderExportLogsInput,
+  type AdminProviderExportLogsResult,
+  type AdminProviderGetLogExportJobInput,
   type AdminProviderGetUserInput,
   type AdminProviderListLogsInput,
   type AdminProviderListUsersInput,
+  type AdminProviderLogExportJobResult,
+  type AdminProviderLogExportJobStatus,
+  type AdminProviderLogExportFormat,
   type AdminProviderHealthSnapshot,
   type AdminProviderLogEntry,
   type AdminProviderListUserSessionsInput,
@@ -194,6 +200,99 @@ const genericRestAdminClearLogsPayloadSchema = z.union([
       clearedCount: z.number().int().nonnegative().optional(),
       count: z.number().int().nonnegative().optional()
     })
+  })
+])
+
+const genericRestAdminExportLogsFormatSchema = z.enum(['json', 'csv']).optional()
+
+const genericRestAdminExportLogsPayloadSchema = z.union([
+  z.object({
+    url: z.string().url().optional(),
+    downloadUrl: z.string().url().optional(),
+    download_url: z.string().url().optional(),
+    jobId: z.string().min(1).optional(),
+    job_id: z.string().min(1).optional(),
+    format: genericRestAdminExportLogsFormatSchema
+  }),
+  z.object({
+    success: z.literal(true),
+    url: z.string().url().optional(),
+    downloadUrl: z.string().url().optional(),
+    download_url: z.string().url().optional(),
+    jobId: z.string().min(1).optional(),
+    job_id: z.string().min(1).optional(),
+    format: genericRestAdminExportLogsFormatSchema
+  }),
+  z.object({
+    success: z.literal(true),
+    data: z.object({
+      url: z.string().url().optional(),
+      downloadUrl: z.string().url().optional(),
+      download_url: z.string().url().optional(),
+      jobId: z.string().min(1).optional(),
+      job_id: z.string().min(1).optional(),
+      format: genericRestAdminExportLogsFormatSchema
+    })
+  })
+])
+
+const genericRestAdminLogExportJobStatusSchema = z
+  .enum(['queued', 'running', 'ready', 'error', 'pending', 'processing', 'completed', 'failed'])
+  .optional()
+
+const genericRestAdminLogExportJobPayloadSchema = z.union([
+  z.object({
+    jobId: z.string().min(1).optional(),
+    job_id: z.string().min(1).optional(),
+    status: genericRestAdminLogExportJobStatusSchema,
+    url: z.string().url().optional(),
+    downloadUrl: z.string().url().optional(),
+    download_url: z.string().url().optional(),
+    format: genericRestAdminExportLogsFormatSchema,
+    message: z.string().min(1).nullable().optional(),
+    error: z.string().min(1).nullable().optional()
+  }),
+  z.object({
+    export: z.object({
+      jobId: z.string().min(1).optional(),
+      job_id: z.string().min(1).optional(),
+      status: genericRestAdminLogExportJobStatusSchema,
+      url: z.string().url().optional(),
+      downloadUrl: z.string().url().optional(),
+      download_url: z.string().url().optional(),
+      format: genericRestAdminExportLogsFormatSchema,
+      message: z.string().min(1).nullable().optional(),
+      error: z.string().min(1).nullable().optional()
+    })
+  }),
+  z.object({
+    success: z.literal(true),
+    data: z.union([
+      z.object({
+        jobId: z.string().min(1).optional(),
+        job_id: z.string().min(1).optional(),
+        status: genericRestAdminLogExportJobStatusSchema,
+        url: z.string().url().optional(),
+        downloadUrl: z.string().url().optional(),
+        download_url: z.string().url().optional(),
+        format: genericRestAdminExportLogsFormatSchema,
+        message: z.string().min(1).nullable().optional(),
+        error: z.string().min(1).nullable().optional()
+      }),
+      z.object({
+        export: z.object({
+          jobId: z.string().min(1).optional(),
+          job_id: z.string().min(1).optional(),
+          status: genericRestAdminLogExportJobStatusSchema,
+          url: z.string().url().optional(),
+          downloadUrl: z.string().url().optional(),
+          download_url: z.string().url().optional(),
+          format: genericRestAdminExportLogsFormatSchema,
+          message: z.string().min(1).nullable().optional(),
+          error: z.string().min(1).nullable().optional()
+        })
+      })
+    ])
   })
 ])
 
@@ -468,6 +567,65 @@ const normalizeGenericRestClearLogsPayload = (
   }
 }
 
+const normalizeGenericRestExportLogsPayload = (
+  payload: z.infer<typeof genericRestAdminExportLogsPayloadSchema>
+): AdminProviderExportLogsResult => {
+  const raw = 'data' in payload ? payload.data : payload
+  const format: AdminProviderLogExportFormat | null = raw.format ?? null
+
+  return {
+    url: raw.url ?? raw.downloadUrl ?? raw.download_url ?? null,
+    jobId: raw.jobId ?? raw.job_id ?? null,
+    format
+  }
+}
+
+const normalizeLogExportJobStatus = (
+  status: z.infer<typeof genericRestAdminLogExportJobStatusSchema>
+): AdminProviderLogExportJobStatus => {
+  if (!status) {
+    return 'unknown'
+  }
+
+  if (status === 'pending') {
+    return 'queued'
+  }
+
+  if (status === 'processing') {
+    return 'running'
+  }
+
+  if (status === 'completed') {
+    return 'ready'
+  }
+
+  if (status === 'failed') {
+    return 'error'
+  }
+
+  return status
+}
+
+const normalizeGenericRestLogExportJobPayload = (
+  payload: z.infer<typeof genericRestAdminLogExportJobPayloadSchema>,
+  requestedJobId: string
+): AdminProviderLogExportJobResult => {
+  const raw =
+    'data' in payload
+      ? ('export' in payload.data ? payload.data.export : payload.data)
+      : 'export' in payload
+        ? payload.export
+        : payload
+
+  return {
+    jobId: raw.jobId ?? raw.job_id ?? requestedJobId,
+    status: normalizeLogExportJobStatus(raw.status),
+    url: raw.url ?? raw.downloadUrl ?? raw.download_url ?? null,
+    format: raw.format ?? null,
+    message: raw.message ?? raw.error ?? null
+  }
+}
+
 const normalizeAdminUserSession = (
   session: z.infer<typeof genericRestAdminUserSessionSchema>,
   index = 0
@@ -639,6 +797,8 @@ const genericRestGetUserEndpointTemplate = genericRestAdminEndpoints?.getUser
 const genericRestListRolesEndpoint = genericRestAdminEndpoints?.listRoles
 const genericRestListLogsEndpoint = genericRestAdminEndpoints?.listLogs
 const genericRestClearLogsEndpoint = genericRestAdminEndpoints?.clearLogs
+const genericRestExportLogsEndpoint = genericRestAdminEndpoints?.exportLogs
+const genericRestGetLogExportJobEndpointTemplate = genericRestAdminEndpoints?.getLogExportJob
 const genericRestAcknowledgeLogEndpointTemplate = genericRestAdminEndpoints?.acknowledgeLog
 const genericRestResolveLogEndpointTemplate = genericRestAdminEndpoints?.resolveLog
 const genericRestRetryLogEndpointTemplate = genericRestAdminEndpoints?.retryLog
@@ -812,6 +972,21 @@ const resolveRetryLogEndpoint = (logId: string): string => {
   return genericRestRetryLogEndpointTemplate.replace(':id', encodeURIComponent(logId))
 }
 
+const resolveGetLogExportJobEndpoint = (jobId: string): string => {
+  if (!genericRestGetLogExportJobEndpointTemplate) {
+    throw new AdminProviderError('generic-rest admin export job endpoint is not configured', 'CONFIG')
+  }
+
+  if (!genericRestGetLogExportJobEndpointTemplate.includes(':jobId')) {
+    throw new AdminProviderError(
+      'generic-rest admin export job endpoint must include :jobId placeholder',
+      'CONFIG'
+    )
+  }
+
+  return genericRestGetLogExportJobEndpointTemplate.replace(':jobId', encodeURIComponent(jobId))
+}
+
 const requireAccessToken = (accessToken?: string | null): string => {
   if (!accessToken) {
     throw new AdminProviderError('No access token available for admin request', 'UNAUTHORIZED')
@@ -859,6 +1034,10 @@ const genericRestAdminProvider: AdminProvider = {
     const canListRolesRemote = Boolean(genericRestListRolesEndpoint)
     const canListLogsRemote = Boolean(genericRestListLogsEndpoint)
     const canClearLogsRemote = Boolean(genericRestClearLogsEndpoint)
+    const canExportLogsRemote = Boolean(genericRestExportLogsEndpoint)
+    const canGetLogExportJobRemote = Boolean(
+      genericRestGetLogExportJobEndpointTemplate?.includes(':jobId')
+    )
     const canAcknowledgeLogRemote = Boolean(genericRestAcknowledgeLogEndpointTemplate)
     const canResolveLogRemote = Boolean(genericRestResolveLogEndpointTemplate)
     const canRetryLogRemote = Boolean(genericRestRetryLogEndpointTemplate)
@@ -877,6 +1056,8 @@ const genericRestAdminProvider: AdminProvider = {
       canListRolesRemote,
       canListLogsRemote,
       canClearLogsRemote,
+      canExportLogsRemote,
+      canGetLogExportJobRemote,
       canAcknowledgeLogRemote,
       canResolveLogRemote,
       canRetryLogRemote,
@@ -903,6 +1084,14 @@ const genericRestAdminProvider: AdminProvider = {
       clearLogsDetail: canClearLogsRemote
         ? `POST ${genericRestClearLogsEndpoint}`
         : 'generic-rest admin clear logs endpoint is not configured (backend.genericRest.admin.endpoints.clearLogs)',
+      exportLogsDetail: canExportLogsRemote
+        ? `POST ${genericRestExportLogsEndpoint}`
+        : 'generic-rest admin export logs endpoint is not configured (backend.genericRest.admin.endpoints.exportLogs)',
+      getLogExportJobDetail: canGetLogExportJobRemote
+        ? `GET ${genericRestGetLogExportJobEndpointTemplate}`
+        : genericRestGetLogExportJobEndpointTemplate
+          ? 'generic-rest admin export job endpoint must include :jobId placeholder (backend.genericRest.admin.endpoints.getLogExportJob)'
+          : 'generic-rest admin export job endpoint is not configured (backend.genericRest.admin.endpoints.getLogExportJob)',
       acknowledgeLogDetail: canAcknowledgeLogRemote
         ? `POST ${genericRestAcknowledgeLogEndpointTemplate}`
         : 'generic-rest admin acknowledge log endpoint is not configured (backend.genericRest.admin.endpoints.acknowledgeLog)',
@@ -1029,6 +1218,49 @@ const genericRestAdminProvider: AdminProvider = {
     })
 
     return normalizeGenericRestClearLogsPayload(payload)
+  },
+
+  async exportLogs(input: AdminProviderExportLogsInput): Promise<AdminProviderExportLogsResult> {
+    if (!genericRestExportLogsEndpoint) {
+      throw new AdminProviderError('generic-rest admin export logs endpoint is not configured', 'CONFIG')
+    }
+
+    const accessToken = requireAccessToken(input.accessToken)
+    const body: { format?: AdminProviderLogExportFormat; limit?: number } = {}
+
+    if (input.format) {
+      body.format = input.format
+    }
+    if (typeof input.limit === 'number' && Number.isFinite(input.limit) && input.limit > 0) {
+      body.limit = Math.floor(input.limit)
+    }
+
+    const payload = await apiRequest(genericRestExportLogsEndpoint, {
+      method: 'POST',
+      token: accessToken,
+      body,
+      schema: genericRestAdminExportLogsPayloadSchema,
+      useAuthToken: false
+    }).catch((error: unknown) => {
+      throw toAdminProviderRequestError(error, 'Admin export logs request failed')
+    })
+
+    return normalizeGenericRestExportLogsPayload(payload)
+  },
+
+  async getLogExportJob(input: AdminProviderGetLogExportJobInput): Promise<AdminProviderLogExportJobResult> {
+    const endpoint = resolveGetLogExportJobEndpoint(input.jobId)
+    const accessToken = requireAccessToken(input.accessToken)
+
+    const payload = await apiRequest(endpoint, {
+      token: accessToken,
+      schema: genericRestAdminLogExportJobPayloadSchema,
+      useAuthToken: false
+    }).catch((error: unknown) => {
+      throw toAdminProviderRequestError(error, 'Admin export job status request failed')
+    })
+
+    return normalizeGenericRestLogExportJobPayload(payload, input.jobId)
   },
 
   async acknowledgeLog(input: AdminProviderAcknowledgeLogInput): Promise<AdminProviderLogEntry> {
@@ -1232,6 +1464,8 @@ const supabaseAdminProvider: AdminProvider = {
       canListRolesRemote: false,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
+      canGetLogExportJobRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -1248,6 +1482,8 @@ const supabaseAdminProvider: AdminProvider = {
       listRolesDetail: 'supabase admin roles endpoint is not implemented yet (provider stub active)',
       listLogsDetail: 'supabase admin logs endpoint is not implemented yet (provider stub active)',
       clearLogsDetail: 'supabase admin clear logs endpoint is not implemented yet (provider stub active)',
+      exportLogsDetail: 'supabase admin export logs endpoint is not implemented yet (provider stub active)',
+      getLogExportJobDetail: 'supabase admin export job endpoint is not implemented yet (provider stub active)',
       acknowledgeLogDetail: 'supabase admin acknowledge log endpoint is not implemented yet (provider stub active)',
       resolveLogDetail: 'supabase admin resolve log endpoint is not implemented yet (provider stub active)',
       retryLogDetail: 'supabase admin retry log endpoint is not implemented yet (provider stub active)',
@@ -1286,6 +1522,14 @@ const supabaseAdminProvider: AdminProvider = {
 
   async clearLogs(): Promise<AdminProviderClearLogsResult> {
     throw new AdminProviderError('supabase admin clear logs endpoint is not implemented yet', 'NOT_SUPPORTED')
+  },
+
+  async exportLogs(): Promise<AdminProviderExportLogsResult> {
+    throw new AdminProviderError('supabase admin export logs endpoint is not implemented yet', 'NOT_SUPPORTED')
+  },
+
+  async getLogExportJob(): Promise<AdminProviderLogExportJobResult> {
+    throw new AdminProviderError('supabase admin export job endpoint is not implemented yet', 'NOT_SUPPORTED')
   },
 
   async acknowledgeLog(): Promise<AdminProviderLogEntry> {
@@ -1350,6 +1594,8 @@ const notSupportedProvider = (provider: string): AdminProvider => ({
       canListRolesRemote: false,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
+      canGetLogExportJobRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -1366,6 +1612,8 @@ const notSupportedProvider = (provider: string): AdminProvider => ({
       listRolesDetail: `${provider} admin provider is not implemented yet`,
       listLogsDetail: `${provider} admin provider is not implemented yet`,
       clearLogsDetail: `${provider} admin provider is not implemented yet`,
+      exportLogsDetail: `${provider} admin provider is not implemented yet`,
+      getLogExportJobDetail: `${provider} admin provider is not implemented yet`,
       acknowledgeLogDetail: `${provider} admin provider is not implemented yet`,
       resolveLogDetail: `${provider} admin provider is not implemented yet`,
       retryLogDetail: `${provider} admin provider is not implemented yet`,
@@ -1397,6 +1645,14 @@ const notSupportedProvider = (provider: string): AdminProvider => ({
   },
 
   async clearLogs() {
+    throw new AdminProviderError(`${provider} admin provider is not implemented yet`, 'NOT_SUPPORTED')
+  },
+
+  async exportLogs() {
+    throw new AdminProviderError(`${provider} admin provider is not implemented yet`, 'NOT_SUPPORTED')
+  },
+
+  async getLogExportJob() {
     throw new AdminProviderError(`${provider} admin provider is not implemented yet`, 'NOT_SUPPORTED')
   },
 

@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { AdminProviderCapabilities } from '@/services/admin.provider.types'
-import { adminService, type AdminLogEntry } from '@/services/admin.service'
+import {
+  adminService,
+  type AdminExportLogsResult,
+  type AdminLogEntry,
+  type AdminLogExportJobResult,
+  type AdminLogExportFormat
+} from '@/services/admin.service'
 import { useAuthStore } from '@/stores/auth.store'
 
 interface AdminLogMutationState {
@@ -16,19 +22,29 @@ interface UseAdminLogsResult {
   isLoading: boolean
   isRefreshing: boolean
   isClearing: boolean
+  isExporting: boolean
+  isCheckingExportJob: boolean
   error: string | null
   clearError: string | null
+  exportError: string | null
+  exportJobError: string | null
   logMutations: Record<string, AdminLogMutationState | undefined>
   hasActiveLogMutation: boolean
   source: 'remote' | 'local-fallback'
   sourceDetail: string
+  lastExport: AdminExportLogsResult | null
+  lastExportJob: AdminLogExportJobResult | null
   capability: AdminProviderCapabilities
   refresh: () => Promise<void>
   clear: () => Promise<number | null>
+  exportLogs: (format?: AdminLogExportFormat) => Promise<AdminExportLogsResult | null>
+  checkExportJob: (jobId?: string) => Promise<AdminLogExportJobResult | null>
   acknowledge: (logId: string) => Promise<void>
   resolve: (logId: string) => Promise<void>
   retry: (logId: string) => Promise<void>
   clearLogMutationError: (logId: string) => void
+  clearExportError: () => void
+  clearExportJobError: () => void
 }
 
 export const useAdminLogs = (limit = 50): UseAdminLogsResult => {
@@ -38,11 +54,17 @@ export const useAdminLogs = (limit = 50): UseAdminLogsResult => {
   const [isLoading, setIsLoading] = useState(Boolean(activeUser))
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [isCheckingExportJob, setIsCheckingExportJob] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [clearError, setClearError] = useState<string | null>(null)
+  const [exportError, setExportError] = useState<string | null>(null)
+  const [exportJobError, setExportJobError] = useState<string | null>(null)
   const [logMutations, setLogMutations] = useState<Record<string, AdminLogMutationState | undefined>>({})
   const [source, setSource] = useState<'remote' | 'local-fallback'>('local-fallback')
   const [sourceDetail, setSourceDetail] = useState('Not loaded yet')
+  const [lastExport, setLastExport] = useState<AdminExportLogsResult | null>(null)
+  const [lastExportJob, setLastExportJob] = useState<AdminLogExportJobResult | null>(null)
   const requestIdRef = useRef(0)
   const mountedRef = useRef(true)
   const logMutationsRef = useRef<Record<string, AdminLogMutationState | undefined>>({})
@@ -71,6 +93,14 @@ export const useAdminLogs = (limit = 50): UseAdminLogsResult => {
   const clearLogMutationError = useCallback((logId: string) => {
     setLogMutationState(logId, { error: null })
   }, [setLogMutationState])
+
+  const clearExportError = useCallback(() => {
+    setExportError(null)
+  }, [])
+
+  const clearExportJobError = useCallback(() => {
+    setExportJobError(null)
+  }, [])
 
   const applyLogMutationResult = useCallback(
     (
@@ -104,7 +134,7 @@ export const useAdminLogs = (limit = 50): UseAdminLogsResult => {
       fallbackMessage: string,
       action: () => Promise<{ log: AdminLogEntry; source: 'remote'; sourceDetail: string }>
     ): Promise<void> => {
-      if (isClearing || isRefreshing) {
+      if (isClearing || isRefreshing || isExporting || isCheckingExportJob) {
         return
       }
 
@@ -114,6 +144,8 @@ export const useAdminLogs = (limit = 50): UseAdminLogsResult => {
 
       setError(null)
       setClearError(null)
+      setExportError(null)
+      setExportJobError(null)
       setLogMutationState(logId, { [key]: true, error: null })
 
       try {
@@ -138,7 +170,15 @@ export const useAdminLogs = (limit = 50): UseAdminLogsResult => {
         }
       }
     },
-    [applyLogMutationResult, isClearing, isLogMutationBusy, isRefreshing, setLogMutationState]
+    [
+      applyLogMutationResult,
+      isCheckingExportJob,
+      isClearing,
+      isExporting,
+      isLogMutationBusy,
+      isRefreshing,
+      setLogMutationState
+    ]
   )
 
   useEffect(() => {
@@ -146,6 +186,10 @@ export const useAdminLogs = (limit = 50): UseAdminLogsResult => {
 
     setError(null)
     setClearError(null)
+    setExportError(null)
+    setExportJobError(null)
+    setLastExport(null)
+    setLastExportJob(null)
     setLogMutations({})
     logMutationsRef.current = {}
     setIsLoading(true)
@@ -171,6 +215,10 @@ export const useAdminLogs = (limit = 50): UseAdminLogsResult => {
         setLogs([])
         setError('Failed to load admin logs.')
         setClearError(null)
+        setExportError(null)
+        setExportJobError(null)
+        setLastExport(null)
+        setLastExportJob(null)
         setLogMutations({})
         logMutationsRef.current = {}
         setSource('local-fallback')
@@ -184,12 +232,14 @@ export const useAdminLogs = (limit = 50): UseAdminLogsResult => {
   }, [accessToken, activeUser, limit])
 
   const refresh = useCallback(async (): Promise<void> => {
-    if (isRefreshing || isClearing || hasAnyLogMutationBusy()) {
+    if (isRefreshing || isClearing || isExporting || isCheckingExportJob || hasAnyLogMutationBusy()) {
       return
     }
 
     setError(null)
     setClearError(null)
+    setExportError(null)
+    setExportJobError(null)
     setIsRefreshing(true)
     const requestId = ++requestIdRef.current
 
@@ -213,15 +263,26 @@ export const useAdminLogs = (limit = 50): UseAdminLogsResult => {
         setIsRefreshing(false)
       }
     }
-  }, [accessToken, activeUser, hasAnyLogMutationBusy, isClearing, isRefreshing, limit])
+  }, [
+    accessToken,
+    activeUser,
+    hasAnyLogMutationBusy,
+    isCheckingExportJob,
+    isClearing,
+    isExporting,
+    isRefreshing,
+    limit
+  ])
 
   const clear = useCallback(async (): Promise<number | null> => {
-    if (isClearing || isRefreshing || hasAnyLogMutationBusy()) {
+    if (isClearing || isRefreshing || isExporting || isCheckingExportJob || hasAnyLogMutationBusy()) {
       return null
     }
 
     setError(null)
     setClearError(null)
+    setExportError(null)
+    setExportJobError(null)
     setIsClearing(true)
     const requestId = ++requestIdRef.current
 
@@ -253,7 +314,132 @@ export const useAdminLogs = (limit = 50): UseAdminLogsResult => {
         setIsClearing(false)
       }
     }
-  }, [accessToken, activeUser, hasAnyLogMutationBusy, isClearing, isRefreshing])
+  }, [
+    accessToken,
+    activeUser,
+    hasAnyLogMutationBusy,
+    isCheckingExportJob,
+    isClearing,
+    isExporting,
+    isRefreshing
+  ])
+
+  const exportLogs = useCallback(
+    async (format?: AdminLogExportFormat): Promise<AdminExportLogsResult | null> => {
+      if (isExporting || isCheckingExportJob || isRefreshing || isClearing || hasAnyLogMutationBusy()) {
+        return null
+      }
+
+      setError(null)
+      setClearError(null)
+      setExportError(null)
+      setExportJobError(null)
+      setLastExportJob(null)
+      setIsExporting(true)
+
+      try {
+        const result = await adminService.exportLogs({ activeUser, accessToken, limit, format })
+        if (!mountedRef.current) {
+          return result
+        }
+
+        setLastExport(result)
+        return result
+      } catch (error) {
+        if (!mountedRef.current) {
+          return null
+        }
+
+        const message =
+          error instanceof Error && error.message.trim().length > 0
+            ? error.message
+            : 'Failed to export admin logs.'
+        setExportError(message)
+        throw new Error(message)
+      } finally {
+        if (mountedRef.current) {
+          setIsExporting(false)
+        }
+      }
+    },
+    [
+      accessToken,
+      activeUser,
+      hasAnyLogMutationBusy,
+      isCheckingExportJob,
+      isClearing,
+      isExporting,
+      isRefreshing,
+      limit
+    ]
+  )
+
+  const checkExportJob = useCallback(
+    async (jobId?: string): Promise<AdminLogExportJobResult | null> => {
+      const targetJobId = (jobId ?? lastExport?.jobId ?? '').trim()
+      if (!targetJobId) {
+        return null
+      }
+
+      if (isCheckingExportJob || isExporting || isRefreshing || isClearing || hasAnyLogMutationBusy()) {
+        return null
+      }
+
+      setError(null)
+      setClearError(null)
+      setExportError(null)
+      setExportJobError(null)
+      setIsCheckingExportJob(true)
+
+      try {
+        const result = await adminService.getLogExportJob({
+          activeUser,
+          accessToken,
+          jobId: targetJobId
+        })
+        if (!mountedRef.current) {
+          return result
+        }
+
+        setLastExportJob(result)
+        setLastExport((prev) =>
+          prev && prev.jobId === result.jobId
+            ? {
+                ...prev,
+                url: result.url ?? prev.url,
+                format: result.format ?? prev.format
+              }
+            : prev
+        )
+        return result
+      } catch (error) {
+        if (!mountedRef.current) {
+          return null
+        }
+
+        const message =
+          error instanceof Error && error.message.trim().length > 0
+            ? error.message
+            : 'Failed to check export job status.'
+        setExportJobError(message)
+        throw new Error(message)
+      } finally {
+        if (mountedRef.current) {
+          setIsCheckingExportJob(false)
+        }
+      }
+    },
+    [
+      accessToken,
+      activeUser,
+      hasAnyLogMutationBusy,
+      isCheckingExportJob,
+      isClearing,
+      isExporting,
+      isRefreshing,
+      lastExport?.jobId
+    ]
+  )
 
   const acknowledge = useCallback(async (logId: string): Promise<void> => {
     await runLogMutation(logId, 'isAcknowledging', 'Failed to acknowledge log.', () =>
@@ -278,18 +464,28 @@ export const useAdminLogs = (limit = 50): UseAdminLogsResult => {
     isLoading,
     isRefreshing,
     isClearing,
+    isExporting,
+    isCheckingExportJob,
     error,
     clearError,
+    exportError,
+    exportJobError,
     logMutations,
     source,
     sourceDetail,
+    lastExport,
+    lastExportJob,
     capability,
     refresh,
     clear,
+    exportLogs,
+    checkExportJob,
     acknowledge,
     resolve,
     retry,
     hasActiveLogMutation,
-    clearLogMutationError
+    clearLogMutationError,
+    clearExportError,
+    clearExportJobError
   }
 }

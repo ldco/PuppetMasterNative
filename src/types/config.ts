@@ -68,6 +68,8 @@ export interface GenericRestAdminEndpoints {
   listRoles?: string
   listLogs?: string
   clearLogs?: string
+  exportLogs?: string
+  getLogExportJob?: string
   acknowledgeLog?: string
   resolveLog?: string
   retryLog?: string

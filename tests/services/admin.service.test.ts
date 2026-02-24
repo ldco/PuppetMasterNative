@@ -9,6 +9,8 @@ const mockAdminProvider = {
   listRoles: vi.fn(),
   listLogs: vi.fn(),
   clearLogs: vi.fn(),
+  exportLogs: vi.fn(),
+  getLogExportJob: vi.fn(),
   acknowledgeLog: vi.fn(),
   resolveLog: vi.fn(),
   retryLog: vi.fn(),
@@ -40,6 +42,7 @@ describe('adminService', () => {
       canListRolesRemote: false,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -56,6 +59,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles unsupported',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -99,6 +103,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -115,6 +120,7 @@ describe('adminService', () => {
       listRolesDetail: 'GET /admin/roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -164,6 +170,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -180,6 +187,7 @@ describe('adminService', () => {
       listRolesDetail: 'GET /admin/roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -216,6 +224,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -232,6 +241,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'logs endpoint unavailable',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -273,6 +283,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: true,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -289,6 +300,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'GET /admin/logs',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -350,6 +362,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: true,
       canClearLogsRemote: true,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -366,6 +379,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'GET /admin/logs',
       clearLogsDetail: 'POST /admin/logs/clear',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -407,6 +421,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: true,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -423,6 +438,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'GET /admin/logs',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -453,6 +469,332 @@ describe('adminService', () => {
     })
   })
 
+  it('exports logs through provider when export capability is available', async () => {
+    const { adminService } = await import('@/services/admin.service')
+
+    mockAdminProvider.getCapabilities.mockReturnValue({
+      canListUsersRemote: true,
+      canGetUserRemote: true,
+      canListRolesRemote: true,
+      canListLogsRemote: true,
+      canClearLogsRemote: true,
+      canExportLogsRemote: true,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
+      canGetSettingsRemote: false,
+      canUpdateUserRoleRemote: false,
+      canUpdateUserStatusRemote: false,
+      canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
+      canGetHealthRemote: false,
+      listUsersDetail: 'users',
+      getUserDetail: 'user-detail',
+      listRolesDetail: 'roles',
+      listLogsDetail: 'GET /admin/logs',
+      clearLogsDetail: 'POST /admin/logs/clear',
+      exportLogsDetail: 'POST /admin/logs/export',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
+      getSettingsDetail: 'settings unsupported',
+      updateUserRoleDetail: 'role update unsupported',
+      updateUserStatusDetail: 'status update unsupported',
+      updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
+      getHealthDetail: 'health unsupported'
+    })
+    mockAdminProvider.exportLogs.mockResolvedValueOnce({
+      url: 'https://example.com/logs.csv',
+      jobId: 'job-77',
+      format: 'csv'
+    })
+
+    const result = await adminService.exportLogs({
+      activeUser: {
+        id: 'u1',
+        email: 'admin@example.com',
+        name: 'Admin',
+        role: 'admin'
+      },
+      accessToken: 'token',
+      format: 'csv',
+      limit: 100
+    })
+
+    expect(mockAdminProvider.exportLogs).toHaveBeenCalledWith({
+      accessToken: 'token',
+      format: 'csv',
+      limit: 100
+    })
+    expect(result).toEqual({
+      url: 'https://example.com/logs.csv',
+      jobId: 'job-77',
+      format: 'csv',
+      source: 'remote',
+      sourceDetail: 'POST /admin/logs/export'
+    })
+  })
+
+  it('throws NOT_SUPPORTED for exportLogs when export capability is unavailable', async () => {
+    const { adminService } = await import('@/services/admin.service')
+
+    mockAdminProvider.getCapabilities.mockReturnValue({
+      canListUsersRemote: true,
+      canGetUserRemote: true,
+      canListRolesRemote: true,
+      canListLogsRemote: true,
+      canClearLogsRemote: true,
+      canExportLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
+      canGetSettingsRemote: false,
+      canUpdateUserRoleRemote: false,
+      canUpdateUserStatusRemote: false,
+      canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
+      canGetHealthRemote: false,
+      listUsersDetail: 'users',
+      getUserDetail: 'user-detail',
+      listRolesDetail: 'roles',
+      listLogsDetail: 'GET /admin/logs',
+      clearLogsDetail: 'POST /admin/logs/clear',
+      exportLogsDetail: 'export logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
+      getSettingsDetail: 'settings unsupported',
+      updateUserRoleDetail: 'role update unsupported',
+      updateUserStatusDetail: 'status update unsupported',
+      updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
+      getHealthDetail: 'health unsupported'
+    })
+
+    await expect(
+      adminService.exportLogs({
+        activeUser: {
+          id: 'u1',
+          email: 'admin@example.com',
+          name: 'Admin',
+          role: 'admin'
+        },
+        accessToken: 'token',
+        format: 'json'
+      })
+    ).rejects.toMatchObject({
+      name: 'AdminProviderError',
+      code: 'NOT_SUPPORTED',
+      message: 'export logs unsupported'
+    })
+  })
+
+  it('gets export job status through provider when capability is available', async () => {
+    const { adminService } = await import('@/services/admin.service')
+
+    mockAdminProvider.getCapabilities.mockReturnValue({
+      canListUsersRemote: true,
+      canGetUserRemote: true,
+      canListRolesRemote: true,
+      canListLogsRemote: true,
+      canClearLogsRemote: true,
+      canExportLogsRemote: true,
+      canGetLogExportJobRemote: true,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
+      canGetSettingsRemote: false,
+      canUpdateUserRoleRemote: false,
+      canUpdateUserStatusRemote: false,
+      canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
+      canGetHealthRemote: false,
+      listUsersDetail: 'users',
+      getUserDetail: 'user-detail',
+      listRolesDetail: 'roles',
+      listLogsDetail: 'GET /admin/logs',
+      clearLogsDetail: 'POST /admin/logs/clear',
+      exportLogsDetail: 'POST /admin/logs/export',
+      getLogExportJobDetail: 'GET /admin/logs/export/:jobId',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
+      getSettingsDetail: 'settings unsupported',
+      updateUserRoleDetail: 'role update unsupported',
+      updateUserStatusDetail: 'status update unsupported',
+      updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
+      getHealthDetail: 'health unsupported'
+    })
+    mockAdminProvider.getLogExportJob.mockResolvedValueOnce({
+      jobId: 'job-1',
+      status: 'ready',
+      url: 'https://example.com/logs.csv',
+      format: 'csv',
+      message: 'Ready'
+    })
+
+    const result = await adminService.getLogExportJob({
+      activeUser: {
+        id: 'u1',
+        email: 'admin@example.com',
+        name: 'Admin',
+        role: 'admin'
+      },
+      accessToken: 'token',
+      jobId: ' job-1 '
+    })
+
+    expect(mockAdminProvider.getLogExportJob).toHaveBeenCalledWith({
+      accessToken: 'token',
+      jobId: 'job-1'
+    })
+    expect(result).toEqual({
+      jobId: 'job-1',
+      status: 'ready',
+      url: 'https://example.com/logs.csv',
+      format: 'csv',
+      message: 'Ready',
+      source: 'remote',
+      sourceDetail: 'GET /admin/logs/export/:jobId'
+    })
+  })
+
+  it('throws for getLogExportJob when job id is blank after trimming', async () => {
+    const { adminService } = await import('@/services/admin.service')
+
+    mockAdminProvider.getCapabilities.mockReturnValue({
+      canListUsersRemote: true,
+      canGetUserRemote: true,
+      canListRolesRemote: true,
+      canListLogsRemote: true,
+      canClearLogsRemote: true,
+      canExportLogsRemote: true,
+      canGetLogExportJobRemote: true,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
+      canGetSettingsRemote: false,
+      canUpdateUserRoleRemote: false,
+      canUpdateUserStatusRemote: false,
+      canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
+      canGetHealthRemote: false,
+      listUsersDetail: 'users',
+      getUserDetail: 'user-detail',
+      listRolesDetail: 'roles',
+      listLogsDetail: 'GET /admin/logs',
+      clearLogsDetail: 'POST /admin/logs/clear',
+      exportLogsDetail: 'POST /admin/logs/export',
+      getLogExportJobDetail: 'GET /admin/logs/export/:jobId',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
+      getSettingsDetail: 'settings unsupported',
+      updateUserRoleDetail: 'role update unsupported',
+      updateUserStatusDetail: 'status update unsupported',
+      updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
+      getHealthDetail: 'health unsupported'
+    })
+
+    await expect(
+      adminService.getLogExportJob({
+        activeUser: {
+          id: 'u1',
+          email: 'admin@example.com',
+          name: 'Admin',
+          role: 'admin'
+        },
+        accessToken: 'token',
+        jobId: '   '
+      })
+    ).rejects.toMatchObject({
+      name: 'AdminProviderError',
+      code: 'UNKNOWN',
+      message: 'Export job id is required'
+    })
+
+    expect(mockAdminProvider.getLogExportJob).not.toHaveBeenCalled()
+  })
+
+  it('throws NOT_SUPPORTED for getLogExportJob when capability is unavailable', async () => {
+    const { adminService } = await import('@/services/admin.service')
+
+    mockAdminProvider.getCapabilities.mockReturnValue({
+      canListUsersRemote: true,
+      canGetUserRemote: true,
+      canListRolesRemote: true,
+      canListLogsRemote: true,
+      canClearLogsRemote: true,
+      canExportLogsRemote: true,
+      canGetLogExportJobRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
+      canGetSettingsRemote: false,
+      canUpdateUserRoleRemote: false,
+      canUpdateUserStatusRemote: false,
+      canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: false,
+      canRevokeUserSessionsRemote: false,
+      canRevokeUserSessionRemote: false,
+      canGetHealthRemote: false,
+      listUsersDetail: 'users',
+      getUserDetail: 'user-detail',
+      listRolesDetail: 'roles',
+      listLogsDetail: 'GET /admin/logs',
+      clearLogsDetail: 'POST /admin/logs/clear',
+      exportLogsDetail: 'POST /admin/logs/export',
+      getLogExportJobDetail: 'export job status unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
+      getSettingsDetail: 'settings unsupported',
+      updateUserRoleDetail: 'role update unsupported',
+      updateUserStatusDetail: 'status update unsupported',
+      updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'user sessions unsupported',
+      revokeUserSessionsDetail: 'revoke user sessions unsupported',
+      revokeUserSessionDetail: 'revoke user session unsupported',
+      getHealthDetail: 'health unsupported'
+    })
+
+    await expect(
+      adminService.getLogExportJob({
+        activeUser: {
+          id: 'u1',
+          email: 'admin@example.com',
+          name: 'Admin',
+          role: 'admin'
+        },
+        accessToken: 'token',
+        jobId: 'job-1'
+      })
+    ).rejects.toMatchObject({
+      name: 'AdminProviderError',
+      code: 'NOT_SUPPORTED',
+      message: 'export job status unsupported'
+    })
+  })
+
   it('acknowledges a log through provider when mutation capability is available', async () => {
     const { adminService } = await import('@/services/admin.service')
 
@@ -462,6 +804,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: true,
       canClearLogsRemote: true,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: true,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -478,6 +821,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'GET /admin/logs',
       clearLogsDetail: 'POST /admin/logs/clear',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'POST /admin/logs/:id/ack',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -539,6 +883,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: true,
       canClearLogsRemote: true,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -555,6 +900,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'GET /admin/logs',
       clearLogsDetail: 'POST /admin/logs/clear',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -595,6 +941,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: true,
       canClearLogsRemote: true,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: true,
       canResolveLogRemote: true,
       canRetryLogRemote: false,
@@ -611,6 +958,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'GET /admin/logs',
       clearLogsDetail: 'POST /admin/logs/clear',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'POST /admin/logs/:id/ack',
       resolveLogDetail: 'POST /admin/logs/:id/resolve',
       retryLogDetail: 'retry log unsupported',
@@ -672,6 +1020,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: true,
       canClearLogsRemote: true,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: true,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -688,6 +1037,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'GET /admin/logs',
       clearLogsDetail: 'POST /admin/logs/clear',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'POST /admin/logs/:id/ack',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -728,6 +1078,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: true,
       canClearLogsRemote: true,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: true,
       canResolveLogRemote: true,
       canRetryLogRemote: true,
@@ -744,6 +1095,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'GET /admin/logs',
       clearLogsDetail: 'POST /admin/logs/clear',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'POST /admin/logs/:id/ack',
       resolveLogDetail: 'POST /admin/logs/:id/resolve',
       retryLogDetail: 'POST /admin/logs/:id/retry',
@@ -805,6 +1157,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: true,
       canClearLogsRemote: true,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: true,
       canResolveLogRemote: true,
       canRetryLogRemote: false,
@@ -821,6 +1174,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'GET /admin/logs',
       clearLogsDetail: 'POST /admin/logs/clear',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'POST /admin/logs/:id/ack',
       resolveLogDetail: 'POST /admin/logs/:id/resolve',
       retryLogDetail: 'retry log unsupported',
@@ -861,6 +1215,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: true,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -877,6 +1232,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'GET /admin/logs',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -916,6 +1272,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -932,6 +1289,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -993,6 +1351,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -1009,6 +1368,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -1066,6 +1426,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -1082,6 +1443,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -1123,6 +1485,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -1139,6 +1502,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -1196,6 +1560,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -1212,6 +1577,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -1253,6 +1619,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -1269,6 +1636,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -1330,6 +1698,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -1346,6 +1715,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -1387,6 +1757,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -1403,6 +1774,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -1444,6 +1816,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -1460,6 +1833,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -1525,6 +1899,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -1541,6 +1916,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -1586,6 +1962,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -1602,6 +1979,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -1642,6 +2020,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -1658,6 +2037,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -1723,6 +2103,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -1739,6 +2120,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -1780,6 +2162,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -1796,6 +2179,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -1841,6 +2225,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -1857,6 +2242,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',
@@ -1908,6 +2294,7 @@ describe('adminService', () => {
       canListRolesRemote: true,
       canListLogsRemote: false,
       canClearLogsRemote: false,
+      canExportLogsRemote: false,
       canAcknowledgeLogRemote: false,
       canResolveLogRemote: false,
       canRetryLogRemote: false,
@@ -1924,6 +2311,7 @@ describe('adminService', () => {
       listRolesDetail: 'roles',
       listLogsDetail: 'logs unsupported',
       clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
       acknowledgeLogDetail: 'ack log unsupported',
       resolveLogDetail: 'resolve log unsupported',
       retryLogDetail: 'retry log unsupported',

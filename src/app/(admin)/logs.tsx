@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { Linking, StyleSheet, View } from 'react-native'
 
 import { Badge } from '@/components/atoms/Badge'
 import { Button } from '@/components/atoms/Button'
@@ -28,13 +28,23 @@ export default function AdminLogsScreen() {
     capability,
     acknowledge,
     clear,
+    clearExportError,
+    clearExportJobError,
     clearError,
     clearLogMutationError,
+    checkExportJob,
     error,
+    exportError,
+    exportJobError,
+    exportLogs,
     hasActiveLogMutation,
     isClearing,
+    isCheckingExportJob,
+    isExporting,
     isLoading,
     isRefreshing,
+    lastExport,
+    lastExportJob,
     logMutations,
     logs,
     resolve,
@@ -44,6 +54,7 @@ export default function AdminLogsScreen() {
     sourceDetail
   } = useAdminLogs(LOG_LIMIT)
   const [query, setQuery] = useState('')
+  const [lastRequestedExportFormat, setLastRequestedExportFormat] = useState<'json' | 'csv'>('json')
 
   const normalizedQuery = query.trim().toLowerCase()
   const filteredLogs = useMemo(() => {
@@ -79,6 +90,12 @@ export default function AdminLogsScreen() {
       flexWrap: 'wrap',
       gap: tokens.spacing.sm
     },
+    cardActions: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: tokens.spacing.sm,
+      marginBottom: tokens.spacing.sm
+    },
     searchRow: {
       marginBottom: tokens.spacing.xs
     },
@@ -86,6 +103,10 @@ export default function AdminLogsScreen() {
       alignItems: 'center',
       flexDirection: 'row',
       gap: tokens.spacing.xs
+    },
+    exportResult: {
+      gap: tokens.spacing.sm,
+      marginBottom: tokens.spacing.sm
     }
   })
 
@@ -95,7 +116,7 @@ export default function AdminLogsScreen() {
       return
     }
 
-    if (isClearing || hasActiveLogMutation) {
+    if (isClearing || isExporting || isCheckingExportJob || hasActiveLogMutation) {
       toast('Wait for current log actions to finish before refreshing.', 'warning')
       return
     }
@@ -110,7 +131,7 @@ export default function AdminLogsScreen() {
       return
     }
 
-    if (hasActiveLogMutation || isRefreshing) {
+    if (hasActiveLogMutation || isRefreshing || isExporting || isCheckingExportJob) {
       toast('Wait for current log actions to finish before clearing logs.', 'warning')
       return
     }
@@ -142,6 +163,94 @@ export default function AdminLogsScreen() {
     })()
   }
 
+  const handleExportLogs = (format: 'json' | 'csv'): void => {
+    if (!capability.canExportLogsRemote) {
+      toast(capability.exportLogsDetail, 'warning')
+      return
+    }
+
+    if (isRefreshing || isClearing || isExporting || isCheckingExportJob || hasActiveLogMutation) {
+      toast('Wait for current log actions to finish before exporting logs.', 'warning')
+      return
+    }
+
+    setLastRequestedExportFormat(format)
+    clearExportError()
+    void exportLogs(format)
+      .then((result) => {
+        if (!result) {
+          return
+        }
+
+        if (result.url) {
+          toast(`Export ${format.toUpperCase()} ready`, 'success')
+          return
+        }
+
+        if (result.jobId) {
+          toast(`Export job queued (${result.jobId})`, 'info')
+          return
+        }
+
+        toast('Export requested', 'success')
+      })
+      .catch(() => {
+        // Hook state already reflects detailed error.
+      })
+  }
+
+  const handleOpenExportUrl = (): void => {
+    const exportUrl = lastExport?.url
+    if (!exportUrl) {
+      return
+    }
+
+    void Linking.openURL(exportUrl).catch(() => {
+      toast('Failed to open export URL.', 'error')
+    })
+  }
+
+  const handleCheckExportJob = (): void => {
+    const jobId = lastExport?.jobId ?? lastExportJob?.jobId ?? null
+    if (!jobId) {
+      toast('No export job to check yet.', 'warning')
+      return
+    }
+
+    if (capability.canGetLogExportJobRemote !== true) {
+      toast(capability.getLogExportJobDetail ?? 'Export job status is not supported.', 'warning')
+      return
+    }
+
+    if (isRefreshing || isClearing || isExporting || isCheckingExportJob || hasActiveLogMutation) {
+      toast('Wait for current log actions to finish before checking export status.', 'warning')
+      return
+    }
+
+    clearExportJobError()
+    void checkExportJob(jobId)
+      .then((result) => {
+        if (!result) {
+          return
+        }
+
+        if (result.status === 'ready' && result.url) {
+          toast('Export is ready for download', 'success')
+          return
+        }
+
+        if (result.status === 'error') {
+          toast(result.message ?? 'Export job failed', 'error')
+          return
+        }
+
+        toast(`Export job status: ${result.status}`, 'info')
+      })
+      .catch(() => {
+        // Hook state already reflects detailed error.
+      })
+  }
+
   return (
     <View style={styles.screen}>
       <SectionHeader
@@ -162,6 +271,8 @@ export default function AdminLogsScreen() {
             isLoading ||
             isRefreshing ||
             isClearing ||
+            isExporting ||
+            isCheckingExportJob ||
             hasActiveLogMutation
           }
           onPress={capability.canClearLogsRemote ? handleClearLogs : undefined}
@@ -188,6 +299,205 @@ export default function AdminLogsScreen() {
             retryLabel={capability.canClearLogsRemote ? 'Retry clear' : undefined}
             title="Clear logs failed"
           />
+        ) : null}
+
+        <ListItem
+          disabled={
+            !capability.canExportLogsRemote ||
+            isLoading ||
+            isRefreshing ||
+            isClearing ||
+            isExporting ||
+            isCheckingExportJob ||
+            hasActiveLogMutation
+          }
+          onPress={capability.canExportLogsRemote ? () => handleExportLogs('json') : undefined}
+          showDivider
+          subtitle={capability.exportLogsDetail}
+          title="Export logs (JSON)"
+          trailing={
+            <Badge
+              label={!capability.canExportLogsRemote ? 'unsupported' : isExporting ? 'exporting' : 'ready'}
+              tone={
+                !capability.canExportLogsRemote
+                  ? 'neutral'
+                  : isExporting
+                    ? 'warning'
+                    : 'success'
+              }
+            />
+          }
+        />
+        <ListItem
+          disabled={
+            !capability.canExportLogsRemote ||
+            isLoading ||
+            isRefreshing ||
+            isClearing ||
+            isExporting ||
+            isCheckingExportJob ||
+            hasActiveLogMutation
+          }
+          onPress={capability.canExportLogsRemote ? () => handleExportLogs('csv') : undefined}
+          showDivider
+          subtitle={capability.exportLogsDetail}
+          title="Export logs (CSV)"
+          trailing={
+            <Badge
+              label={!capability.canExportLogsRemote ? 'unsupported' : isExporting ? 'exporting' : 'ready'}
+              tone={
+                !capability.canExportLogsRemote
+                  ? 'neutral'
+                  : isExporting
+                    ? 'warning'
+                    : 'success'
+              }
+            />
+          }
+        />
+        {exportError ? (
+          <ErrorState
+            description={exportError}
+            onRetry={capability.canExportLogsRemote ? () => handleExportLogs(lastRequestedExportFormat) : undefined}
+            retryLabel={capability.canExportLogsRemote ? 'Retry export' : undefined}
+            title="Export logs failed"
+          />
+        ) : null}
+        {lastExport?.jobId ? (
+          <ListItem
+            disabled={
+              capability.canGetLogExportJobRemote !== true ||
+              isLoading ||
+              isRefreshing ||
+              isClearing ||
+              isExporting ||
+              isCheckingExportJob ||
+              hasActiveLogMutation
+            }
+            onPress={capability.canGetLogExportJobRemote === true ? handleCheckExportJob : undefined}
+            showDivider
+            subtitle={capability.getLogExportJobDetail ?? 'Export job status endpoint unavailable'}
+            title="Check export job status"
+            trailing={
+              <Badge
+                label={
+                  capability.canGetLogExportJobRemote !== true
+                    ? 'unsupported'
+                    : isCheckingExportJob
+                      ? 'checking'
+                      : 'ready'
+                }
+                tone={
+                  capability.canGetLogExportJobRemote !== true
+                    ? 'neutral'
+                    : isCheckingExportJob
+                      ? 'warning'
+                      : 'success'
+                }
+              />
+            }
+          />
+        ) : null}
+        {exportJobError ? (
+          <ErrorState
+            description={exportJobError}
+            onRetry={lastExport?.jobId && capability.canGetLogExportJobRemote === true ? handleCheckExportJob : undefined}
+            retryLabel={lastExport?.jobId && capability.canGetLogExportJobRemote === true ? 'Retry status check' : undefined}
+            title="Export status check failed"
+          />
+        ) : null}
+        {lastExport ? (
+          <View style={styles.exportResult}>
+            <ListItem
+              subtitle={[
+                lastExport.format ? `Format: ${lastExport.format.toUpperCase()}` : 'Format: unknown',
+                lastExport.jobId ? `Job: ${lastExport.jobId}` : null,
+                lastExport.url ? 'Download URL ready' : 'No download URL returned',
+                lastExport.sourceDetail
+              ]
+                .filter(Boolean)
+                .join(' • ')}
+              title="Last export result"
+              trailing={
+                <Badge
+                  label={lastExport.url ? 'ready' : lastExport.jobId ? 'queued' : 'done'}
+                  tone={lastExport.url ? 'success' : lastExport.jobId ? 'warning' : 'neutral'}
+                />
+              }
+            />
+            <View style={styles.cardActions}>
+              <Button
+                disabled={!lastExport.url}
+                label="Open export URL"
+                onPress={handleOpenExportUrl}
+                size="sm"
+                variant="outline"
+              />
+              <Button
+                disabled={
+                  !lastExport.jobId ||
+                  capability.canGetLogExportJobRemote !== true ||
+                  isLoading ||
+                  isRefreshing ||
+                  isClearing ||
+                  isExporting ||
+                  isCheckingExportJob ||
+                  hasActiveLogMutation
+                }
+                label={isCheckingExportJob ? 'Checking status...' : 'Check status'}
+                onPress={handleCheckExportJob}
+                size="sm"
+                variant="outline"
+              />
+            </View>
+          </View>
+        ) : null}
+        {lastExportJob ? (
+          <View style={styles.exportResult}>
+            <ListItem
+              subtitle={[
+                `Job: ${lastExportJob.jobId}`,
+                `Status: ${lastExportJob.status}`,
+                lastExportJob.format ? `Format: ${lastExportJob.format.toUpperCase()}` : null,
+                lastExportJob.message,
+                lastExportJob.sourceDetail
+              ]
+                .filter(Boolean)
+                .join(' • ')}
+              title="Export job status"
+              trailing={
+                <Badge
+                  label={lastExportJob.status}
+                  tone={
+                    lastExportJob.status === 'ready'
+                      ? 'success'
+                      : lastExportJob.status === 'error'
+                        ? 'error'
+                        : lastExportJob.status === 'running' || lastExportJob.status === 'queued'
+                          ? 'warning'
+                          : 'neutral'
+                  }
+                />
+              }
+            />
+            <View style={styles.cardActions}>
+              <Button
+                disabled={!lastExportJob.url}
+                label="Open job URL"
+                onPress={() => {
+                  if (!lastExportJob.url) {
+                    return
+                  }
+
+                  void Linking.openURL(lastExportJob.url).catch(() => {
+                    toast('Failed to open export URL.', 'error')
+                  })
+                }}
+                size="sm"
+                variant="outline"
+              />
+            </View>
+          </View>
         ) : null}
 
         <View style={styles.searchRow}>
@@ -261,6 +571,8 @@ export default function AdminLogsScreen() {
                           isLoading ||
                           isRefreshing ||
                           isClearing ||
+                          isExporting ||
+                          isCheckingExportJob ||
                           logMutations[entry.id]?.isAcknowledging ||
                           logMutations[entry.id]?.isResolving ||
                           logMutations[entry.id]?.isRetrying ||
@@ -287,6 +599,8 @@ export default function AdminLogsScreen() {
                           isLoading ||
                           isRefreshing ||
                           isClearing ||
+                          isExporting ||
+                          isCheckingExportJob ||
                           logMutations[entry.id]?.isAcknowledging ||
                           logMutations[entry.id]?.isResolving ||
                           logMutations[entry.id]?.isRetrying ||
@@ -313,6 +627,8 @@ export default function AdminLogsScreen() {
                           isLoading ||
                           isRefreshing ||
                           isClearing ||
+                          isExporting ||
+                          isCheckingExportJob ||
                           logMutations[entry.id]?.isAcknowledging ||
                           logMutations[entry.id]?.isResolving ||
                           logMutations[entry.id]?.isRetrying
@@ -350,11 +666,15 @@ export default function AdminLogsScreen() {
         label={
           hasActiveLogMutation
             ? 'Updating logs...'
-            : isClearing
-              ? 'Clearing logs...'
-              : 'Refreshing logs...'
+            : isExporting
+              ? 'Exporting logs...'
+              : isCheckingExportJob
+                ? 'Checking export status...'
+              : isClearing
+                ? 'Clearing logs...'
+                : 'Refreshing logs...'
         }
-        visible={isRefreshing || isClearing || hasActiveLogMutation}
+        visible={isRefreshing || isClearing || isExporting || isCheckingExportJob || hasActiveLogMutation}
       />
     </View>
   )

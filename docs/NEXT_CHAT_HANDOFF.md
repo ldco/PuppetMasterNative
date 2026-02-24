@@ -1,13 +1,176 @@
 # PMNative Next Chat Handoff
 
-Last updated: 2026-02-23
+Last updated: 2026-02-24
 Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 
 Planning note:
 - Canonical current roadmap + immediate next-step list now lives in `docs/pmnative/ROADMAP.md`.
 - This handoff file is for session history, implementation notes, and review findings.
 
-## Session Update (2026-02-23, PMN-074 cleanup pass: admin logs/sessions concurrency + optimistic-state hardening)
+## Session Update (2026-02-24, review/hardening pass for PMN-074 admin log export + job-status slice)
+
+### Current status
+- Reviewed the newly added admin logs export/job-status code path end-to-end (`logs.tsx`, `useAdminLogs`, `admin.provider`, `admin.service`, config/validation wiring, and service/provider tests).
+- Applied safe fixes for state consistency, capability reporting, and input validation.
+- Validation is green after fixes (`typecheck` + targeted provider/service tests).
+
+### Scope of analysis
+- UI workflow gating and state transitions in `src/app/(admin)/logs.tsx`
+- Hook orchestration/race behavior in `src/hooks/useAdminLogs.ts`
+- Provider normalization/capability details in `src/services/admin.provider.ts`
+- Service capability/input guards in `src/services/admin.service.ts`
+- Regression coverage in:
+  - `tests/services/admin.provider.test.ts`
+  - `tests/services/admin.service.test.ts`
+
+### Issues discovered
+- Stale export job-status panel could remain visible after starting a new export, causing the UI to show a previous job result next to a newer export request.
+- CSV export action row was not disabled while export-status polling (`isCheckingExportJob`) was in flight, unlike the JSON export row (gating inconsistency).
+- `generic-rest` capability reporting marked `getLogExportJob` as supported when the configured endpoint string existed but was missing the required `:jobId` placeholder, leading to a misleading enabled UI and later runtime config error.
+- `adminService.getLogExportJob(...)` accepted whitespace-only `jobId` values and would forward them to the provider without validation.
+
+### Fixes implemented
+- `useAdminLogs.exportLogs(...)` now clears `lastExportJob` when a new export starts to prevent stale status UI carryover.
+- `src/app/(admin)/logs.tsx` CSV export action now disables while `isCheckingExportJob` is active (matches JSON action behavior).
+- `admin.provider` capability logic for `getLogExportJob` now requires a `:jobId` placeholder and reports a specific misconfiguration detail message when missing.
+- `adminService.getLogExportJob(...)` now trims `jobId` and rejects blank values before provider calls.
+- Added regression tests for:
+  - invalid `getLogExportJob` endpoint template capability reporting
+  - `getLogExportJob` `jobId` trimming and blank-id rejection
+
+### Validation
+- `npm run typecheck` passed
+- `npm test -- --run tests/services/admin.provider.test.ts tests/services/admin.service.test.ts` passed (`65` tests)
+
+### Open tasks / remaining risks
+- No dedicated UI/hook tests currently cover the admin logs export polling workflow, so state regressions in `useAdminLogs` / `logs.tsx` are still primarily protected by manual review and type checks.
+- Export polling remains manual; if auto-polling is added later, request cancellation/debounce behavior should be revisited in `useAdminLogs`.
+- `src/services/admin.provider.ts` continues to grow; additional PMN-074 slices should prefer internal helper extraction to reduce regression surface.
+
+### Recommended next steps
+- Continue `PMN-074` with the next admin export/policy workflow slice (recommended: richer export filters contract support, provider/service-first, tests first).
+- Add focused hook/UI tests for `useAdminLogs` export + job-status orchestration if the workflow continues to expand.
+
+## Session Update (2026-02-23, PMN-074 admin log export job-status polling)
+
+### Current architecture decisions
+- Kept export submission (`exportLogs`) and export job polling (`getLogExportJob`) as separate provider/service contracts to avoid overloading one endpoint method with two responsibilities.
+- Extended the existing `useAdminLogs` workflow hook instead of adding a new export-specific screen hook, because polling state belongs to the same admin logs workflow surface as list/clear/export/audit actions.
+
+### Completed work
+- Added config/validation/example support for `generic-rest` export job-status endpoint:
+  - `backend.genericRest.admin.endpoints.getLogExportJob` (`:jobId` template)
+- Extended admin provider capabilities/contracts:
+  - `canGetLogExportJobRemote`
+  - `getLogExportJobDetail`
+  - `getLogExportJob({ accessToken, jobId })`
+- Implemented `generic-rest` provider job-status path:
+  - `GET` to `getLogExportJob`
+  - payload normalization supports raw / `{ export }` / `{ success: true, data }`
+  - status alias normalization (`pending|processing|completed|failed` -> `queued|running|ready|error`)
+  - response maps `url/downloadUrl/download_url`, `jobId/job_id`, `message/error`
+  - `401/403 -> UNAUTHORIZED` via shared admin error mapper
+- Added admin service method:
+  - `adminService.getLogExportJob(...)` (capability-gated)
+- Extended `useAdminLogs` export workflow state:
+  - `isCheckingExportJob`
+  - `exportJobError`
+  - `lastExportJob`
+  - `checkExportJob(...)`
+  - export-job error reset helper
+  - concurrency gating across refresh/clear/export/row log mutations while status checks run
+- Updated `src/app/(admin)/logs.tsx`:
+  - capability-gated `Check export job status` action
+  - status retry/error handling
+  - export job status result panel (`queued/running/ready/error`) + open URL action when available
+  - loading overlay includes export-status polling state
+- Tests added:
+  - `tests/services/admin.provider.test.ts` (`getLogExportJob` normalization + unauthorized mapping)
+  - `tests/services/admin.service.test.ts` (`getLogExportJob` success + `NOT_SUPPORTED`)
+- Validation:
+  - `npm run typecheck` passed
+  - `npm test -- --run tests/services/admin.provider.test.ts tests/services/admin.service.test.ts` passed (`63` tests)
+
+### Remaining tasks
+- Decide whether export status polling should auto-refresh on an interval (current UI is manual polling by design).
+- If backend supports richer export filters (date range/level/query), expand export contract inputs and preserve them in export job metadata/result UI.
+- Consider extracting admin logs export/audit orchestration helpers from `useAdminLogs` if that hook grows further.
+
+### Next phase goals
+- Continue `PMN-074` with broader admin policy/export workflows (filterable exports, audit metadata/reasons, or export governance endpoints) using the same provider/service-first pattern.
+
+## Session Update (2026-02-23, PMN-074 admin logs export UI wiring)
+
+### Current architecture decisions
+- Finished the `admin logs export` slice by wiring UI on top of the already-implemented provider/service contract instead of inventing a separate screen, keeping log actions (list/clear/export/audit mutations) in one workflow surface.
+- Added export workflow state to `useAdminLogs` (`isExporting`, `exportError`, `lastExport`) so async export behavior is owned by the hook and not fragmented across the screen.
+
+### Completed work
+- Extended `useAdminLogs` with export orchestration:
+  - `exportLogs(format?)`
+  - `isExporting`
+  - `exportError`
+  - `lastExport`
+  - export-specific error reset helper
+- Tightened log-action concurrency gating:
+  - `refresh`, `clear`, and row log mutations now also block while export is in flight
+  - export blocks while refresh/clear/row mutations are active
+- Wired `src/app/(admin)/logs.tsx` export UI:
+  - capability-gated `Export logs (JSON)` and `Export logs (CSV)` actions
+  - export error state with retry
+  - last export result panel (supports direct download URL or async `jobId`)
+  - `Open export URL` action via external URL open
+  - loading overlay now reflects export activity
+- Validation:
+  - `npm run typecheck` passed
+  - `npm test -- --run` passed (`93` tests)
+
+### Remaining tasks
+- If backend export endpoints are asynchronous jobs, define and implement export job-status polling/refresh contract (or explicitly defer as a separate admin exports phase).
+- Decide whether export should support richer filters (level/date range/query) instead of current `limit + format` only.
+- Consider extracting admin logs hook mutation/export orchestration helpers if the logs workflow grows further.
+
+### Next phase goals
+- Continue `PMN-074` with broader admin policy/export workflows (reasons/audit metadata, richer export semantics, or additional admin actions) using the same provider/service-first pattern.
+
+## Session Update (2026-02-23, post-push next phase start: PMN-074 admin logs export contract slice)
+
+### Current architecture decisions
+- Started the next admin workflow family continuation with provider/service-first contract work (`export logs`) before UI wiring, to keep backend contract validation/test coverage ahead of screen complexity.
+- Reused existing admin logs patterns (`clearLogs` mutation contract shape + provider error mapping) but defined a separate export result contract (`url` / `jobId` / `format`) instead of overloading clear/audit mutation paths.
+
+### Completed work
+- Added config/validation/example support for `generic-rest` admin logs export endpoint:
+  - `backend.genericRest.admin.endpoints.exportLogs`
+- Extended admin provider capabilities/contracts:
+  - `canExportLogsRemote`
+  - `exportLogsDetail`
+  - `exportLogs({ accessToken, format?, limit? })`
+- Implemented `generic-rest` `exportLogs` provider path:
+  - `POST` body supports `format` (`json`/`csv`) and optional `limit`
+  - response normalization supports alias fields (`url` / `downloadUrl` / `download_url`, `jobId` / `job_id`)
+  - preserves normalized `format`
+  - maps `401/403 -> UNAUTHORIZED` via shared admin request mapper
+- Added service contract/method:
+  - `adminService.exportLogs(...)`
+  - capability-gated, returns provider source detail and normalized export metadata
+- Added tests:
+  - `tests/services/admin.provider.test.ts` (`exportLogs` success normalization + unauthorized mapping)
+  - `tests/services/admin.service.test.ts` (`exportLogs` success + `NOT_SUPPORTED`)
+- Validation:
+  - `npm run typecheck` passed
+  - `npm test -- --run tests/services/admin.provider.test.ts tests/services/admin.service.test.ts` passed (`59` tests)
+  - `npm test -- --run` passed (`93` tests)
+
+### Remaining tasks
+- Wire `exportLogs` into `src/app/(admin)/logs.tsx` (format choice, action UX, and result handling for direct download URL vs async jobId).
+- Decide whether export should be one action (`default json`) or explicit format actions (`Export JSON` / `Export CSV`) in admin logs UI.
+- If backend returns long-running jobs, define polling/fetch job-status contract or leave as follow-up admin exports slice.
+
+### Next phase goals
+- Add capability-gated admin logs export UI wiring in `/(admin)/logs` using the new provider/service contract, then continue broader admin policy/export workflows.
+
+## Session Update (2026-02-23, PMN-074 cleanup pass: admin mutation concurrency + optimistic state hardening)
 
 ### Current architecture decisions
 - Kept feature scope unchanged, but tightened client mutation orchestration inside hooks rather than adding more UI-only guard code.
