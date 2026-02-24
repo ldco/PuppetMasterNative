@@ -51,6 +51,41 @@ Planning note:
 - Continue `PMN-074` with the next admin export/policy workflow slice (recommended: richer export filters contract support, provider/service-first, tests first).
 - Add focused hook/UI tests for `useAdminLogs` export + job-status orchestration if the workflow continues to expand.
 
+## Session Update (2026-02-24, post-push next phase start: PMN-074 richer admin log export filters contract groundwork)
+
+### Current status
+- Began the next `PMN-074` admin export workflow phase immediately after pushing `ffbfe8d`.
+- Implemented provider/service contract groundwork for richer export filters (no admin logs UI wiring yet).
+
+### Completed work
+- Extended export request contracts with optional filter fields:
+  - `query`
+  - `levels`
+  - `from`
+  - `to`
+- Added service-level normalization/passthrough in `adminService.exportLogs(...)`:
+  - trims string filters
+  - de-duplicates `levels`
+- Added provider request-body support in `adminProvider.exportLogs(...)`:
+  - sends optional filters only when non-empty
+  - trims string values and de-duplicates `levels`
+- Added regression tests:
+  - provider request body includes optional export filters
+  - service export passthrough normalizes filter inputs before provider call
+
+### Validation
+- `npm run typecheck` passed
+- `npm test -- --run tests/services/admin.provider.test.ts tests/services/admin.service.test.ts` passed (`66` tests)
+
+### Open tasks
+- Wire filter inputs into `src/hooks/useAdminLogs.ts` and `src/app/(admin)/logs.tsx` (UX for query/date range/level selection is not started).
+- Align backend contract docs/examples for expected filter semantics (timestamp format, inclusive bounds, level names).
+- Decide whether to persist export filter selections in UI state and surface them in `lastExport` metadata.
+
+### Recommended next steps
+- Continue the same slice by adding capability-safe UI controls for export filters in admin logs, keeping the current manual job-status polling flow.
+- If UI scope is deferred, document the filter contract in roadmap/handoff and hold the provider/service scaffolding as backend-first groundwork.
+
 ## Session Update (2026-02-23, PMN-074 admin log export job-status polling)
 
 ### Current architecture decisions

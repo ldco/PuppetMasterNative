@@ -70,6 +70,10 @@ export type AdminProviderLogExportFormat = 'json' | 'csv'
 
 export interface AdminProviderExportLogsInput extends AdminProviderListLogsInput {
   format?: AdminProviderLogExportFormat
+  query?: string
+  levels?: AdminProviderLogLevel[]
+  from?: string
+  to?: string
 }
 
 export interface AdminProviderGetLogExportJobInput extends AdminProviderListUsersInput {

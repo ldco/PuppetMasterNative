@@ -1226,13 +1226,35 @@ const genericRestAdminProvider: AdminProvider = {
     }
 
     const accessToken = requireAccessToken(input.accessToken)
-    const body: { format?: AdminProviderLogExportFormat; limit?: number } = {}
+    const body: {
+      format?: AdminProviderLogExportFormat
+      limit?: number
+      query?: string
+      levels?: AdminProviderExportLogsInput['levels']
+      from?: string
+      to?: string
+    } = {}
 
     if (input.format) {
       body.format = input.format
     }
     if (typeof input.limit === 'number' && Number.isFinite(input.limit) && input.limit > 0) {
       body.limit = Math.floor(input.limit)
+    }
+    if (typeof input.query === 'string' && input.query.trim().length > 0) {
+      body.query = input.query.trim()
+    }
+    if (Array.isArray(input.levels) && input.levels.length > 0) {
+      const normalizedLevels = [...new Set(input.levels.map((level) => level.trim()))].filter(Boolean)
+      if (normalizedLevels.length > 0) {
+        body.levels = normalizedLevels as AdminProviderExportLogsInput['levels']
+      }
+    }
+    if (typeof input.from === 'string' && input.from.trim().length > 0) {
+      body.from = input.from.trim()
+    }
+    if (typeof input.to === 'string' && input.to.trim().length > 0) {
+      body.to = input.to.trim()
     }
 
     const payload = await apiRequest(genericRestExportLogsEndpoint, {

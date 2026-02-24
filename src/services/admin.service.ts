@@ -177,6 +177,13 @@ export interface AdminExportLogsResult {
   sourceDetail: string
 }
 
+export interface AdminLogExportFilters {
+  query?: string
+  levels?: AdminLogLevel[]
+  from?: string
+  to?: string
+}
+
 export type AdminLogExportJobStatus = AdminProviderLogExportJobStatus
 
 export interface AdminLogExportJobResult {
@@ -195,7 +202,7 @@ export interface AdminAcknowledgeLogResult {
   sourceDetail: string
 }
 
-export interface AdminExportLogsInput extends AdminLogsQueryInput {
+export interface AdminExportLogsInput extends AdminLogsQueryInput, AdminLogExportFilters {
   format?: AdminLogExportFormat
 }
 
@@ -562,7 +569,11 @@ export const adminService = {
     const result = await adminProvider.exportLogs({
       accessToken: input.accessToken,
       limit: input.limit,
-      format: input.format
+      format: input.format,
+      query: input.query?.trim() || undefined,
+      levels: input.levels?.length ? [...new Set(input.levels)] : undefined,
+      from: input.from?.trim() || undefined,
+      to: input.to?.trim() || undefined
     })
 
     return {

@@ -523,13 +523,21 @@ describe('adminService', () => {
       },
       accessToken: 'token',
       format: 'csv',
-      limit: 100
+      limit: 100,
+      query: '  queue lag ',
+      levels: ['warning', 'error', 'warning'],
+      from: ' 2026-02-24T00:00:00.000Z ',
+      to: ' 2026-02-24T23:59:59.999Z '
     })
 
     expect(mockAdminProvider.exportLogs).toHaveBeenCalledWith({
       accessToken: 'token',
       format: 'csv',
-      limit: 100
+      limit: 100,
+      query: 'queue lag',
+      levels: ['warning', 'error'],
+      from: '2026-02-24T00:00:00.000Z',
+      to: '2026-02-24T23:59:59.999Z'
     })
     expect(result).toEqual({
       url: 'https://example.com/logs.csv',

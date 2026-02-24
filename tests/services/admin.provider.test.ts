@@ -512,6 +512,47 @@ describe('adminProvider', () => {
     })
   })
 
+  it('generic-rest exportLogs sends optional filter payload fields when provided', async () => {
+    const apiRequestMock = vi.fn().mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-2'
+      }
+    })
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        exportLogs: '/admin/logs/export'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await adminProvider.exportLogs({
+      accessToken: 'token',
+      format: 'json',
+      query: '  queue lag  ',
+      levels: ['warning', 'error', 'warning'],
+      from: ' 2026-02-24T00:00:00.000Z ',
+      to: ' 2026-02-24T23:59:59.999Z '
+    })
+
+    expect(apiRequestMock).toHaveBeenCalledWith('/admin/logs/export', {
+      method: 'POST',
+      token: 'token',
+      body: {
+        format: 'json',
+        query: 'queue lag',
+        levels: ['warning', 'error'],
+        from: '2026-02-24T00:00:00.000Z',
+        to: '2026-02-24T23:59:59.999Z'
+      },
+      schema: expect.any(Object),
+      useAuthToken: false
+    })
+  })
+
   it('generic-rest getLogExportJob normalizes status/url aliases and maps terminal states', async () => {
     const apiRequestMock = vi
       .fn()
