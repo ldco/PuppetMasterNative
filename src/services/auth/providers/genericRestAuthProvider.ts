@@ -216,7 +216,10 @@ const toGenericRestAuthProviderError = (error: unknown): never => {
   }
 
   if (error instanceof Error) {
-    if (error.message.includes('Missing genericRest auth endpoints')) {
+    if (
+      error.message.includes('Missing genericRest auth endpoints') ||
+      error.message.includes('auth.endpoints.forgotPassword')
+    ) {
       throw new AuthProviderError(error.message, 'CONFIG')
     }
 
@@ -237,31 +240,39 @@ export const genericRestAuthProvider: AuthProvider = {
   },
 
   async login(input) {
-    const endpoints = getEndpoints()
-    const payload = await apiRequest<unknown, typeof authSessionPayloadSchema>(endpoints.login, {
-      method: 'POST',
-      body: input,
-      schema: authSessionPayloadSchema,
-      allowRefresh: false,
-      useAuthToken: false
-    })
+    try {
+      const endpoints = getEndpoints()
+      const payload = await apiRequest<unknown, typeof authSessionPayloadSchema>(endpoints.login, {
+        method: 'POST',
+        body: input,
+        schema: authSessionPayloadSchema,
+        allowRefresh: false,
+        useAuthToken: false
+      })
 
-    return normalizeAuthSessionPayload(payload)
+      return normalizeAuthSessionPayload(payload)
+    } catch (error) {
+      throw toGenericRestAuthProviderError(error)
+    }
   },
 
   async register(input): Promise<AuthRegisterResult> {
-    const endpoints = getEndpoints()
-    const payload = await apiRequest<unknown, typeof authSessionPayloadSchema>(endpoints.register, {
-      method: 'POST',
-      body: input,
-      schema: authSessionPayloadSchema,
-      allowRefresh: false,
-      useAuthToken: false
-    })
+    try {
+      const endpoints = getEndpoints()
+      const payload = await apiRequest<unknown, typeof authSessionPayloadSchema>(endpoints.register, {
+        method: 'POST',
+        body: input,
+        schema: authSessionPayloadSchema,
+        allowRefresh: false,
+        useAuthToken: false
+      })
 
-    return {
-      kind: 'session',
-      session: normalizeAuthSessionPayload(payload)
+      return {
+        kind: 'session',
+        session: normalizeAuthSessionPayload(payload)
+      }
+    } catch (error) {
+      throw toGenericRestAuthProviderError(error)
     }
   },
 
@@ -274,18 +285,22 @@ export const genericRestAuthProvider: AuthProvider = {
   },
 
   async requestPasswordReset(input) {
-    const endpoints = getEndpoints()
+    try {
+      const endpoints = getEndpoints()
 
-    if (!endpoints.forgotPassword) {
-      throw new Error('generic-rest provider is missing auth.endpoints.forgotPassword')
+      if (!endpoints.forgotPassword) {
+        throw new Error('generic-rest provider is missing auth.endpoints.forgotPassword')
+      }
+
+      await apiRequest<void>(endpoints.forgotPassword, {
+        method: 'POST',
+        body: input,
+        allowRefresh: false,
+        useAuthToken: false
+      })
+    } catch (error) {
+      throw toGenericRestAuthProviderError(error)
     }
-
-    await apiRequest<void>(endpoints.forgotPassword, {
-      method: 'POST',
-      body: input,
-      allowRefresh: false,
-      useAuthToken: false
-    })
   },
 
   async updatePassword(input, context) {
@@ -317,49 +332,61 @@ export const genericRestAuthProvider: AuthProvider = {
   },
 
   async logout({ accessToken }) {
-    if (!accessToken) {
-      return
-    }
+    try {
+      if (!accessToken) {
+        return
+      }
 
-    const endpoints = getEndpoints()
-    await apiRequest<void>(endpoints.logout, {
-      method: 'POST',
-      token: accessToken,
-      allowRefresh: false,
-      useAuthToken: false
-    })
+      const endpoints = getEndpoints()
+      await apiRequest<void>(endpoints.logout, {
+        method: 'POST',
+        token: accessToken,
+        allowRefresh: false,
+        useAuthToken: false
+      })
+    } catch (error) {
+      throw toGenericRestAuthProviderError(error)
+    }
   },
 
   async getSessionUser(token) {
-    const endpoints = getEndpoints()
-    const payload = await apiRequest<unknown, typeof sessionPayloadSchema>(endpoints.session, {
-      token,
-      schema: sessionPayloadSchema
-    })
+    try {
+      const endpoints = getEndpoints()
+      const payload = await apiRequest<unknown, typeof sessionPayloadSchema>(endpoints.session, {
+        token,
+        schema: sessionPayloadSchema
+      })
 
-    if ('data' in payload) {
-      return payload.data.user
+      if ('data' in payload) {
+        return payload.data.user
+      }
+
+      return payload.user
+    } catch (error) {
+      throw toGenericRestAuthProviderError(error)
     }
-
-    return payload.user
   },
 
   async refreshAccessToken(refreshToken) {
-    const endpoints = getEndpoints()
-    const payload = await apiRequest<unknown, typeof refreshPayloadSchema>(endpoints.refresh, {
-      method: 'POST',
-      body: {
-        refreshToken
-      },
-      schema: refreshPayloadSchema,
-      allowRefresh: false,
-      useAuthToken: false,
-      retry: {
-        attempts: 1,
-        backoffMs: 150
-      }
-    })
+    try {
+      const endpoints = getEndpoints()
+      const payload = await apiRequest<unknown, typeof refreshPayloadSchema>(endpoints.refresh, {
+        method: 'POST',
+        body: {
+          refreshToken
+        },
+        schema: refreshPayloadSchema,
+        allowRefresh: false,
+        useAuthToken: false,
+        retry: {
+          attempts: 1,
+          backoffMs: 150
+        }
+      })
 
-    return normalizeRefreshPayload(payload)
+      return normalizeRefreshPayload(payload)
+    } catch (error) {
+      throw toGenericRestAuthProviderError(error)
+    }
   }
 }

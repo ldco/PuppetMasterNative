@@ -1205,7 +1205,7 @@ describe('adminProvider', () => {
     })
   })
 
-  it('generic-rest revokeUserSessions sends trimmed reason and context payload when provided', async () => {
+  it('generic-rest revokeUserSessions sends canonical reason and context payload when provided', async () => {
     const apiRequestMock = vi.fn().mockResolvedValue({
       success: true,
       data: {
@@ -1226,10 +1226,10 @@ describe('adminProvider', () => {
       adminProvider.revokeUserSessions({
         accessToken: 'token',
         userId: 'u7',
-        reason: '  suspicious_activity  ',
+        reason: 'admin_user_detail_force_logout_all_sessions',
         auditContext: {
-          source: ' admin-user-detail ',
-          action: ' force-logout-all '
+          source: 'admin-user-detail',
+          action: 'force-logout-all'
         }
       })
     ).resolves.toEqual({
@@ -1240,7 +1240,7 @@ describe('adminProvider', () => {
       method: 'POST',
       token: 'token',
       body: {
-        reason: 'suspicious_activity',
+        reason: 'admin_user_detail_force_logout_all_sessions',
         context: {
           source: 'admin-user-detail',
           action: 'force-logout-all'
@@ -1251,7 +1251,7 @@ describe('adminProvider', () => {
     })
   })
 
-  it('generic-rest revokeUserSession sends trimmed reason and context payload when provided', async () => {
+  it('generic-rest revokeUserSession sends canonical reason and context payload when provided', async () => {
     const apiRequestMock = vi.fn().mockResolvedValue({
       count: 1
     })
@@ -1270,10 +1270,10 @@ describe('adminProvider', () => {
         accessToken: 'token',
         userId: 'u7',
         sessionId: 'sess-3',
-        reason: '  manual_security_reset ',
+        reason: 'admin_user_detail_force_logout_single_session',
         auditContext: {
-          source: ' admin-user-detail ',
-          action: ' force-logout-one '
+          source: 'admin-user-detail',
+          action: 'force-logout-one'
         }
       })
     ).resolves.toEqual({
@@ -1285,12 +1285,51 @@ describe('adminProvider', () => {
       method: 'POST',
       token: 'token',
       body: {
-        reason: 'manual_security_reset',
+        reason: 'admin_user_detail_force_logout_single_session',
         context: {
           source: 'admin-user-detail',
           action: 'force-logout-one'
         }
       },
+      schema: expect.any(Object),
+      useAuthToken: false
+    })
+  })
+
+  it('generic-rest revokeUserSessions omits reason/context values outside taxonomy', async () => {
+    const apiRequestMock = vi.fn().mockResolvedValue({
+      success: true,
+      data: {
+        revokedCount: 1
+      }
+    })
+
+    const { adminProvider } = await loadAdminProviderModule({
+      provider: 'generic-rest',
+      adminEndpoints: {
+        listUsers: '/admin/users',
+        revokeUserSessions: '/admin/users/:id/sessions/revoke'
+      },
+      apiRequestImpl: apiRequestMock
+    })
+
+    await expect(
+      adminProvider.revokeUserSessions({
+        accessToken: 'token',
+        userId: 'u7',
+        reason: '  unknown_reason ' as unknown as 'admin_user_detail_force_logout_all_sessions',
+        auditContext: {
+          source: '  unknown-source ' as unknown as 'admin-user-detail',
+          action: '  unknown-action ' as unknown as 'force-logout-all'
+        }
+      })
+    ).resolves.toEqual({
+      revokedCount: 1
+    })
+
+    expect(apiRequestMock).toHaveBeenCalledWith('/admin/users/u7/sessions/revoke', {
+      method: 'POST',
+      token: 'token',
       schema: expect.any(Object),
       useAuthToken: false
     })

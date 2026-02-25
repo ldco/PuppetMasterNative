@@ -111,19 +111,42 @@ export interface AdminProviderUpdateUserLockInput extends AdminProviderGetUserIn
 
 export interface AdminProviderListUserSessionsInput extends AdminProviderGetUserInput {}
 
+export const ADMIN_PROVIDER_SESSION_REVOKE_REASONS = {
+  FORCE_LOGOUT_ALL: 'admin_user_detail_force_logout_all_sessions',
+  FORCE_LOGOUT_ONE: 'admin_user_detail_force_logout_single_session'
+} as const
+
+export type AdminProviderSessionRevokeReason =
+  (typeof ADMIN_PROVIDER_SESSION_REVOKE_REASONS)[keyof typeof ADMIN_PROVIDER_SESSION_REVOKE_REASONS]
+
+export const ADMIN_PROVIDER_SESSION_REVOKE_CONTEXT_SOURCES = {
+  ADMIN_USER_DETAIL: 'admin-user-detail'
+} as const
+
+export type AdminProviderSessionRevokeAuditContextSource =
+  (typeof ADMIN_PROVIDER_SESSION_REVOKE_CONTEXT_SOURCES)[keyof typeof ADMIN_PROVIDER_SESSION_REVOKE_CONTEXT_SOURCES]
+
+export const ADMIN_PROVIDER_SESSION_REVOKE_CONTEXT_ACTIONS = {
+  FORCE_LOGOUT_ALL: 'force-logout-all',
+  FORCE_LOGOUT_ONE: 'force-logout-one'
+} as const
+
+export type AdminProviderSessionRevokeAuditContextAction =
+  (typeof ADMIN_PROVIDER_SESSION_REVOKE_CONTEXT_ACTIONS)[keyof typeof ADMIN_PROVIDER_SESSION_REVOKE_CONTEXT_ACTIONS]
+
 export interface AdminProviderSessionRevokeAuditContext {
-  source?: string
-  action?: string
+  source?: AdminProviderSessionRevokeAuditContextSource
+  action?: AdminProviderSessionRevokeAuditContextAction
 }
 
 export interface AdminProviderRevokeUserSessionsInput extends AdminProviderGetUserInput {
-  reason?: string
+  reason?: AdminProviderSessionRevokeReason
   auditContext?: AdminProviderSessionRevokeAuditContext
 }
 
 export interface AdminProviderRevokeUserSessionInput extends AdminProviderGetUserInput {
   sessionId: string
-  reason?: string
+  reason?: AdminProviderSessionRevokeReason
   auditContext?: AdminProviderSessionRevokeAuditContext
 }
 

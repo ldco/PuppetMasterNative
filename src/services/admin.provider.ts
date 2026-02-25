@@ -3,6 +3,9 @@ import { z } from 'zod'
 import { pmNativeConfig } from '@/pm-native.config'
 import { apiRequest } from '@/services/api'
 import {
+  ADMIN_PROVIDER_SESSION_REVOKE_CONTEXT_ACTIONS,
+  ADMIN_PROVIDER_SESSION_REVOKE_CONTEXT_SOURCES,
+  ADMIN_PROVIDER_SESSION_REVOKE_REASONS,
   AdminProviderError,
   type AdminProvider,
   type AdminProviderAcknowledgeLogInput,
@@ -22,6 +25,10 @@ import {
   type AdminProviderLogEntry,
   type AdminProviderListUserSessionsInput,
   type AdminProviderResolveLogInput,
+  type AdminProviderSessionRevokeAuditContext,
+  type AdminProviderSessionRevokeAuditContextAction,
+  type AdminProviderSessionRevokeAuditContextSource,
+  type AdminProviderSessionRevokeReason,
   type AdminProviderRevokeUserSessionInput,
   type AdminProviderRevokeUserSessionResult,
   type AdminProviderRevokeUserSessionsInput,
@@ -1015,38 +1022,77 @@ const requireAccessToken = (accessToken?: string | null): string => {
   return accessToken
 }
 
-const toTrimmedReason = (reason?: string): string | undefined => {
+const adminProviderSessionRevokeReasonSet = new Set<AdminProviderSessionRevokeReason>(
+  Object.values(ADMIN_PROVIDER_SESSION_REVOKE_REASONS)
+)
+const adminProviderSessionRevokeContextSourceSet = new Set<AdminProviderSessionRevokeAuditContextSource>(
+  Object.values(ADMIN_PROVIDER_SESSION_REVOKE_CONTEXT_SOURCES)
+)
+const adminProviderSessionRevokeContextActionSet = new Set<AdminProviderSessionRevokeAuditContextAction>(
+  Object.values(ADMIN_PROVIDER_SESSION_REVOKE_CONTEXT_ACTIONS)
+)
+
+const toNormalizedReason = (reason?: string): AdminProviderSessionRevokeReason | undefined => {
   if (typeof reason !== 'string') {
     return undefined
   }
 
   const normalizedReason = reason.trim()
-  return normalizedReason.length > 0 ? normalizedReason : undefined
+  if (
+    normalizedReason.length === 0 ||
+    !adminProviderSessionRevokeReasonSet.has(normalizedReason as AdminProviderSessionRevokeReason)
+  ) {
+    return undefined
+  }
+
+  return normalizedReason as AdminProviderSessionRevokeReason
+}
+
+const toNormalizedAuditContextSource = (
+  source?: string
+): AdminProviderSessionRevokeAuditContextSource | undefined => {
+  if (typeof source !== 'string') {
+    return undefined
+  }
+
+  const normalizedSource = source.trim()
+  if (
+    normalizedSource.length === 0 ||
+    !adminProviderSessionRevokeContextSourceSet.has(normalizedSource as AdminProviderSessionRevokeAuditContextSource)
+  ) {
+    return undefined
+  }
+
+  return normalizedSource as AdminProviderSessionRevokeAuditContextSource
+}
+
+const toNormalizedAuditContextAction = (
+  action?: string
+): AdminProviderSessionRevokeAuditContextAction | undefined => {
+  if (typeof action !== 'string') {
+    return undefined
+  }
+
+  const normalizedAction = action.trim()
+  if (
+    normalizedAction.length === 0 ||
+    !adminProviderSessionRevokeContextActionSet.has(normalizedAction as AdminProviderSessionRevokeAuditContextAction)
+  ) {
+    return undefined
+  }
+
+  return normalizedAction as AdminProviderSessionRevokeAuditContextAction
 }
 
 const toNormalizedAuditContext = (
-  auditContext?: {
-    source?: string
-    action?: string
-  }
-):
-  | {
-      source?: string
-      action?: string
-    }
-  | undefined => {
+  auditContext?: AdminProviderSessionRevokeAuditContext
+): AdminProviderSessionRevokeAuditContext | undefined => {
   if (!auditContext) {
     return undefined
   }
 
-  const source =
-    typeof auditContext.source === 'string' && auditContext.source.trim().length > 0
-      ? auditContext.source.trim()
-      : undefined
-  const action =
-    typeof auditContext.action === 'string' && auditContext.action.trim().length > 0
-      ? auditContext.action.trim()
-      : undefined
+  const source = toNormalizedAuditContextSource(auditContext.source)
+  const action = toNormalizedAuditContextAction(auditContext.action)
 
   if (!source && !action) {
     return undefined
@@ -1058,8 +1104,11 @@ const toNormalizedAuditContext = (
   }
 }
 
-const toRevokeAuditBody = (input: { reason?: string; auditContext?: { source?: string; action?: string } }) => {
-  const reason = toTrimmedReason(input.reason)
+const toRevokeAuditBody = (input: {
+  reason?: AdminProviderSessionRevokeReason
+  auditContext?: AdminProviderSessionRevokeAuditContext
+}) => {
+  const reason = toNormalizedReason(input.reason)
   const context = toNormalizedAuditContext(input.auditContext)
 
   if (!reason && !context) {

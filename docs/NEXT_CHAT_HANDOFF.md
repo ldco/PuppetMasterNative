@@ -7,6 +7,155 @@ Planning note:
 - Canonical current roadmap + immediate next-step list now lives in `docs/pmnative/ROADMAP.md`.
 - This handoff file is for session history, implementation notes, and review findings.
 
+## Session Update (2026-02-25, Assistant next step: backend proxy contract + runtime mode routing)
+
+### Current status
+- Branch: `master`
+- Working tree: dirty (expected; pending commit for this slice)
+
+### Completed work
+- Added production-oriented Assistant runtime mode routing:
+  - `proxy` mode (preferred): uses backend endpoint, no client model key required
+  - `direct` mode: model endpoint with client API key
+  - `mock` mode: local demo blocks (quick replies/menu/forms)
+  - file:
+    - `src/services/chatbot.service.ts`
+- Added proxy config support to PMNative generic-rest contract types/validation:
+  - `backend.genericRest.chatbot.endpoints.complete`
+  - files:
+    - `src/types/config.ts`
+    - `src/utils/validation.ts`
+    - `src/pm-native.config.ts` (commented config example)
+- Implemented proxy request/response contract handling in Assistant service:
+  - request body: `{ input, history: [{ role, text }] }`
+  - accepted responses: raw/enveloped `reply` and `message` alias variants with optional `ui` blocks
+  - file:
+    - `src/services/chatbot.service.ts`
+- Updated Assistant hook status messaging for runtime mode visibility.
+  - file:
+    - `src/hooks/useChatbot.ts`
+- Added env/docs for proxy mode:
+  - `EXPO_PUBLIC_CHATBOT_PROXY_PATH` (recommended production path)
+  - files:
+    - `.env.example`
+    - `README.md`
+    - `docs/CHATBOT_UX_2026_GUIDE.md`
+    - `docs/GENERIC_REST_AUTH_PROVIDER_CONTRACT.md`
+- Expanded chatbot service tests:
+  - proxy success path
+  - proxy failure fallback path
+  - file:
+    - `tests/services/chatbot.service.test.ts`
+
+### Validation
+- `npm run typecheck` passed
+- `npm test -- --run tests/services/chatbot.service.test.ts` passed (`5` tests)
+- `npm test -- --run` passed (`123` tests total)
+
+### Remaining tasks
+- Add backend-side auth/rate-limit/audit enforcement expectations for `/chatbot/complete` in a dedicated server contract doc if multi-team integration starts.
+- Add transcript persistence/redaction controls before production rollout if chat logs become compliance-relevant.
+
+## Session Update (2026-02-25, Assistant chatbot UX slice: out-of-box customizable chat blocks)
+
+### Current status
+- Branch: `master`
+- Working tree: dirty (expected; pending commit for this slice)
+
+### Completed work
+- Added a new `Assistant` tab in app navigation (config + tab schema updates).
+  - files:
+    - `src/pm-native.config.ts`
+    - `src/types/config.ts`
+    - `src/utils/validation.ts`
+- Implemented chatbot runtime service with:
+  - API-key placeholder support (`EXPO_PUBLIC_CHATBOT_API_KEY=PASTE_YOUR_API_KEY_HERE`)
+  - optional model/endpoint env overrides
+  - OpenAI-style remote call path + robust output extraction
+  - local mock fallback when key is placeholder or remote call fails
+  - structured UI block contract for:
+    - quick replies
+    - menu cards
+    - forms (text/email/number/select)
+  - file:
+    - `src/services/chatbot.service.ts`
+- Implemented chat orchestration hook:
+  - send composer text
+  - trigger quick-reply/menu actions
+  - form draft state + required-field validation + form submission routing
+  - file:
+    - `src/hooks/useChatbot.ts`
+- Implemented full tab screen UX:
+  - chat bubbles
+  - block rendering for quick replies, menus, and forms
+  - reset flow
+  - runtime source detail visibility (mock vs remote)
+  - file:
+    - `src/app/(tabs)/assistant.tsx`
+- Added env placeholders and setup docs for chatbot mode.
+  - files:
+    - `.env.example`
+    - `README.md`
+- Added 2026 shortlist notes + source links for chatbot UX options.
+  - file:
+    - `docs/CHATBOT_UX_2026_GUIDE.md`
+- Added service tests for:
+  - placeholder-key mock mode
+  - structured remote response parsing
+  - remote failure fallback behavior
+  - file:
+    - `tests/services/chatbot.service.test.ts`
+
+### Validation
+- `npm run typecheck` passed
+- `npm test -- --run` passed (`121` tests total)
+
+### Remaining tasks
+- Move live model calls behind a backend proxy before production use (client-side API keys are for dev/demo only).
+- Add persistence + transcript export policy for assistant conversations if governance/audit is required.
+- Consider exposing chatbot config in PMNative config contract (feature flag, provider contract, and endpoint capabilities) once product requirements stabilize.
+
+## Session Update (2026-02-25, PMN-074 governance hardening: strict revoke reason/context taxonomy)
+
+### Current status
+- Branch: `master`
+- Working tree: dirty (expected; pending commit for this slice)
+
+### Completed work
+- Enforced strict PMN-074 revoke taxonomy in contracts:
+  - provider types now define constrained reason/source/action taxonomies for session revoke payloads
+  - service revoke input types now use taxonomy-backed unions
+  - files:
+    - `src/services/admin.provider.types.ts`
+    - `src/services/admin.service.ts`
+- Enforced taxonomy at runtime before request serialization:
+  - provider/service now trim and only forward reason/context values if they match allowed taxonomy
+  - unknown/blank values are omitted from outbound revoke bodies
+  - file:
+    - `src/services/admin.provider.ts`
+- Updated hook typing to align with strict taxonomy:
+  - `useAdminUserSessions.revokeAll/revokeOne` reason inputs now use `AdminSessionRevokeReason`
+  - file:
+    - `src/hooks/useAdminUserSessions.ts`
+- Expanded tests for governance enforcement:
+  - updated canonical reason/context passthrough tests
+  - added invalid-taxonomy omission coverage
+  - files:
+    - `tests/services/admin.provider.test.ts`
+    - `tests/services/admin.service.test.ts`
+- Updated PMN-074 contract docs with explicit taxonomy table + omission behavior.
+  - file:
+    - `docs/GENERIC_REST_AUTH_PROVIDER_CONTRACT.md`
+
+### Validation
+- `npm run typecheck` passed
+- `npm test -- --run tests/services/admin.provider.test.ts tests/services/admin.service.test.ts` passed (`72` tests)
+- `npm test -- --run` passed (`118` tests total)
+
+### Remaining tasks
+- Decide whether backend capability/details should explicitly surface "audit taxonomy required" semantics for revoke endpoints (currently taxonomy is enforced client-side and unknown values are omitted).
+- If policy requires richer governance, add typed actor fields or additional context dimensions in the same contract-first pattern.
+
 ## Session Update (2026-02-25, checkpoint after PMN-074 session-governance refactor + audit-context phase start)
 
 ### Current status

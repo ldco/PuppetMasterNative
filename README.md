@@ -38,7 +38,7 @@ Current focus areas still in progress:
 
 - live Supabase/social auth validation (especially Google callback/deeplink smoke tests)
 - provider-backed admin APIs beyond the current scaffolding/stubbed paths
-- settings sync provider expansion (Supabase remains intentionally unsupported/capability-gated)
+- settings sync live validation and schema hardening across providers
 - profile module follow-ups (avatar upload and deeper account-management flows)
 
 ## Features
@@ -47,6 +47,7 @@ Current focus areas still in progress:
 - Provider-based auth contract (`supabase` default, `generic-rest` supported)
 - Supabase auth integration (sign in, sign up, forgot password, session handling)
 - Config-driven app features, navigation, theme, and RBAC
+- Assistant tab with customizable chatbot UX blocks (quick replies, menus, forms)
 - Atomic component library (`atoms`, `molecules`, `organisms`)
 - Admin module scaffolding and diagnostics screen support
 - TypeScript-first codebase with a `typecheck` script
@@ -57,6 +58,7 @@ Use these docs based on what you are trying to do:
 
 - `docs/SUPABASE_SETUP.md`: initial Supabase project/app configuration for PMNative local development.
 - `docs/SUPABASE_GOOGLE_SOCIAL_AUTH_SMOKE_TEST_SETUP.md`: run live Google social auth smoke tests (redirects/deep-links/callback validation).
+- `docs/SUPABASE_CHATBOT_EDGE_FUNCTION_SETUP.md`: deploy and wire the Supabase Edge Function chatbot proxy (`/chatbot-complete`).
 - `docs/GENERIC_REST_AUTH_PROVIDER_CONTRACT.md`: implement or validate a backend against the `generic-rest` auth provider contract.
 - `docs/pmnative/ROADMAP.md`: canonical current status and immediate next implementation targets.
 - `docs/NEXT_CHAT_HANDOFF.md`: recent session history, implementation notes, and handoff context.
@@ -113,8 +115,16 @@ cp .env.example .env
 EXPO_PUBLIC_SUPABASE_URL=https://[YOUR_PROJECT_REF].supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=[YOUR_SUPABASE_ANON_KEY]
 
-# Optional (only used if you switch provider to generic-rest)
+# Optional (used by generic-rest backend calls, and by chatbot proxy mode including Supabase Edge Functions)
 EXPO_PUBLIC_API_BASE_URL=https://[YOUR_API_BASE_URL]
+
+# Optional (Assistant tab live model mode)
+# Preferred production mode (server-managed keys):
+# EXPO_PUBLIC_CHATBOT_PROXY_PATH=/chatbot-complete
+# EXPO_PUBLIC_CHATBOT_ALLOW_DIRECT=false
+EXPO_PUBLIC_CHATBOT_API_KEY=PASTE_YOUR_API_KEY_HERE
+EXPO_PUBLIC_CHATBOT_MODEL=gpt-5.2-mini
+EXPO_PUBLIC_CHATBOT_API_ENDPOINT=https://api.openai.com/v1/responses
 ```
 
 If you are not doing live auth testing yet, keep placeholders and focus on `npm run typecheck` + framework implementation work.
@@ -129,8 +139,16 @@ If you are not doing live auth testing yet, keep placeholders and focus on `npm 
 EXPO_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 
-# Optional: only needed when backend.provider = 'generic-rest'
+# Optional: used by generic-rest backend calls and chatbot proxy mode (including Supabase Edge Functions)
 EXPO_PUBLIC_API_BASE_URL=https://api.your-domain.com
+
+# Optional: chatbot UX demo/live model settings (Assistant tab)
+# Preferred production mode (server-managed keys):
+# EXPO_PUBLIC_CHATBOT_PROXY_PATH=/chatbot-complete
+# EXPO_PUBLIC_CHATBOT_ALLOW_DIRECT=false
+EXPO_PUBLIC_CHATBOT_API_KEY=PASTE_YOUR_API_KEY_HERE
+EXPO_PUBLIC_CHATBOT_MODEL=gpt-5.2-mini
+EXPO_PUBLIC_CHATBOT_API_ENDPOINT=https://api.openai.com/v1/responses
 ```
 
 ### Run Locally

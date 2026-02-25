@@ -38,6 +38,14 @@ export const pmNativeConfig: PMNativeConfig = {
         minRole: 'user'
       },
       {
+        key: 'assistant',
+        title: 'Assistant',
+        icon: 'chatbubble-ellipses-outline',
+        enabled: true,
+        requireAuth: true,
+        minRole: 'user'
+      },
+      {
         key: 'profile',
         title: 'Profile',
         icon: 'person-outline',
@@ -101,6 +109,11 @@ export const pmNativeConfig: PMNativeConfig = {
       //     get: '/profile/me',
       //     update: '/profile/me',
       //     uploadAvatar: '/profile/avatar'
+      //   }
+      // }
+      // chatbot: {
+      //   endpoints: {
+      //     complete: '/chatbot/complete'
       //   }
       // }
       // admin: {

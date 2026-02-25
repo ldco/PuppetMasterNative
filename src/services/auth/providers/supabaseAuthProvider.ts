@@ -24,14 +24,9 @@ const roleValues: Role[] = ['master', 'admin', 'editor', 'user']
 
 const resolveRole = (user: User): Role => {
   const appRole = user.app_metadata?.role
-  const userRole = user.user_metadata?.role
 
   if (typeof appRole === 'string' && roleValues.includes(appRole as Role)) {
     return appRole as Role
-  }
-
-  if (typeof userRole === 'string' && roleValues.includes(userRole as Role)) {
-    return userRole as Role
   }
 
   return 'user'
@@ -67,7 +62,7 @@ const resolveAvatarUrl = (user: User): string | null => {
 
 const mapSupabaseUser = (user: User): AuthUser => {
   if (!user.email) {
-    throw new Error('Supabase user is missing email')
+    throw new AuthProviderError('Supabase user is missing email', 'PROVIDER')
   }
 
   return {
@@ -84,7 +79,7 @@ const requireSession = (
   fallbackMessage: string
 ): { token: string; refreshToken: string | null; user: AuthUser } => {
   if (!session) {
-    throw new Error(fallbackMessage)
+    throw new AuthProviderError(fallbackMessage, 'PROVIDER')
   }
 
   return {
@@ -265,7 +260,7 @@ export const supabaseAuthProvider: AuthProvider = {
     })
 
     if (error) {
-      throw new Error(error.message)
+      throw toProviderError(error)
     }
 
     return requireSession(data.session, 'Supabase sign-in did not return a session')
@@ -461,7 +456,7 @@ export const supabaseAuthProvider: AuthProvider = {
     }
 
     if (!data.user) {
-      throw new Error('Supabase did not return a user for the provided session token')
+      throw new AuthProviderError('Supabase did not return a user for the provided session token', 'PROVIDER')
     }
 
     return mapSupabaseUser(data.user)
@@ -478,7 +473,7 @@ export const supabaseAuthProvider: AuthProvider = {
     }
 
     if (!data.session) {
-      throw new Error('Supabase refresh did not return a session')
+      throw new AuthProviderError('Supabase refresh did not return a session', 'PROVIDER')
     }
 
     const result: RefreshSessionResult = {

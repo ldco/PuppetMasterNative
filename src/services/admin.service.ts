@@ -1,7 +1,17 @@
 import { pmNativeConfig } from '@/pm-native.config'
 import { adminProvider } from '@/services/admin.provider'
-import { AdminProviderError } from '@/services/admin.provider.types'
-import type { AdminProviderLogExportJobStatus } from '@/services/admin.provider.types'
+import {
+  ADMIN_PROVIDER_SESSION_REVOKE_CONTEXT_ACTIONS,
+  ADMIN_PROVIDER_SESSION_REVOKE_CONTEXT_SOURCES,
+  ADMIN_PROVIDER_SESSION_REVOKE_REASONS,
+  AdminProviderError
+} from '@/services/admin.provider.types'
+import type {
+  AdminProviderLogExportJobStatus,
+  AdminProviderSessionRevokeAuditContextAction,
+  AdminProviderSessionRevokeAuditContextSource,
+  AdminProviderSessionRevokeReason
+} from '@/services/admin.provider.types'
 import type { AuthUser } from '@/types/auth'
 import type { Role } from '@/types/config'
 
@@ -94,34 +104,37 @@ export interface AdminUserDetailQueryInput extends AdminDirectoryQueryInput {
 }
 
 export interface AdminRevokeUserSessionsInput extends AdminUserDetailQueryInput {
-  reason?: string
+  reason?: AdminSessionRevokeReason
   auditContext?: AdminSessionRevokeAuditContext
 }
 
 export interface AdminRevokeUserSessionInput extends AdminUserDetailQueryInput {
   sessionId: string
-  reason?: string
+  reason?: AdminSessionRevokeReason
   auditContext?: AdminSessionRevokeAuditContext
 }
 
-export const ADMIN_SESSION_REVOKE_REASONS = {
-  FORCE_LOGOUT_ALL: 'admin_user_detail_force_logout_all_sessions',
-  FORCE_LOGOUT_ONE: 'admin_user_detail_force_logout_single_session'
-} as const
+export type AdminSessionRevokeReason = AdminProviderSessionRevokeReason
+export type AdminSessionRevokeAuditContextSource = AdminProviderSessionRevokeAuditContextSource
+export type AdminSessionRevokeAuditContextAction = AdminProviderSessionRevokeAuditContextAction
 
 export interface AdminSessionRevokeAuditContext {
-  source?: string
-  action?: string
+  source?: AdminSessionRevokeAuditContextSource
+  action?: AdminSessionRevokeAuditContextAction
 }
+
+export const ADMIN_SESSION_REVOKE_REASONS = ADMIN_PROVIDER_SESSION_REVOKE_REASONS
+export const ADMIN_SESSION_REVOKE_CONTEXT_SOURCES = ADMIN_PROVIDER_SESSION_REVOKE_CONTEXT_SOURCES
+export const ADMIN_SESSION_REVOKE_CONTEXT_ACTIONS = ADMIN_PROVIDER_SESSION_REVOKE_CONTEXT_ACTIONS
 
 export const ADMIN_SESSION_REVOKE_CONTEXTS = {
   FORCE_LOGOUT_ALL: {
-    source: 'admin-user-detail',
-    action: 'force-logout-all'
+    source: ADMIN_SESSION_REVOKE_CONTEXT_SOURCES.ADMIN_USER_DETAIL,
+    action: ADMIN_SESSION_REVOKE_CONTEXT_ACTIONS.FORCE_LOGOUT_ALL
   },
   FORCE_LOGOUT_ONE: {
-    source: 'admin-user-detail',
-    action: 'force-logout-one'
+    source: ADMIN_SESSION_REVOKE_CONTEXT_SOURCES.ADMIN_USER_DETAIL,
+    action: ADMIN_SESSION_REVOKE_CONTEXT_ACTIONS.FORCE_LOGOUT_ONE
   }
 } as const
 
@@ -327,13 +340,63 @@ const toFallbackUserSessions = (): AdminUserSession[] => {
   return []
 }
 
-const toTrimmedReason = (reason?: string): string | undefined => {
+const adminSessionRevokeReasonSet = new Set<AdminSessionRevokeReason>(
+  Object.values(ADMIN_SESSION_REVOKE_REASONS)
+)
+const adminSessionRevokeContextSourceSet = new Set<AdminSessionRevokeAuditContextSource>(
+  Object.values(ADMIN_SESSION_REVOKE_CONTEXT_SOURCES)
+)
+const adminSessionRevokeContextActionSet = new Set<AdminSessionRevokeAuditContextAction>(
+  Object.values(ADMIN_SESSION_REVOKE_CONTEXT_ACTIONS)
+)
+
+const toNormalizedReason = (reason?: string): AdminSessionRevokeReason | undefined => {
   if (typeof reason !== 'string') {
     return undefined
   }
 
   const normalizedReason = reason.trim()
-  return normalizedReason.length > 0 ? normalizedReason : undefined
+  if (normalizedReason.length === 0 || !adminSessionRevokeReasonSet.has(normalizedReason as AdminSessionRevokeReason)) {
+    return undefined
+  }
+
+  return normalizedReason as AdminSessionRevokeReason
+}
+
+const toNormalizedAuditContextSource = (
+  source?: string
+): AdminSessionRevokeAuditContextSource | undefined => {
+  if (typeof source !== 'string') {
+    return undefined
+  }
+
+  const normalizedSource = source.trim()
+  if (
+    normalizedSource.length === 0 ||
+    !adminSessionRevokeContextSourceSet.has(normalizedSource as AdminSessionRevokeAuditContextSource)
+  ) {
+    return undefined
+  }
+
+  return normalizedSource as AdminSessionRevokeAuditContextSource
+}
+
+const toNormalizedAuditContextAction = (
+  action?: string
+): AdminSessionRevokeAuditContextAction | undefined => {
+  if (typeof action !== 'string') {
+    return undefined
+  }
+
+  const normalizedAction = action.trim()
+  if (
+    normalizedAction.length === 0 ||
+    !adminSessionRevokeContextActionSet.has(normalizedAction as AdminSessionRevokeAuditContextAction)
+  ) {
+    return undefined
+  }
+
+  return normalizedAction as AdminSessionRevokeAuditContextAction
 }
 
 const toNormalizedAuditContext = (
@@ -343,14 +406,8 @@ const toNormalizedAuditContext = (
     return undefined
   }
 
-  const source =
-    typeof auditContext.source === 'string' && auditContext.source.trim().length > 0
-      ? auditContext.source.trim()
-      : undefined
-  const action =
-    typeof auditContext.action === 'string' && auditContext.action.trim().length > 0
-      ? auditContext.action.trim()
-      : undefined
+  const source = toNormalizedAuditContextSource(auditContext.source)
+  const action = toNormalizedAuditContextAction(auditContext.action)
 
   if (!source && !action) {
     return undefined
@@ -940,7 +997,7 @@ export const adminService = {
     const result = await adminProvider.revokeUserSessions({
       accessToken: input.accessToken,
       userId: input.userId,
-      reason: toTrimmedReason(input.reason),
+      reason: toNormalizedReason(input.reason),
       auditContext: toNormalizedAuditContext(input.auditContext)
     })
 
@@ -965,7 +1022,7 @@ export const adminService = {
       accessToken: input.accessToken,
       userId: input.userId,
       sessionId: input.sessionId,
-      reason: toTrimmedReason(input.reason),
+      reason: toNormalizedReason(input.reason),
       auditContext: toNormalizedAuditContext(input.auditContext)
     })
 

@@ -1967,7 +1967,7 @@ describe('adminService', () => {
     })
   })
 
-  it('passes trimmed reason and context to revokeUserSessions provider call', async () => {
+  it('passes canonical reason and context to revokeUserSessions provider call', async () => {
     const { adminService } = await import('@/services/admin.service')
 
     mockAdminProvider.getCapabilities.mockReturnValue({
@@ -2017,21 +2017,86 @@ describe('adminService', () => {
       },
       accessToken: 'token',
       userId: 'u2',
-      reason: '  suspicious_activity  ',
+      reason: 'admin_user_detail_force_logout_all_sessions',
       auditContext: {
-        source: ' admin-user-detail ',
-        action: ' force-logout-all '
+        source: 'admin-user-detail',
+        action: 'force-logout-all'
       }
     })
 
     expect(mockAdminProvider.revokeUserSessions).toHaveBeenCalledWith({
       accessToken: 'token',
       userId: 'u2',
-      reason: 'suspicious_activity',
+      reason: 'admin_user_detail_force_logout_all_sessions',
       auditContext: {
         source: 'admin-user-detail',
         action: 'force-logout-all'
       }
+    })
+  })
+
+  it('omits revokeUserSessions reason/context values outside taxonomy before provider call', async () => {
+    const { adminService } = await import('@/services/admin.service')
+
+    mockAdminProvider.getCapabilities.mockReturnValue({
+      canListUsersRemote: true,
+      canGetUserRemote: true,
+      canListRolesRemote: true,
+      canListLogsRemote: false,
+      canClearLogsRemote: false,
+      canExportLogsRemote: false,
+      canAcknowledgeLogRemote: false,
+      canResolveLogRemote: false,
+      canRetryLogRemote: false,
+      canGetSettingsRemote: false,
+      canUpdateUserRoleRemote: false,
+      canUpdateUserStatusRemote: false,
+      canUpdateUserLockRemote: false,
+      canListUserSessionsRemote: true,
+      canRevokeUserSessionsRemote: true,
+      canRevokeUserSessionRemote: false,
+      canGetHealthRemote: false,
+      listUsersDetail: 'users',
+      getUserDetail: 'user-detail',
+      listRolesDetail: 'roles',
+      listLogsDetail: 'logs unsupported',
+      clearLogsDetail: 'clear logs unsupported',
+      exportLogsDetail: 'export logs unsupported',
+      acknowledgeLogDetail: 'ack log unsupported',
+      resolveLogDetail: 'resolve log unsupported',
+      retryLogDetail: 'retry log unsupported',
+      getSettingsDetail: 'settings unsupported',
+      updateUserRoleDetail: 'role update unsupported',
+      updateUserStatusDetail: 'status update unsupported',
+      updateUserLockDetail: 'lock update unsupported',
+      listUserSessionsDetail: 'GET /admin/users/:id/sessions',
+      revokeUserSessionsDetail: 'POST /admin/users/:id/sessions/revoke',
+      revokeUserSessionDetail: 'revoke user session unsupported',
+      getHealthDetail: 'health unsupported'
+    })
+    mockAdminProvider.revokeUserSessions.mockResolvedValueOnce({ revokedCount: 1 })
+
+    await adminService.revokeUserSessions({
+      activeUser: {
+        id: 'admin-1',
+        email: 'admin@example.com',
+        name: 'Admin',
+        role: 'admin'
+      },
+      accessToken: 'token',
+      userId: 'u2',
+      reason: 'unknown_reason' as unknown as 'admin_user_detail_force_logout_all_sessions',
+      auditContext: {
+        source: 'unknown-source' as unknown as 'admin-user-detail',
+        action: 'unknown-action' as unknown as 'force-logout-all'
+      }
+    })
+
+    expect(mockAdminProvider.revokeUserSessions).toHaveBeenCalledWith({
+      accessToken: 'token',
+      userId: 'u2',
+      reason: undefined,
+      auditContext: undefined
     })
   })
 
@@ -2182,7 +2247,7 @@ describe('adminService', () => {
     })
   })
 
-  it('passes trimmed reason and context to revokeUserSession provider call', async () => {
+  it('passes canonical reason and context to revokeUserSession provider call', async () => {
     const { adminService } = await import('@/services/admin.service')
 
     mockAdminProvider.getCapabilities.mockReturnValue({
@@ -2236,10 +2301,10 @@ describe('adminService', () => {
       accessToken: 'token',
       userId: 'u2',
       sessionId: 'sess-1',
-      reason: '  manual_security_reset  ',
+      reason: 'admin_user_detail_force_logout_single_session',
       auditContext: {
-        source: ' admin-user-detail ',
-        action: ' force-logout-one '
+        source: 'admin-user-detail',
+        action: 'force-logout-one'
       }
     })
 
@@ -2247,7 +2312,7 @@ describe('adminService', () => {
       accessToken: 'token',
       userId: 'u2',
       sessionId: 'sess-1',
-      reason: 'manual_security_reset',
+      reason: 'admin_user_detail_force_logout_single_session',
       auditContext: {
         source: 'admin-user-detail',
         action: 'force-logout-one'

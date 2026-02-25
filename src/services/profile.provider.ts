@@ -2,7 +2,7 @@ import type { Session, User } from '@supabase/supabase-js'
 import { z } from 'zod'
 
 import { pmNativeConfig } from '@/pm-native.config'
-import { apiRequest } from '@/services/api'
+import { ApiError, apiRequest } from '@/services/api'
 import { genericRestUserSchema } from '@/services/genericRest.schemas'
 import { getSupabaseClient } from '@/services/supabase.client'
 import {
@@ -90,14 +90,9 @@ const roleValues: Role[] = ['master', 'admin', 'editor', 'user']
 
 const resolveSupabaseRole = (user: User): Role => {
   const appRole = user.app_metadata?.role
-  const userRole = user.user_metadata?.role
 
   if (typeof appRole === 'string' && roleValues.includes(appRole as Role)) {
     return appRole as Role
-  }
-
-  if (typeof userRole === 'string' && roleValues.includes(userRole as Role)) {
-    return userRole as Role
   }
 
   return 'user'
@@ -157,6 +152,44 @@ const requireRefreshToken = (refreshToken?: string | null): string => {
 
 const toSupabaseProfileErrorCode = (status?: number): 'UNAUTHORIZED' | 'PROVIDER' => {
   return status === 401 || status === 403 ? 'UNAUTHORIZED' : 'PROVIDER'
+}
+
+const toGenericRestProfileProviderError = (
+  error: unknown,
+  fallbackMessage: string
+): ProfileProviderError => {
+  if (error instanceof ProfileProviderError) {
+    return error
+  }
+
+  if (error instanceof ApiError) {
+    const status = error.status
+    const message = error.message
+    return new ProfileProviderError(message, status === 401 || status === 403 ? 'UNAUTHORIZED' : 'PROVIDER')
+  }
+
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'status' in error &&
+    typeof error.status === 'number' &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
+    const status = error.status
+    const message = error.message
+    return new ProfileProviderError(message, status === 401 || status === 403 ? 'UNAUTHORIZED' : 'PROVIDER')
+  }
+
+  if (error instanceof Error) {
+    if (error.message.includes('generic-rest profile') && error.message.includes('not configured')) {
+      return new ProfileProviderError(error.message, 'CONFIG')
+    }
+
+    return new ProfileProviderError(error.message, 'PROVIDER')
+  }
+
+  return new ProfileProviderError(fallbackMessage, 'UNKNOWN')
 }
 
 const toRotatedSession = (
@@ -377,55 +410,53 @@ const genericRestProfileProvider: ProfileProvider = {
   },
 
   async getProfile(input: ProfileProviderGetInput) {
-    if (!genericRestProfileGetEndpoint) {
-      throw new ProfileProviderError('generic-rest profile endpoint is not configured', 'CONFIG')
+    try {
+      if (!genericRestProfileGetEndpoint) {
+        throw new ProfileProviderError('generic-rest profile endpoint is not configured', 'CONFIG')
+      }
+
+      if (!input.accessToken) {
+        throw new ProfileProviderError('No access token available for profile request', 'UNAUTHORIZED')
+      }
+
+      const payload = await apiRequest(genericRestProfileGetEndpoint, {
+        token: input.accessToken,
+        schema: genericRestProfilePayloadSchema,
+        useAuthToken: false
+      })
+
+      return normalizeGenericRestProfilePayload(payload)
+    } catch (error) {
+      throw toGenericRestProfileProviderError(error, 'Profile request failed')
     }
-
-    if (!input.accessToken) {
-      throw new ProfileProviderError('No access token available for profile request', 'UNAUTHORIZED')
-    }
-
-    const payload = await apiRequest(genericRestProfileGetEndpoint, {
-      token: input.accessToken,
-      schema: genericRestProfilePayloadSchema,
-      useAuthToken: false
-    }).catch((error: unknown) => {
-      throw new ProfileProviderError(
-        error instanceof Error ? error.message : 'Profile request failed',
-        'PROVIDER'
-      )
-    })
-
-    return normalizeGenericRestProfilePayload(payload)
   },
 
   async updateProfile(input: ProfileProviderUpdateInput) {
-    if (!genericRestProfileUpdateEndpoint) {
-      throw new ProfileProviderError('generic-rest profile update endpoint is not configured', 'CONFIG')
-    }
+    try {
+      if (!genericRestProfileUpdateEndpoint) {
+        throw new ProfileProviderError('generic-rest profile update endpoint is not configured', 'CONFIG')
+      }
 
-    if (!input.accessToken) {
-      throw new ProfileProviderError('No access token available for profile update request', 'UNAUTHORIZED')
-    }
+      if (!input.accessToken) {
+        throw new ProfileProviderError('No access token available for profile update request', 'UNAUTHORIZED')
+      }
 
-    const payload = await apiRequest(genericRestProfileUpdateEndpoint, {
-      method: 'PATCH',
-      token: input.accessToken,
-      body: {
-        name: input.profile.name,
-        avatarUrl: input.profile.avatarUrl ?? null
-      },
-      schema: genericRestProfilePayloadSchema,
-      useAuthToken: false
-    }).catch((error: unknown) => {
-      throw new ProfileProviderError(
-        error instanceof Error ? error.message : 'Profile update request failed',
-        'PROVIDER'
-      )
-    })
+      const payload = await apiRequest(genericRestProfileUpdateEndpoint, {
+        method: 'PATCH',
+        token: input.accessToken,
+        body: {
+          name: input.profile.name,
+          avatarUrl: input.profile.avatarUrl ?? null
+        },
+        schema: genericRestProfilePayloadSchema,
+        useAuthToken: false
+      })
 
-    return {
-      user: normalizeGenericRestProfilePayload(payload)
+      return {
+        user: normalizeGenericRestProfilePayload(payload)
+      }
+    } catch (error) {
+      throw toGenericRestProfileProviderError(error, 'Profile update request failed')
     }
   },
 

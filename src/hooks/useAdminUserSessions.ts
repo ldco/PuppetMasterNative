@@ -4,6 +4,7 @@ import type { AdminProviderCapabilities } from '@/services/admin.provider.types'
 import {
   adminService,
   type AdminSessionRevokeAuditContext,
+  type AdminSessionRevokeReason,
   type AdminUserSession
 } from '@/services/admin.service'
 import { useAuthStore } from '@/stores/auth.store'
@@ -21,10 +22,13 @@ interface UseAdminUserSessionsResult {
   sourceDetail: string
   capability: AdminProviderCapabilities
   refresh: () => Promise<void>
-  revokeAll: (reason?: string, auditContext?: AdminSessionRevokeAuditContext) => Promise<number | null>
+  revokeAll: (
+    reason?: AdminSessionRevokeReason,
+    auditContext?: AdminSessionRevokeAuditContext
+  ) => Promise<number | null>
   revokeOne: (
     sessionId: string,
-    reason?: string,
+    reason?: AdminSessionRevokeReason,
     auditContext?: AdminSessionRevokeAuditContext
   ) => Promise<number | null>
   clearSessionMutationError: (sessionId: string) => void
@@ -190,7 +194,10 @@ export const useAdminUserSessions = (userId: string | null): UseAdminUserSession
   }, [])
 
   const revokeAll = useCallback(
-    async (reason?: string, auditContext?: AdminSessionRevokeAuditContext): Promise<number | null> => {
+    async (
+      reason?: AdminSessionRevokeReason,
+      auditContext?: AdminSessionRevokeAuditContext
+    ): Promise<number | null> => {
     if (!userId || isRefreshing || hasSessionMutationInFlight) {
       return null
     }
@@ -244,7 +251,7 @@ export const useAdminUserSessions = (userId: string | null): UseAdminUserSession
 
   const revokeOne = useCallback(async (
     sessionId: string,
-    reason?: string,
+    reason?: AdminSessionRevokeReason,
     auditContext?: AdminSessionRevokeAuditContext
   ): Promise<number | null> => {
     if (!userId || isRefreshing || hasSessionMutationInFlight) {

@@ -62,6 +62,10 @@ export interface GenericRestProfileEndpoints {
   uploadAvatar?: string
 }
 
+export interface GenericRestChatbotEndpoints {
+  complete: string
+}
+
 export interface GenericRestAdminEndpoints {
   listUsers: string
   getUser?: string
@@ -93,6 +97,9 @@ export interface GenericRestBackendConfig {
   profile?: {
     endpoints: GenericRestProfileEndpoints
   }
+  chatbot?: {
+    endpoints: GenericRestChatbotEndpoints
+  }
   admin?: {
     endpoints: GenericRestAdminEndpoints
   }
@@ -104,12 +111,12 @@ export interface SupabaseBackendConfig {
   profileAvatarsBucket?: string
 }
 
-export type TabKey = 'home' | 'profile' | 'settings'
+export type TabKey = 'home' | 'assistant' | 'profile' | 'settings'
 
 export interface TabDefinition {
   key: TabKey
   title: string
-  icon: 'home-outline' | 'person-outline' | 'settings-outline'
+  icon: 'home-outline' | 'chatbubble-ellipses-outline' | 'person-outline' | 'settings-outline'
   enabled: boolean
   requireAuth: boolean
   minRole?: Role

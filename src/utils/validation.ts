@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 const roleSchema = z.enum(['master', 'admin', 'editor', 'user'])
-const tabKeySchema = z.enum(['home', 'profile', 'settings'])
+const tabKeySchema = z.enum(['home', 'assistant', 'profile', 'settings'])
 
 const roleMatrixSchema = z.object({
   master: z.array(roleSchema),
@@ -36,6 +36,10 @@ const genericRestProfileEndpointsSchema = z.object({
   get: z.string().min(1),
   update: z.string().min(1).optional(),
   uploadAvatar: z.string().min(1).optional()
+})
+
+const genericRestChatbotEndpointsSchema = z.object({
+  complete: z.string().min(1)
 })
 
 const genericRestAdminEndpointsSchema = z.object({
@@ -84,7 +88,7 @@ export const pmNativeConfigSchema = z.object({
       z.object({
         key: tabKeySchema,
         title: z.string().min(1),
-        icon: z.enum(['home-outline', 'person-outline', 'settings-outline']),
+        icon: z.enum(['home-outline', 'chatbubble-ellipses-outline', 'person-outline', 'settings-outline']),
         enabled: z.boolean(),
         requireAuth: z.boolean(),
         minRole: roleSchema.optional()
@@ -123,6 +127,9 @@ export const pmNativeConfigSchema = z.object({
       }).optional(),
       profile: z.object({
         endpoints: genericRestProfileEndpointsSchema
+      }).optional(),
+      chatbot: z.object({
+        endpoints: genericRestChatbotEndpointsSchema
       }).optional(),
       admin: z.object({
         endpoints: genericRestAdminEndpointsSchema

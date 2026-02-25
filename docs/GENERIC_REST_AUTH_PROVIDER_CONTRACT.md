@@ -872,6 +872,19 @@ Session object aliases normalized by PMNative include:
 - `current` / `isCurrent`
 - `revoked` / `isRevoked`
 
+### Revoke Audit Taxonomy (PMN-074 governance)
+
+PMNative now constrains revoke audit payload fields to a strict taxonomy:
+
+- allowed `reason` values:
+  - `admin_user_detail_force_logout_all_sessions`
+  - `admin_user_detail_force_logout_single_session`
+- allowed `context.source` values:
+  - `admin-user-detail`
+- allowed `context.action` values:
+  - `force-logout-all`
+  - `force-logout-one`
+
 ### Revoke All Sessions (`POST /admin/users/:id/sessions/revoke`)
 
 PMNative sends:
@@ -894,8 +907,8 @@ Notes:
 
 - `reason` is optional.
 - `context` is optional and can include lightweight audit metadata (`source`, `action`).
-- PMNative trims reason values and omits blank strings from request bodies.
-- PMNative also trims context field values and omits blank context values.
+- PMNative trims values, but only forwards entries that match the allowed taxonomy above.
+- Unknown or blank reason/context values are omitted from request bodies.
 
 ### Revoke Single Session (`POST /admin/users/:id/sessions/:sessionId/revoke`)
 
