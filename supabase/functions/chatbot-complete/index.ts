@@ -7,6 +7,11 @@ import {
   toOpenAiInput,
   toUpstreamErrorMessage
 } from './contract.ts'
+import {
+  buildAuditEvent,
+  createInMemoryRateLimiter,
+  resolveAuditLogMode
+} from './governance.ts'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -17,6 +22,8 @@ const CORS_HEADERS = {
 const DEFAULT_OPENAI_ENDPOINT = 'https://api.openai.com/v1/responses'
 const DEFAULT_MODEL = 'gpt-5.2-mini'
 const DEFAULT_TIMEOUT_MS = 15000
+const DEFAULT_RATE_LIMIT_WINDOW_MS = 60_000
+const DEFAULT_RATE_LIMIT_MAX_REQUESTS = 20
 
 const json = (status: number, payload: unknown): Response => {
   return new Response(JSON.stringify(payload), {
@@ -57,6 +64,20 @@ const getRequiredEnv = (name: string): string | null => {
   return trimmed.length > 0 ? trimmed : null
 }
 
+const getPositiveIntEnv = (name: string, fallback: number): number => {
+  const value = Deno.env.get(name)
+  if (!value) {
+    return fallback
+  }
+
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback
+  }
+
+  return Math.floor(parsed)
+}
+
 const getTimeoutMs = (): number => {
   const value = Deno.env.get('CHATBOT_PROVIDER_TIMEOUT_MS')
   if (!value) {
@@ -71,6 +92,13 @@ const getTimeoutMs = (): number => {
   return Math.floor(parsed)
 }
 
+const rateLimiter = createInMemoryRateLimiter({
+  windowMs: getPositiveIntEnv('CHATBOT_RATE_LIMIT_WINDOW_MS', DEFAULT_RATE_LIMIT_WINDOW_MS),
+  maxRequests: getPositiveIntEnv('CHATBOT_RATE_LIMIT_MAX_REQUESTS', DEFAULT_RATE_LIMIT_MAX_REQUESTS)
+})
+
+const auditLogMode = resolveAuditLogMode(Deno.env.get('CHATBOT_AUDIT_LOG_MODE'))
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', {
@@ -83,6 +111,7 @@ Deno.serve(async (request) => {
   }
 
   try {
+    const requestId = crypto.randomUUID()
     const token = parseBearerToken(request)
     if (!token) {
       return toErrorResponse(401, 'Missing bearer token.', 'UNAUTHORIZED')
@@ -114,6 +143,33 @@ Deno.serve(async (request) => {
     const body = await parseRequestBody(request)
     if (!body) {
       return toErrorResponse(400, 'Invalid request body. Expected { input, history? }.', 'INVALID_REQUEST')
+    }
+
+    const requestStartedAt = Date.now()
+    const rateLimitDecision = rateLimiter.check(user.id)
+    if (!rateLimitDecision.allowed) {
+      const event = buildAuditEvent(auditLogMode, {
+        requestId,
+        userId: user.id,
+        outcome: 'rate_limited',
+        historyCount: body.history?.length ?? 0,
+        durationMs: Date.now() - requestStartedAt,
+        errorCode: 'RATE_LIMITED',
+        rateLimit: {
+          limit: rateLimitDecision.limit,
+          remaining: rateLimitDecision.remaining,
+          retryAfterSeconds: rateLimitDecision.retryAfterSeconds
+        }
+      })
+      if (event) {
+        console.log(JSON.stringify(event))
+      }
+
+      return toErrorResponse(
+        429,
+        `Rate limit exceeded. Retry in ${rateLimitDecision.retryAfterSeconds}s.`,
+        'RATE_LIMITED'
+      )
     }
 
     const openAiApiKey = getRequiredEnv('OPENAI_API_KEY')
@@ -155,9 +211,43 @@ Deno.serve(async (request) => {
         'name' in error &&
         error.name === 'AbortError'
       ) {
+        const event = buildAuditEvent(auditLogMode, {
+          requestId,
+          userId: user.id,
+          outcome: 'upstream_timeout',
+          historyCount: body.history?.length ?? 0,
+          input: body.input,
+          durationMs: Date.now() - requestStartedAt,
+          errorCode: 'UPSTREAM_TIMEOUT',
+          rateLimit: {
+            limit: rateLimitDecision.limit,
+            remaining: rateLimitDecision.remaining,
+            retryAfterSeconds: rateLimitDecision.retryAfterSeconds
+          }
+        })
+        if (event) {
+          console.log(JSON.stringify(event))
+        }
         return toErrorResponse(504, 'Chat provider timed out.', 'UPSTREAM_TIMEOUT')
       }
 
+      const event = buildAuditEvent(auditLogMode, {
+        requestId,
+        userId: user.id,
+        outcome: 'upstream_network_error',
+        historyCount: body.history?.length ?? 0,
+        input: body.input,
+        durationMs: Date.now() - requestStartedAt,
+        errorCode: 'UPSTREAM_NETWORK_ERROR',
+        rateLimit: {
+          limit: rateLimitDecision.limit,
+          remaining: rateLimitDecision.remaining,
+          retryAfterSeconds: rateLimitDecision.retryAfterSeconds
+        }
+      })
+      if (event) {
+        console.log(JSON.stringify(event))
+      }
       return toErrorResponse(502, 'Chat provider network error.', 'UPSTREAM_NETWORK_ERROR')
     } finally {
       clearTimeout(timeoutHandle)
@@ -167,12 +257,63 @@ Deno.serve(async (request) => {
 
     if (!providerResponse.ok) {
       const message = toUpstreamErrorMessage(providerPayload)
+      const event = buildAuditEvent(auditLogMode, {
+        requestId,
+        userId: user.id,
+        outcome: 'upstream_error',
+        historyCount: body.history?.length ?? 0,
+        input: body.input,
+        durationMs: Date.now() - requestStartedAt,
+        errorCode: 'UPSTREAM_ERROR',
+        rateLimit: {
+          limit: rateLimitDecision.limit,
+          remaining: rateLimitDecision.remaining,
+          retryAfterSeconds: rateLimitDecision.retryAfterSeconds
+        }
+      })
+      if (event) {
+        console.log(JSON.stringify(event))
+      }
       return toErrorResponse(502, message, 'UPSTREAM_ERROR')
     }
 
     const outputText = extractOutputText(providerPayload)
     if (!outputText) {
+      const event = buildAuditEvent(auditLogMode, {
+        requestId,
+        userId: user.id,
+        outcome: 'upstream_empty_response',
+        historyCount: body.history?.length ?? 0,
+        input: body.input,
+        durationMs: Date.now() - requestStartedAt,
+        errorCode: 'UPSTREAM_EMPTY_RESPONSE',
+        rateLimit: {
+          limit: rateLimitDecision.limit,
+          remaining: rateLimitDecision.remaining,
+          retryAfterSeconds: rateLimitDecision.retryAfterSeconds
+        }
+      })
+      if (event) {
+        console.log(JSON.stringify(event))
+      }
       return toErrorResponse(502, 'Chat provider returned an empty response.', 'UPSTREAM_EMPTY_RESPONSE')
+    }
+
+    const event = buildAuditEvent(auditLogMode, {
+      requestId,
+      userId: user.id,
+      outcome: 'success',
+      historyCount: body.history?.length ?? 0,
+      input: body.input,
+      durationMs: Date.now() - requestStartedAt,
+      rateLimit: {
+        limit: rateLimitDecision.limit,
+        remaining: rateLimitDecision.remaining,
+        retryAfterSeconds: rateLimitDecision.retryAfterSeconds
+      }
+    })
+    if (event) {
+      console.log(JSON.stringify(event))
     }
 
     return json(200, {

@@ -38,6 +38,9 @@ Optional tuning:
 supabase secrets set CHATBOT_MODEL=gpt-5.2-mini
 supabase secrets set OPENAI_RESPONSES_ENDPOINT=https://api.openai.com/v1/responses
 supabase secrets set CHATBOT_PROVIDER_TIMEOUT_MS=15000
+supabase secrets set CHATBOT_RATE_LIMIT_MAX_REQUESTS=20
+supabase secrets set CHATBOT_RATE_LIMIT_WINDOW_MS=60000
+supabase secrets set CHATBOT_AUDIT_LOG_MODE=metadata
 ```
 
 ## 3) Configure PMNative app env
@@ -114,4 +117,9 @@ curl -i \
 
 - Proxy mode is the recommended production path.
 - The function sanitizes UI blocks before returning them to the app.
+- Built-in governance controls:
+  - best-effort per-user in-memory rate limiting (`CHATBOT_RATE_LIMIT_MAX_REQUESTS`, `CHATBOT_RATE_LIMIT_WINDOW_MS`)
+  - structured audit events via function logs (`CHATBOT_AUDIT_LOG_MODE=none|metadata|redacted_input`)
+  - `redacted_input` mode masks common sensitive patterns (emails, long numeric sequences) before logging
+- Rate limiting is instance-local (Edge runtime memory); for strict global limits, add a shared backend store.
 - If you need strict business workflows, add server-side policy logic before returning `ui`.

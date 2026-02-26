@@ -7,6 +7,58 @@ Planning note:
 - Canonical current roadmap + immediate next-step list now lives in `docs/pmnative/ROADMAP.md`.
 - This handoff file is for session history, implementation notes, and review findings.
 
+## Session Update (2026-02-26, Assistant proxy governance slice: rate limiting + audit logging)
+
+### Scope
+1. Continue post-contract-test Assistant proxy hardening by implementing server-side governance controls.
+2. Add test coverage for governance behavior and update deployment docs for new runtime settings.
+3. Keep behavior backward-compatible with existing PMNative chatbot response contracts.
+
+### What Landed
+1. Added a dedicated governance module for the Supabase Edge Function:
+   - in-memory per-user rate limiter with windowed limits
+   - audit log mode resolution (`none`, `metadata`, `redacted_input`)
+   - audit input redaction helpers (emails and long numeric sequences)
+   - file:
+     - `supabase/functions/chatbot-complete/governance.ts`
+2. Integrated governance controls into runtime:
+   - rate-limit enforcement before provider calls (`429 RATE_LIMITED`)
+   - structured audit events for success/failure outcomes
+   - audit coverage for upstream timeout/network/error/empty response outcomes
+   - file:
+     - `supabase/functions/chatbot-complete/index.ts`
+3. Added governance-focused tests:
+   - audit mode fallback behavior
+   - redaction behavior
+   - in-memory limiter enforcement + window reset
+   - audit event payload behavior by mode
+   - file:
+     - `tests/supabase/chatbot-complete.governance.test.ts`
+4. Updated deployment/setup docs with governance env controls and limitations:
+   - `CHATBOT_RATE_LIMIT_MAX_REQUESTS`
+   - `CHATBOT_RATE_LIMIT_WINDOW_MS`
+   - `CHATBOT_AUDIT_LOG_MODE`
+   - note on instance-local (non-global) rate limiting
+   - file:
+     - `docs/SUPABASE_CHATBOT_EDGE_FUNCTION_SETUP.md`
+
+### Validation
+1. `npm test` -> PASS (`13` test files, `132` tests).
+2. `npm run typecheck` -> PASS.
+
+### Known Gaps / Risks
+1. Rate limiting is intentionally instance-local memory in Edge runtime; strict global limits still require a shared external store (Redis/DB gateway or backend middleware).
+2. Audit logging currently writes structured events to function logs; centralized retention/analytics policy is still a follow-up ops decision.
+3. Live deployment + authenticated smoke test remain pending environment CLI access and secrets.
+
+### Next Chat Starting Point
+1. Deploy updated `chatbot-complete` function and set governance secrets in environment.
+2. Run authenticated smoke tests validating:
+   - normal success path
+   - rate-limit threshold behavior
+   - structured audit events emitted with selected `CHATBOT_AUDIT_LOG_MODE`.
+3. Decide whether to move from instance-local limits to globally coordinated enforcement for production traffic.
+
 ## Session Update (2026-02-25, post-push handoff: assistant UX + Supabase proxy)
 
 ### Scope
