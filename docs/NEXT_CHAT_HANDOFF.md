@@ -7,6 +7,69 @@ Planning note:
 - Canonical current roadmap + immediate next-step list now lives in `docs/pmnative/ROADMAP.md`.
 - This handoff file is for session history, implementation notes, and review findings.
 
+## Session Update (2026-02-25, post-push handoff: assistant UX + Supabase proxy)
+
+### Scope
+1. Ship an out-of-box Assistant chatbot UX with customizable blocks (quick replies, menus, forms).
+2. Harden chatbot runtime security and failure behavior (proxy-first, explicit direct-mode opt-in, no silent fallback on runtime errors).
+3. Add a production-oriented Supabase Edge Function proxy contract for chat completion.
+4. Harden provider contracts in admin/auth/profile paths and align docs with implemented behavior.
+5. Finalize git state (commit + push) and record next-step continuity details.
+
+### What Landed (this session, local/uncommitted)
+1. Repository state at handoff capture: branch `master`, `HEAD` `564bacd`, `origin/master` `564bacd`, working tree clean (`git status --short` empty, `git diff --stat` empty).
+2. Pushed commit `564bacd` (`Implement assistant UX and harden provider contracts`) to `origin/master`; commit diffstat: `23 files changed, 2960 insertions(+), 207 deletions(-)`.
+3. Assistant UX implementation landed with message bubbles + structured interactive blocks (quick replies/menu/forms) via:
+   - `src/app/(tabs)/assistant.tsx`
+   - `src/hooks/useChatbot.ts`
+   - `src/services/chatbot.service.ts`
+   - `tests/services/chatbot.service.test.ts`
+   Behavioral impact: app now ships a ready Assistant tab that supports structured, customizable conversational flows.
+4. Chatbot runtime hardening landed:
+   - direct mode requires `EXPO_PUBLIC_CHATBOT_ALLOW_DIRECT=true`
+   - runtime mode remains proxy-first
+   - proxy/direct runtime failures now surface explicit actionable errors instead of silently degrading to mock.
+   Security/ops impact: safer production default and clearer outage visibility.
+5. Supabase Edge Function proxy scaffold landed at:
+   - `supabase/functions/chatbot-complete/index.ts`
+   - `docs/SUPABASE_CHATBOT_EDGE_FUNCTION_SETUP.md`
+   Contract impact: authenticated proxy endpoint (`POST /chatbot-complete`) with PMNative-compatible structured response (`{ success: true, data: { reply, ui? } }`) and standardized error payload (`{ message, code }`).
+6. Provider contract hardening landed in existing PMN workstreams:
+   - stricter role derivation from Supabase `app_metadata.role` (remove `user_metadata.role` trust path)
+   - expanded typed error mapping for `generic-rest` auth/profile flows
+   - PMN-074 admin/session governance updates and tests/doc alignment
+   Key files:
+   - `src/services/auth/providers/supabaseAuthProvider.ts`
+   - `src/services/auth/providers/genericRestAuthProvider.ts`
+   - `src/services/profile.provider.ts`
+   - `src/services/admin.provider.ts`
+   - `src/services/admin.service.ts`
+   - `tests/services/admin.provider.test.ts`
+   - `tests/services/admin.service.test.ts`
+   - `docs/GENERIC_REST_AUTH_PROVIDER_CONTRACT.md`
+7. Documentation/env updates landed for setup and continuity:
+   - `.env.example`
+   - `README.md`
+   - `docs/CHATBOT_UX_2026_GUIDE.md`
+
+### Validation
+1. `npm test -- --run tests/services/chatbot.service.test.ts` -> PASS (`6` tests).
+2. `npm run typecheck` -> PASS.
+3. `npm test` -> PASS (`11` test files, `124` tests).
+4. `git diff --cached --check` (pre-commit whitespace/conflict marker guard) -> PASS.
+5. `git push -u origin master` -> PASS (`0027f97..564bacd`).
+
+### Known Gaps / Risks
+1. Supabase Edge Function is scaffolded in repo but not deployed/configured in an environment yet (requires `supabase functions deploy chatbot-complete` + secrets).
+2. No automated test suite for `supabase/functions/chatbot-complete/index.ts` is included yet; behavior is currently validated by contract alignment + app tests only.
+3. Backend-side rate limiting/audit logging/persistence policy for chatbot traffic is still a follow-up decision, not implemented server-side in this session.
+
+### Next Chat Starting Point
+1. Deploy `chatbot-complete` to Supabase and set secrets (`OPENAI_API_KEY`, optional model/timeout overrides) using `docs/SUPABASE_CHATBOT_EDGE_FUNCTION_SETUP.md`.
+2. Configure app env for proxy mode (`EXPO_PUBLIC_API_BASE_URL`, `EXPO_PUBLIC_CHATBOT_PROXY_PATH=/chatbot-complete`, `EXPO_PUBLIC_CHATBOT_ALLOW_DIRECT=false`) and run a live authenticated smoke test from the app.
+3. Add Edge Function contract tests (request validation, auth failure, upstream failure mapping, structured UI sanitization).
+4. Implement server-side governance controls for chat proxy (rate limit + audit/event logging + optional transcript redaction policy).
+
 ## Session Update (2026-02-25, Assistant next step: backend proxy contract + runtime mode routing)
 
 ### Current status
