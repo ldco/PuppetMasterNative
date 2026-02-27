@@ -1,11 +1,72 @@
 # PMNative Next Chat Handoff
 
-Last updated: 2026-02-25
+Last updated: 2026-02-26
 Status: PMNative is now in its own repo (`ldco/PuppetMasterNative`)
 
 Planning note:
 - Canonical current roadmap + immediate next-step list now lives in `docs/pmnative/ROADMAP.md`.
 - This handoff file is for session history, implementation notes, and review findings.
+
+## Session Update (2026-02-26, post-push handoff: Assistant proxy governance controls)
+
+### Scope
+1. Finalize the Assistant proxy governance hardening slice end-to-end.
+2. Validate no regressions after introducing rate limiting and audit logging controls.
+3. Push the completed governance changes to `origin/master`.
+4. Refresh handoff continuity with accurate post-push repository state.
+
+### What Landed (this session, local/uncommitted)
+1. Repository finalization state at handoff capture:
+   - branch: `master`
+   - `HEAD`: `10ca658`
+   - `origin/master`: `10ca658`
+   - worktree: clean (`git status --short` empty, `git diff --stat` empty).
+2. Pushed commit `10ca658` (`Add chatbot proxy governance controls`) to `origin/master`; commit diffstat: `5 files changed, 409 insertions(+)`.
+3. Governance module landed for `chatbot-complete` Edge Function:
+   - file: `supabase/functions/chatbot-complete/governance.ts`
+   - behavior:
+     - per-user in-memory windowed rate limiter
+     - audit log mode resolution (`none`, `metadata`, `redacted_input`)
+     - redaction helper for log previews.
+4. Runtime governance wiring landed:
+   - file: `supabase/functions/chatbot-complete/index.ts`
+   - behavior:
+     - `429 RATE_LIMITED` enforcement before upstream request when limits are exceeded
+     - structured audit events for success and failure outcomes (`timeout`, `network`, `upstream`, `empty`, `rate_limited`).
+5. Governance test coverage landed:
+   - file: `tests/supabase/chatbot-complete.governance.test.ts`
+   - coverage:
+     - audit mode fallback behavior
+     - redaction behavior
+     - in-memory limiter enforcement and reset
+     - audit event payload behavior by mode.
+6. Deployment docs updated with new governance env controls and constraints:
+   - file: `docs/SUPABASE_CHATBOT_EDGE_FUNCTION_SETUP.md`
+   - added:
+     - `CHATBOT_RATE_LIMIT_MAX_REQUESTS`
+     - `CHATBOT_RATE_LIMIT_WINDOW_MS`
+     - `CHATBOT_AUDIT_LOG_MODE`
+     - note that limiter is instance-local (not globally coordinated).
+
+### Validation
+1. `npm test` -> PASS (`13` test files, `132` tests).
+2. `npm run typecheck` -> PASS.
+3. `git diff --cached --check` -> PASS.
+4. `git fetch origin && git pull --ff-only origin master` -> PASS (`Already up to date.`).
+5. `git push -u origin master` -> PASS (`47a44a4..10ca658`).
+
+### Known Gaps / Risks
+1. Supabase Edge rate limiting is instance-local memory; globally consistent throttling still requires shared backend state.
+2. Audit events are emitted to function logs only; centralized retention/searching/alerting policy remains an ops follow-up.
+3. Live deployment + authenticated smoke verification of governance behavior still depends on environment CLI access and secrets configuration.
+
+### Next Chat Starting Point
+1. Deploy `chatbot-complete` and set governance secrets in the target Supabase environment.
+2. Run authenticated smoke tests for:
+   - normal completion flow
+   - threshold crossing (`RATE_LIMITED`)
+   - audit log emission under selected `CHATBOT_AUDIT_LOG_MODE`.
+3. Decide whether production traffic requires globally coordinated rate limiting, and if yes, design/store that enforcement path.
 
 ## Session Update (2026-02-26, Assistant proxy governance slice: rate limiting + audit logging)
 
